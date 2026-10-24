@@ -1,4 +1,4 @@
-﻿streamlit
+streamlit
 pandas
 numpy
 plotly
@@ -6,3 +6,4 @@ geopy
 requests
 gspread
 google-auth
+streamlit-geolocation
