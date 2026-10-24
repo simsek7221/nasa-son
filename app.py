@@ -5,6 +5,7 @@ import requests
 import plotly.graph_objects as go
 from geopy.geocoders import Nominatim
 from datetime import datetime
+from streamlit_geolocation import streamlit_geolocation
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
@@ -186,19 +187,42 @@ def yer_ara(yer):
     except Exception:
         return analiz_uret(39.9334, 32.8597, "Bağlantı hatası, Ankara gösteriliyor.")
 
+def koordinatla_analiz(lat, lon):
+    try:
+        loc = geolocator.reverse((lat, lon), language="tr")
+        mekan = loc.address if loc else "Bulunduğunuz Konum"
+        return analiz_uret(lat, lon, mekan)
+    except Exception:
+        return analiz_uret(lat, lon, "Bulunduğunuz Konum")
+
 # --- STREAMLIT ARAYÜZÜ ---
 st.title("🛰️🌍 NASA & İklim Gözlem Platformu (Enterprise Edition)")
 st.caption("Gerçek Zamanlı API • Bulut Senkronize Canlı Çevre Dedektifi • Uygulama İçi Sokak Görünümü")
 
-col_search, col_btn = st.columns([3, 1])
+# Üst kısım: Arama ve GPS Butonu yan yana
+col_search, col_btn, col_gps = st.columns([2, 1, 1])
+
 with col_search:
-    konum_giris = st.text_input("🌍 Konum Arama (Şehir / Orman / Bölge)", value="Ankara")
+    konum_giris = st.text_input("🌍 Konum Arama", value="Ankara")
 with col_btn:
     st.write(" ")
-    st.write(" ")
-    analiz_yap = st.button("🔍 Analiz Et & Kaydet", use_container_width=True)
+    analiz_tik = st.button("🔍 Ara & Analiz Et", use_container_width=True)
 
-sat_map, street_html, rapor_md, trend_fig = yer_ara(konum_giris)
+with col_gps:
+    st.write(" ")
+    st.caption("GPS Konumu")
+    gps_data = streamlit_geolocation()
+
+# Varsayılan koordinatlar veya aranan yer
+lat, lon, mekan_adi = 39.9334, 32.8597, konum_giris
+
+# Eğer kullanıcı GPS butonuna bastıysa ve konum geldiyse
+if gps_data.get('latitude') and gps_data.get('longitude'):
+    lat = gps_data['latitude']
+    lon = gps_data['longitude']
+    sat_map, street_html, rapor_md, trend_fig = koordinatla_analiz(lat, lon)
+else:
+    sat_map, street_html, rapor_md, trend_fig = yer_ara(konum_giris)
 
 left_col, right_col = st.columns([2, 1])
 
