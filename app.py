@@ -151,9 +151,17 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
         legend=dict(orientation="h", y=1.15, x=0)
     )
 
-    m = folium.Map(location=[lat, lon], zoom_start=13, tiles=None)
-    folium.TileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', attr='Google Uydu', name='Uydu').add_to(m)
-    folium.Marker([lat, lon], popup=mekan, tooltip=f"📍 {mekan}", icon=folium.Icon(color="green", icon="leaf", prefix='fa')).add_to(m)
+    satellite_map_html = f"""
+    <div style="border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+      <iframe
+        width="100%"
+        height="350"
+        frameborder="0" style="border:0;"
+        src="https://maps.google.com/maps?q={lat},{lon}&t=k&z=13&output=embed"
+        allowfullscreen>
+      </iframe>
+    </div>
+    """
 
     street_view_html = f"""
     <div style="border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
@@ -167,7 +175,7 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
     </div>
     """
 
-    return m, street_view_html, rapor, fig
+    return satellite_map_html, street_view_html, rapor, fig
 
 def yer_ara(yer):
     try:
@@ -190,13 +198,13 @@ with col_btn:
     st.write(" ")
     analiz_yap = st.button("🔍 Analiz Et & Kaydet", use_container_width=True)
 
-m, street_html, rapor_md, trend_fig = yer_ara(konum_giris)
+sat_map, street_html, rapor_md, trend_fig = yer_ara(konum_giris)
 
 left_col, right_col = st.columns([2, 1])
 
 with left_col:
     st.subheader("Uydu Görünümü (Kuşbakışı)")
-    st_folium(m, width=None, height=400, use_container_width=True)
+    st.components.v1.html(sat_map, height=360)
     
     st.subheader("Uygulama İçi Sokak / Yakın Plan Görünüm")
     st.components.v1.html(street_html, height=300)
