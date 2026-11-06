@@ -19,7 +19,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- ELITE ULTRA-GLASSMORPHISM & NEON CSS ---
+# --- ELITE MULTI-COLOR GLASSMORPHISM & NEON CSS ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -31,45 +31,14 @@ st.markdown("""
     }
     
     .block-container {
-        background: rgba(30, 41, 59, 0.45) !important;
+        background: rgba(30, 41, 59, 0.4) !important;
         backdrop-filter: blur(24px) !important;
         -webkit-backdrop-filter: blur(24px) !important;
         border-radius: 32px !important;
         padding: 2.5rem !important;
         margin-top: 1.5rem !important;
-        border: 1px solid rgba(255, 255, 255, 0.12) !important;
-        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
-    }
-
-    div[data-testid="stMetric"] {
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%) !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        padding: 1.5rem !important;
-        border-radius: 24px !important;
-        backdrop-filter: blur(16px) !important;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    }
-
-    div[data-testid="stMetric"]:hover {
-        border-color: rgba(56, 189, 248, 0.5) !important;
-        transform: translateY(-5px) scale(1.02);
-        box-shadow: 0 20px 40px rgba(56, 189, 248, 0.2), inset 0 0 15px rgba(56, 189, 248, 0.1);
-        background: linear-gradient(135deg, rgba(56, 189, 248, 0.1) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
-    }
-
-    div[data-testid="stMetricLabel"] {
-        color: #94a3b8 !important;
-        font-size: 0.95rem !important;
-        font-weight: 600 !important;
-        letter-spacing: 0.5px;
-    }
-
-    div[data-testid="stMetricValue"] {
-        color: #38bdf8 !important;
-        font-weight: 800 !important;
-        font-size: 1.8rem !important;
-        text-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6) !important;
     }
 
     .stButton>button {
@@ -79,15 +48,13 @@ st.markdown("""
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
         padding: 0.8rem 2rem !important;
         font-weight: 700 !important;
-        letter-spacing: 0.8px;
         box-shadow: 0 8px 25px rgba(37, 99, 235, 0.4) !important;
         transition: all 0.3s ease;
     }
 
     .stButton>button:hover {
-        background: linear-gradient(135deg, #60a5fa 0%, #1d4ed8 100%) !important;
-        box-shadow: 0 12px 35px rgba(56, 189, 248, 0.6) !important;
         transform: translateY(-3px);
+        box-shadow: 0 12px 35px rgba(56, 189, 248, 0.6) !important;
     }
 
     .stTabs [data-baseweb="tab-list"] {
@@ -115,30 +82,47 @@ st.markdown("""
         border-color: rgba(56, 189, 248, 0.5) !important;
         box-shadow: 0 0 25px rgba(56, 189, 248, 0.2);
     }
-
-    h1, h2, h3 {
-        color: #f8fafc !important;
-        font-weight: 800 !important;
-        letter-spacing: -0.5px;
-    }
-
-    .status-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        background: rgba(16, 185, 129, 0.15);
-        color: #34d399;
-        border: 1px solid rgba(16, 185, 129, 0.35);
-        padding: 6px 16px;
-        border-radius: 30px;
-        font-size: 0.85rem;
-        font-weight: 700;
-        margin-bottom: 1rem;
-        box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
-        backdrop-filter: blur(8px);
-    }
 </style>
 """, unsafe_allow_html=True)
+
+# Özel Renkli Buzlu Cam Kutusu Oluşturucu
+def render_box(content_html, border_color, bg_gradient):
+    box_code = f"""
+    <div style="
+        background: {bg_gradient};
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        border: 1px solid {border_color};
+        border-radius: 24px;
+        padding: 1.8rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+    ">
+        {content_html}
+    </div>
+    """
+    st.markdown(box_code, unsafe_allow_html=True)
+
+# Farklı Renklerde Veri Kartı Oluşturucu
+def render_metric_card(title, value, caption, border_color, text_color, bg_gradient):
+    card_code = f"""
+    <div style="
+        background: {bg_gradient};
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid {border_color};
+        border-radius: 22px;
+        padding: 1.3rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.1);
+        transition: all 0.3s ease;
+    ">
+        <div style="color: #94a3b8; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px;">{title}</div>
+        <div style="color: {text_color}; font-size: 1.8rem; font-weight: 800; text-shadow: 0 0 20px {text_color}40; margin-bottom: 6px;">{value}</div>
+        <div style="color: #cbd5e1; font-size: 0.78rem; opacity: 0.85; line-height: 1.3;">{caption}</div>
+    </div>
+    """
+    st.markdown(card_code, unsafe_allow_html=True)
 
 @st.cache_data(ttl=600)
 def canli_hava_durumu_cek(lat, lon):
@@ -157,7 +141,6 @@ def canli_hava_durumu_cek(lat, lon):
 def analiz_uret(lat, lon):
     with st.spinner("🛰️ Canlı Meteoroloji ve 10 NASA Uydu Katmanı Senkronize Ediliyor..."):
         sicaklik, nem, yagis, ruzgar = canli_hava_durumu_cek(lat, lon)
-        
         radyasyon = round(max(2.0, min(9.0, 5.5 + (sicaklik * 0.1))), 2)
         gpm_precip = yagis
         smap_soil = round(max(5.0, min(45.0, 18.0 + (yagis * 15) - (sicaklik * 0.2))), 1)
@@ -177,13 +160,20 @@ def analiz_uret(lat, lon):
         "sedac_risk": sedac_risk, "lst_temp": lst_temp
     }
 
-# --- HEADER & STATUS ---
-st.markdown('<div class="status-badge">🟢 SYSTEM ONLINE • 10 NASA SATELLITE FEEDS ACTIVE</div>', unsafe_allow_html=True)
-st.title("🛰️ Lightning Flora: Enterprise NASA Observatory")
-st.caption("Yüksek Performanslı Saha Gözlem ve Çok Katmanlı Uydu Analiz Platformu")
+# --- HEADER KUTUSU ---
+render_box(
+    """
+    <div>
+        <span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;">🟢 SYSTEM ONLINE</span>
+        <h1 style="color: #f8fafc; margin: 10px 0 5px 0; font-size: 2rem; font-weight: 800;">🛰️ Lightning Flora: Enterprise NASA Observatory</h1>
+        <p style="color: #94a3b8; margin: 0; font-size: 0.95rem;">Yüksek Performanslı Saha Gözlem ve Çok Katmanlı Uydu Analiz Platformu</p>
+    </div>
+    """,
+    border_color="rgba(56, 189, 248, 0.3)",
+    bg_gradient="linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.85) 100%)"
+)
 
-# GPS Konum Tespiti
-st.markdown("### 📍 Saha Cihazı / Tablet Konum Tespiti")
+# --- GPS KUTUSU ---
 lat, lon = 37.8859, 41.1198 
 mekan = "Batman (Varsayılan Koordinat)"
 
@@ -194,12 +184,20 @@ if streamlit_geolocation is not None:
         lon = loc_data["longitude"]
         mekan = f"GPS Saha Konumu ({lat:.4f}, {lon:.4f})"
         st.success(f"✅ Konum başarıyla alındı: {lat}, {lon}")
-else:
-    st.info("💡 `streamlit-geolocation` yüklü ise butona basarak anlık konumunuzu alabilirsiniz.")
 
 d = analiz_uret(lat, lon)
 
-st.markdown(f"### 🎯 Aktif Koordinat Bilgisi: **{mekan}** ({lat:.4f}, {lon:.4f})")
+render_box(
+    f"""
+    <h3 style="color: #f8fafc; margin-top: 0; font-size: 1.2rem;">📍 Saha Cihazı / Tablet Konum Tespiti</h3>
+    <p style="color: #cbd5e1; margin-bottom: 12px; font-size: 0.9rem;">Anlık konum verilerini cihaz sensörlerinden veya varsayılan ağ koordinatlarından alın.</p>
+    <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 14px; padding: 12px 18px; color: #38bdf8; font-weight: 700; font-size: 1rem;">
+        🎯 Aktif Koordinat Bilgisi: {mekan} ({lat:.4f}, {lon:.4f})
+    </div>
+    """,
+    border_color="rgba(168, 85, 247, 0.3)",
+    bg_gradient="linear-gradient(135deg, rgba(49, 46, 129, 0.4) 0%, rgba(15, 23, 42, 0.8) 100%)"
+)
 
 # --- SEKMELER ---
 tab1, tab2, tab3 = st.tabs([
@@ -209,8 +207,14 @@ tab1, tab2, tab3 = st.tabs([
 ])
 
 with tab1:
-    st.subheader("🗺️ Çok Katmanlı NASA Gözlem Haritası")
-    st.caption("Sağ üst köşedeki katman simgesine tıklayarak radar alanlarını açıp kapatabilirsiniz.")
+    render_box(
+        """
+        <h3 style="color: #f8fafc; margin-top: 0; font-size: 1.25Names;">🗺️ Çok Katmanlı NASA Gözlem Haritası</h3>
+        <p style="color: #94a3b8; margin-bottom: 0; font-size: 0.9rem;">Sağ üst köşedeki katman simgesine tıklayarak radar alanlarını açıp kapatabilirsiniz.</p>
+        """,
+        border_color="rgba(16, 185, 129, 0.3)",
+        bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.35) 0%, rgba(15, 23, 42, 0.8) 100%)"
+    )
     
     m = folium.Map(location=[lat, lon], zoom_start=11, tiles=None)
     folium.TileLayer(
@@ -266,39 +270,47 @@ with tab1:
     st_folium(m, width=None, height=480, use_container_width=True, key="map_10_datasets_live")
 
 with tab2:
-    st.subheader("📊 Canlı Hava Durumu ve Su Kaynakları")
+    render_box(
+        """
+        <h3 style="color: #f8fafc; margin-top: 0; font-size: 1.25rem;">📊 Canlı Hava Durumu ve Su Kaynakları</h3>
+        <p style="color: #94a3b8; margin-bottom: 0; font-size: 0.9rem;">Meteorolojik ve hidrolojik ölçümlerin çok renkli cam kutulardaki dağılımı.</p>
+        """,
+        border_color="rgba(56, 189, 248, 0.3)",
+        bg_gradient="linear-gradient(135deg, rgba(14, 116, 144, 0.3) 0%, rgba(15, 23, 42, 0.8) 100%)"
+    )
+    
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.metric("1️⃣ Anlık Hava Sıcaklığı", f"{d['sicaklik']} °C")
-        st.caption("Anlık gerçek dış ortam sıcaklığı")
+        render_metric_card("1️⃣ Anlık Hava Sıcaklığı", f"{d['sicaklik']} °C", "Anlık gerçek dış ortam sıcaklığı", "rgba(56, 189, 248, 0.3)", "#38bdf8", "linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(15, 23, 42, 0.8) 100%)")
     with c2:
-        st.metric("2️⃣ Anlık Bağıl Nem", f"%{d['nem']}")
-        st.caption("Atmosferik nem oranı")
+        render_metric_card("2️⃣ Anlık Bağıl Nem", f"%{d['nem']}", "Atmosferik nem oranı", "rgba(16, 185, 129, 0.3)", "#34d399", "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(15, 23, 42, 0.8) 100%)")
     with c3:
-        st.metric("3️⃣ NASA GPM Yağış", f"{d['gpm_precip']} mm")
-        st.caption("Anlık toplam yağış miktarı")
+        render_metric_card("3️⃣ NASA GPM Yağış", f"{d['gpm_precip']} mm", "Anlık toplam yağış miktarı", "rgba(245, 158, 11, 0.3)", "#fbbf24", "linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(15, 23, 42, 0.8) 100%)")
     with c4:
-        st.metric("4️⃣ NASA SMAP Toprak Nemi", f"%{d['smap_soil']}")
-        st.caption("Yüzey ve kök bölgesi toprak nem oranı")
+        render_metric_card("4️⃣ NASA SMAP Toprak Nemi", f"%{d['smap_soil']}", "Yüzey ve kök bölgesi toprak nem oranı", "rgba(168, 85, 247, 0.3)", "#c084fc", "linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(15, 23, 42, 0.8) 100%)")
 
 with tab3:
-    st.subheader("🌿 Ekosistem, Atmosfer ve Çevre Verileri")
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    render_box(
+        """
+        <h3 style="color: #f8fafc; margin-top: 0; font-size: 1.25rem;">🌿 Ekosistem, Atmosfer ve Çevre Verileri</h3>
+        <p style="color: #94a3b8; margin-bottom: 0; font-size: 0.9rem;">Uydu tabanlı biyolojik ve çevresel risk göstergeleri.</p>
+        """,
+        border_color="rgba(239, 68, 68, 0.3)",
+        bg_gradient="linear-gradient(135deg, rgba(153, 27, 27, 0.25) 0%, rgba(15, 23, 42, 0.8) 100%)"
+    )
+    
+    c1, c2, c3 = st.columns(3)
     with c1:
-        st.metric("5️⃣ MODIS NDVI", f"{d['ndvi_val']}")
-        st.caption("Bitki yeşillik ve biyokütle indeksi")
+        render_metric_card("5️⃣ MODIS NDVI", f"{d['ndvi_val']}", "Bitki yeşillik ve biyokütle indeksi", "rgba(236, 72, 153, 0.3)", "#f472b6", "linear-gradient(135deg, rgba(236, 72, 153, 0.15) 0%, rgba(15, 23, 42, 0.8) 100%)")
     with c2:
-        st.metric("6️⃣ NASA OMI NO₂", f"{d['omi_no2']}")
-        st.caption("Azot dioksit kolon yoğunluğu")
+        render_metric_card("6️⃣ NASA OMI NO₂", f"{d['omi_no2']}", "Azot dioksit kolon yoğunluğu", "rgba(59, 130, 246, 0.3)", "#60a5fa", "linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(15, 23, 42, 0.8) 100%)")
     with c3:
-        st.metric("7️⃣ NASA GLM Yıldırım", f"{d['glm_flash']}")
-        st.caption("Atmosferik şimşek aktivitesi")
+        render_metric_card("7️⃣ NASA GLM Yıldırım", f"{d['glm_flash']}", "Atmosferik şimşek aktivitesi", "rgba(234, 179, 8, 0.3)", "#facc15", "linear-gradient(135deg, rgba(234, 179, 8, 0.15) 0%, rgba(15, 23, 42, 0.8) 100%)")
+    
+    c4, c5, c6 = st.columns(3)
     with c4:
-        st.metric("8️⃣ NASA SIF Floresan", f"{d['sif_val']}")
-        st.caption("Doğrudan fotosentez verimliliği")
+        render_metric_card("8️⃣ NASA SIF Floresan", f"{d['sif_val']}", "Doğrudan fotosentez verimliliği", "rgba(20, 184, 166, 0.3)", "#2dd4bf", "linear-gradient(135deg, rgba(20, 184, 166, 0.15) 0%, rgba(15, 23, 42, 0.8) 100%)")
     with c5:
-        st.metric("9️⃣ Landsat Biyokütle", f"{d['landsat_biomass']}")
-        st.caption("Yüksek çözünürlüklü bitki biyokütlesi")
+        render_metric_card("9️⃣ Landsat Biyokütle", f"{d['landsat_biomass']}", "Yüksek çözünürlüklü bitki biyokütlesi", "rgba(139, 92, 246, 0.3)", "#a78bfa", "linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(15, 23, 42, 0.8) 100%)")
     with c6:
-        st.metric("🔟 MODIS LST", f"{d['lst_temp']} °C")
-        st.caption("Yeryüzü termal sıcaklık anomalileri")
+        render_metric_card("🔟 MODIS LST", f"{d['lst_temp']} °C", "Yeryüzü termal sıcaklık anomalileri", "rgba(249, 115, 22, 0.3)", "#fb923c", "linear-gradient(135deg, rgba(249, 115, 22, 0.15) 0%, rgba(15, 23, 42, 0.8) 100%)")
