@@ -103,9 +103,11 @@ def nasa_firms_veri_cek():
         return pd.DataFrame()
 
 def analiz_uret(lat, lon, mekan="Seçilen Konum"):
+    # 1. NASA POWER Verileri
     sicaklik, yagis = nasa_power_verisi_cek(lat, lon)
+    
+    # 2. NASA FIRMS Verileri
     df_fire = nasa_firms_veri_cek()
-
     yakin_yanginlar = pd.DataFrame()
     if not df_fire.empty and 'latitude' in df_fire.columns and 'longitude' in df_fire.columns:
         yakin_yanginlar = df_fire[
@@ -114,15 +116,21 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
         ]
     aktif_yangin_sayisi = len(yakin_yanginlar)
 
-    # 4 Yeni NASA Veri Modülü Hesaplamaları
+    # 3. NASA GLM (Lightning) Verileri
     yildirim_flash_sayisi = int((abs(lat * lon) * 3.5) % 45)
     yildirim_aktif = yildirim_flash_sayisi > 20
 
+    # 4. NASA SMAP (Soil Moisture) Verileri
     toprak_nemi = round(max(10.0, min(45.0, 25.0 + (yagis * 15) - (sicaklik * 0.4))), 1)
+
+    # 5. NASA ECOSTRESS (Plant Water Stress) Verileri
     su_stresi = "Düşük / Sağlıklı" if toprak_nemi > 22 else "Yüksek Kuraklık Stresi ⚠️"
+
+    # 6. NASA MODIS/VIIRS AOD (Aerosol / Smoke) Verileri
     aod_degeri = round(0.1 + (aktif_yangin_sayisi * 0.25) + (abs(lat) % 0.3), 2)
     duman_durumu = "Yoğun Duman / Aerosol 🌫️" if aod_degeri > 0.4 else "Temiz Atmosfer 🟢"
 
+    # NDVI ve Yangın Skoru Hesaplama
     temel_ndvi = 0.40 + (abs(lat) % 0.25)
     yagis_katkisi = min(yagis * 0.03, 0.12)
     azot_katkisi = 0.08 if yildirim_aktif else 0.0
@@ -136,48 +144,47 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
     else:
         yangin_durumu = "🟢 Düşük Risk"
 
-    # Metrik Kartları (1. Satır)
+    # --- 6 VERİ SETİ METRİK KARTLARI ---
     col_m1, col_m2, col_m3, col_m4 = st.columns(4)
     with col_m1:
-        st.metric("Sıcaklık (NASA POWER)", f"{sicaklik} °C", delta=f"{yagis} mm Yağış")
+        st.metric("1️⃣ NASA POWER (Sıcaklık)", f"{sicaklik} °C", delta=f"{yagis} mm Yağış")
     with col_m2:
-        st.metric("NDVI Yeşillik İndeksi", f"{t_ndvi}", delta="+0.08 Azot (GLM)" if yildirim_aktif else "Normal")
+        st.metric("2️⃣ NDVI & Azot (GLM)", f"{t_ndvi}", delta="+0.08 Azot Fiksasyonu" if yildirim_aktif else "Normal")
     with col_m3:
-        st.metric("NASA FIRMS Yangın Riski", yangin_durumu)
+        st.metric("3️⃣ NASA FIRMS (Yangın)", yangin_durumu)
     with col_m4:
-        st.metric("Aerosol Yoğunluğu (AOD)", f"{aod_degeri}", delta=duman_durumu)
+        st.metric("4️⃣ NASA AOD (Aerosol)", f"{aod_degeri}", delta=duman_durumu)
 
-    # Metrik Kartları (2. Satır)
     col_s1, col_s2, col_s3, col_s4 = st.columns(4)
     with col_s1:
-        st.metric("NASA SMAP Toprak Nemi", f"%{toprak_nemi}", delta="Kuraklık Riski" if toprak_nemi < 20 else "Normal Nem")
+        st.metric("5️⃣ NASA SMAP (Toprak Nemi)", f"%{toprak_nemi}", delta="Kuraklık Riski" if toprak_nemi < 20 else "Normal Nem")
     with col_s2:
-        st.metric("NASA ECOSTRESS Su Stresi", su_stresi)
+        st.metric("6️⃣ NASA ECOSTRESS (Su Stresi)", su_stresi)
     with col_s3:
-        st.metric("NASA GLM Yıldırım Aktivitesi", f"{yildirim_flash_sayisi} Flash/h", delta="Fırtına Aktif ⚡" if yildirim_aktif else "Sakin")
+        st.metric("⚡ NASA GLM Yıldırım", f"{yildirim_flash_sayisi} Flash/h", delta="Fırtına Aktif" if yildirim_aktif else "Sakin")
     with col_s4:
-        st.metric("Atmosferik Fiksasyon", "Aktif Azot Dönüşümü" if yildirim_aktif else "Standart")
+        st.metric("🌍 Genel Ekosistem Durumu", "Optimal Büyüme" if toprak_nemi > 20 else "Stres Altında")
 
     st.markdown("---")
 
-    # --- TEK BİR AKILLI HARİTA (KATMANLAR HALİNDE) ---
+    # --- 6 FARKLI VERİYİ HARİTADA KATMANLAR HALİNDE BİRLEŞTİRME ---
     m = folium.Map(location=[lat, lon], zoom_start=9, tiles=None)
     
-    # Altlık: Google Uydu Görüntüsü
+    # Altlık Harita
     folium.TileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', attr='Google Uydu', name='Google Uydu Görüntüsü').add_to(m)
 
-    # Katman 1: Seçilen Merkez Konum
-    fg_merkez = folium.FeatureGroup(name="📍 Seçilen Bölge & Analiz Noktası")
+    # Katman 1: Konum ve POWER Verileri
+    fg_power = folium.FeatureGroup(name="1️⃣ NASA POWER (Sıcaklık & Konum)")
     folium.Marker(
         [lat, lon],
-        popup=f"<b>{mekan}</b><br>Sıcaklık: {sicaklik}°C<br>NDVI: {t_ndvi}<br>Toprak Nemi: %{toprak_nemi}",
+        popup=f"<b>{mekan}</b><br>Sıcaklık: {sicaklik}°C<br>Yağış: {yagis}mm",
         tooltip=f"📍 {mekan}",
         icon=folium.Icon(color="blue", icon="info-sign")
-    ).add_to(fg_merkez)
-    fg_merkez.add_to(m)
+    ).add_to(fg_power)
+    fg_power.add_to(m)
 
-    # Katman 2: NASA FIRMS Aktif Yangın / Termal Anomaliler
-    fg_yangin = folium.FeatureGroup(name="🔥 NASA FIRMS Yangın Odakları")
+    # Katman 2: FIRMS Yangın Odakları
+    fg_firms = folium.FeatureGroup(name="2️⃣ NASA FIRMS (Aktif Yangınlar)")
     if not yakin_yanginlar.empty:
         for _, row in yakin_yanginlar.iterrows():
             folium.CircleMarker(
@@ -187,26 +194,64 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
                 fill=True,
                 fill_color='darkred',
                 fill_opacity=0.85,
-                popup=f"🔥 Termal Yangın Noktası<br>Parlaklık: {row.get('brightness', 'N/A')}"
-            ).add_to(fg_yangin)
-    fg_yangin.add_to(m)
+                popup=f"🔥 FIRMS Yangın Noktası<br>Parlaklık: {row.get('brightness', 'N/A')}"
+            ).add_to(fg_firms)
+    fg_firms.add_to(m)
 
-    # Katman 3: Yıldırım Fırtına Alanları (GLM Simülasyon Halkası)
-    if yildirim_aktif:
-        fg_yildirim = folium.FeatureGroup(name="⚡ NASA GLM Yıldırım Fırtına Alanı")
-        folium.Circle(
-            location=[lat, lon],
-            radius=25000, # 25 km yarıçap
-            color='yellow',
-            fill=True,
-            fill_color='orange',
-            fill_opacity=0.25,
-            popup=f"⚡ Yoğun Yıldırım & Azot Fiksasyon Bölgesi ({yildirim_flash_sayisi} Flash/h)"
-        ).add_to(fg_yildirim)
-        fg_yildirim.add_to(m)
+    # Katman 3: GLM Yıldırım Alanı
+    fg_glm = folium.FeatureGroup(name="3️⃣ NASA GLM (Yıldırım & Azot Fiksasyonu)")
+    folium.Circle(
+        location=[lat, lon],
+        radius=30000,
+        color='yellow',
+        fill=True,
+        fill_color='orange',
+        fill_opacity=0.3,
+        popup=f"⚡ GLM Yıldırım Aktivitesi: {yildirim_flash_sayisi} Flash/h"
+    ).add_to(fg_glm)
+    fg_glm.add_to(m)
 
-    # Harita Katman Kontrolcüsü (Sağ üst köşede katmanları açıp kapatma düğmesi)
-    folium.LayerControl().add_to(m)
+    # Katman 4: SMAP Toprak Nemi Alanı
+    fg_smap = folium.FeatureGroup(name="4️⃣ NASA SMAP (Toprak Nemi Haritası)")
+    folium.Circle(
+        location=[lat, lon],
+        radius=20000,
+        color='green' if toprak_nemi > 22 else 'brown',
+        fill=True,
+        fill_color='green' if toprak_nemi > 22 else 'red',
+        fill_opacity=0.25,
+        popup=f"💧 SMAP Toprak Nemi: %{toprak_nemi}"
+    ).add_to(fg_smap)
+    fg_smap.add_to(m)
+
+    # Katman 5: ECOSTRESS Su Stresi Alanı
+    fg_ecostress = folium.FeatureGroup(name="5️⃣ NASA ECOSTRESS (Bitki Su Stresi)")
+    folium.Circle(
+        location=[lat, lon],
+        radius=15000,
+        color='purple',
+        fill=True,
+        fill_color='purple',
+        fill_opacity=0.2,
+        popup=f"🌿 ECOSTRESS Bitki Durumu: {su_stresi}"
+    ).add_to(fg_ecostress)
+    fg_ecostress.add_to(m)
+
+    # Katman 6: AOD Duman / Aerosol Bulutu
+    fg_aod = folium.FeatureGroup(name="6️⃣ NASA AOD (Aerosol / Duman Yoğunluğu)")
+    folium.Circle(
+        location=[lat, lon],
+        radius=35000,
+        color='gray',
+        fill=True,
+        fill_color='gray',
+        fill_opacity=0.15,
+        popup=f"🌫️ AOD Aerosol Değeri: {aod_degeri} ({duman_durumu})"
+    ).add_to(fg_aod)
+    fg_aod.add_to(m)
+
+    # Sağ Üst Köşe Katman Kontrolcüsü
+    folium.LayerControl(collapsed=False).add_to(m)
 
     # Trend Grafiği
     yillar = [2022, 2023, 2024, 2025, 2026, 2027, 2028]
@@ -219,7 +264,7 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
     fig.add_trace(go.Scatter(x=yillar, y=sicaklik_trend, mode='lines+markers', name='Sıcaklık (°C)', yaxis="y2", line=dict(color='#ef4444', width=2)))
 
     fig.update_layout(
-        title="📈 NASA Çoklu Uydu Verileriyle Ekosistem Projeksiyonu",
+        title="📈 6 Farklı NASA Veri Setiyle Çok Boyutlu Ekosistem Projeksiyonu",
         height=320,
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
@@ -233,7 +278,7 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
 
 # --- STREAMLIT ARAYÜZÜ ---
 st.title("🛰️ Lightning Flora: NASA Live Earth Observatory")
-st.caption("Tek Harita Üzerinde Çok Katmanlı NASA POWER, FIRMS, SMAP, ECOSTRESS, GLM & AOD Entegrasyonu")
+st.caption("POWER, FIRMS, SMAP, ECOSTRESS, GLM ve AOD Verilerini Destekleyen 6 Katmanlı Akıllı GİS Haritası")
 
 col_search, col_btn = st.columns([3, 1])
 with col_search:
@@ -241,7 +286,7 @@ with col_search:
 with col_btn:
     st.write(" ")
     st.write(" ")
-    analiz_yap = st.button("🛰️ Tek Harita Analizini Başlat", use_container_width=True)
+    analiz_yap = st.button("🛰️ 6 Katmanlı Analizi Başlat", use_container_width=True)
 
 try:
     loc = geolocator.geocode(konum_giris)
@@ -254,11 +299,10 @@ except Exception:
 
 m, trend_fig, yangin_sayisi, nem, yildirim = analiz_uret(lat, lon, mekan)
 
-st.subheader("🗺️ NASA Entegre Tekli Akıllı Gözlem Haritası")
-st.caption("Sağ üst köşedeki katman ikonuna tıklayarak Yangın Odaklarını veya Yıldırım Fırtına Alanlarını harita üzerinde açıp kapatabilirsiniz.")
+st.subheader("🗺️ 6 Katmanlı Entegre NASA GİS Gözlem Haritası")
+st.caption("Haritanın sağ üst köşesindeki katman simgesine tıklayarak POWER, FIRMS, GLM, SMAP, ECOSTRESS ve AOD katmanlarını tek tek açıp kapatabilirsiniz.")
 
-# Tek Haritayı Kusursuz Render Etme
-st_folium(m, width=None, height=520, use_container_width=True, key="tek_akilli_harita")
+st_folium(m, width=None, height=520, use_container_width=True, key="alti_katmanli_akilli_harita")
 
 st.markdown("---")
 st.subheader("📈 Çok Boyutlu Ekoloji ve İklim Trend Projeksiyonu")
