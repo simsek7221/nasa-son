@@ -14,83 +14,128 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - Enterprise NASA Observatory",
+    page_title="Lightning Flora - Elite NASA Observatory",
     page_icon="🛰️",
     layout="wide"
 )
 
-# --- ULTRA-MODERN GLASSMORPHISM & NEON CSS ---
+# --- ELITE ULTRA-GLASSMORPHISM & NEON CSS ---
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
     .stApp {
-        background: radial-gradient(circle at 50% 10%, #090d16 0%, #0f172a 60%, #020617 100%) !important;
+        background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0f172a 50%, #020617 100%) !important;
         color: #f8fafc !important;
-        font-family: 'Inter', sans-serif;
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
     }
+    
     .block-container {
-        background: rgba(15, 23, 42, 0.75) !important;
-        backdrop-filter: blur(20px) !important;
-        -webkit-backdrop-filter: blur(20px) !important;
-        border-radius: 28px !important;
+        background: rgba(30, 41, 59, 0.45) !important;
+        backdrop-filter: blur(24px) !important;
+        -webkit-backdrop-filter: blur(24px) !important;
+        border-radius: 32px !important;
         padding: 2.5rem !important;
         margin-top: 1.5rem !important;
-        border: 1px solid rgba(56, 189, 248, 0.2) !important;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 30px rgba(56, 189, 248, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
     }
+
     div[data-testid="stMetric"] {
-        background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.8) 100%) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        padding: 1.2rem !important;
-        border-radius: 20px !important;
-        backdrop-filter: blur(12px) !important;
-        transition: all 0.3s ease;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        padding: 1.5rem !important;
+        border-radius: 24px !important;
+        backdrop-filter: blur(16px) !important;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     }
+
     div[data-testid="stMetric"]:hover {
-        border-color: rgba(56, 189, 248, 0.4) !important;
-        transform: translateY(-3px);
-        box-shadow: 0 12px 30px rgba(56, 189, 248, 0.15);
+        border-color: rgba(56, 189, 248, 0.5) !important;
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 0 20px 40px rgba(56, 189, 248, 0.2), inset 0 0 15px rgba(56, 189, 248, 0.1);
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.1) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
     }
+
     div[data-testid="stMetricLabel"] {
         color: #94a3b8 !important;
-        font-size: 0.9rem !important;
-        font-weight: 500 !important;
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.5px;
     }
+
     div[data-testid="stMetricValue"] {
         color: #38bdf8 !important;
         font-weight: 800 !important;
-        font-size: 1.6rem !important;
+        font-size: 1.8rem !important;
+        text-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
     }
+
     .stButton>button {
-        background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%) !important;
+        background: linear-gradient(135deg, #38bdf8 0%, #2563eb 100%) !important;
         color: white !important;
-        border-radius: 14px !important;
-        border: none !important;
-        padding: 0.7rem 1.8rem !important;
-        font-weight: 600 !important;
-        letter-spacing: 0.5px;
-        box-shadow: 0 4px 20px rgba(56, 189, 248, 0.4) !important;
+        border-radius: 16px !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        padding: 0.8rem 2rem !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.8px;
+        box-shadow: 0 8px 25px rgba(37, 99, 235, 0.4) !important;
         transition: all 0.3s ease;
     }
+
     .stButton>button:hover {
-        background: linear-gradient(135deg, #7dd3fc 0%, #0284c7 100%) !important;
-        box-shadow: 0 6px 25px rgba(56, 189, 248, 0.6) !important;
-        transform: translateY(-2px);
+        background: linear-gradient(135deg, #60a5fa 0%, #1d4ed8 100%) !important;
+        box-shadow: 0 12px 35px rgba(56, 189, 248, 0.6) !important;
+        transform: translateY(-3px);
     }
+
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 12px;
+        background: rgba(15, 23, 42, 0.6);
+        padding: 10px;
+        border-radius: 22px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(12px);
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 16px;
+        color: #94a3b8;
+        font-weight: 600;
+        padding: 12px 24px;
+        border: 1px solid transparent;
+        transition: all 0.3s ease;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.25) 0%, rgba(37, 99, 235, 0.25) 100%) !important;
+        color: #38bdf8 !important;
+        border-color: rgba(56, 189, 248, 0.5) !important;
+        box-shadow: 0 0 25px rgba(56, 189, 248, 0.2);
+    }
+
     h1, h2, h3 {
         color: #f8fafc !important;
-        font-weight: 700 !important;
+        font-weight: 800 !important;
+        letter-spacing: -0.5px;
     }
+
     .status-badge {
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
         background: rgba(16, 185, 129, 0.15);
         color: #34d399;
-        border: 1px solid rgba(16, 185, 129, 0.3);
-        padding: 4px 14px;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        margin-bottom: 0.8rem;
+        border: 1px solid rgba(16, 185, 129, 0.35);
+        padding: 6px 16px;
+        border-radius: 30px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+        backdrop-filter: blur(8px);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -241,19 +286,19 @@ with tab3:
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     with c1:
         st.metric("5️⃣ MODIS NDVI", f"{d['ndvi_val']}")
-        st.caption("Bitki yeşillik indeksi")
+        st.caption("Bitki yeşillik ve biyokütle indeksi")
     with c2:
         st.metric("6️⃣ NASA OMI NO₂", f"{d['omi_no2']}")
-        st.caption("Azot dioksit yoğunluğu")
+        st.caption("Azot dioksit kolon yoğunluğu")
     with c3:
         st.metric("7️⃣ NASA GLM Yıldırım", f"{d['glm_flash']}")
-        st.caption("Şimşek aktivitesi")
+        st.caption("Atmosferik şimşek aktivitesi")
     with c4:
         st.metric("8️⃣ NASA SIF Floresan", f"{d['sif_val']}")
-        st.caption("Fotosentez verimi")
+        st.caption("Doğrudan fotosentez verimliliği")
     with c5:
         st.metric("9️⃣ Landsat Biyokütle", f"{d['landsat_biomass']}")
-        st.caption("Biyokütle ton/ha")
+        st.caption("Yüksek çözünürlüklü bitki biyokütlesi")
     with c6:
         st.metric("🔟 MODIS LST", f"{d['lst_temp']} °C")
-        st.caption("Yeryüzü sıcaklığı")
+        st.caption("Yeryüzü termal sıcaklık anomalileri")
