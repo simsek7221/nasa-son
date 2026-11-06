@@ -15,7 +15,7 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - Hyper Neon NASA Observatory",
+    page_title="Lightning Flora - Official Meteorological NASA Observatory",
     page_icon="🛰️",
     layout="wide"
 )
@@ -133,23 +133,32 @@ def render_metric_card(title, value, caption, border_color, text_color, glow_col
     st.markdown(html_content, unsafe_allow_html=True)
 
 @st.cache_data(ttl=600)
-def uluslararasi_hava_durumu_cek(lat, lon):
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,precipitation,rain,weather_code,wind_speed_10m,surface_pressure"
+def resmi_meteoroloji_cek(lat, lon):
+    # Norveç Meteoroloji Enstitüsü (MET Norway) Resmi API
+    url = f"https://api.met.no/weatherapi/locationforecast/2.0/compact?lat={round(lat, 4)}&lon={round(lon, 4)}"
+    headers = {'User-Agent': 'LightningFloraEnterpriseObservatory/2.6 contact@nasa-observer.app'}
     try:
-        res = requests.get(url, timeout=5).json()
-        current = res.get("current", {})
-        sicaklik = float(current.get("temperature_2m", 20.0))
-        nem = float(current.get("relative_humidity_2m", 50.0))
-        yagis = float(current.get("precipitation", 0.0))
-        ruzgar = float(current.get("wind_speed_10m", 5.0))
-        basinc = float(current.get("surface_pressure", 1013.25))
+        res = requests.get(url, headers=headers, timeout=5).json()
+        instant_details = res.get("properties", {}).get("timeseries", [])[0].get("data", {}).get("instant", {}).get("details", {})
+        
+        sicaklik = float(instant_details.get("air_temperature", 20.0))
+        nem = float(instant_details.get("relative_humidity_50m", instant_details.get("relative_humidity_2m", 50.0)))
+        yagis = 0.0  # Anlık veride yağış sonraki saatlik stepte yer alır
+        # Saatlik yağış tahmini kontrolü
+        next_hours = res.get("properties", {}).get("timeseries", [])[0].get("data", {}).get("next_1_hours", {}).get("details", {})
+        if "precipitation_amount" in next_hours:
+            yagis = float(next_hours.get("precipitation_amount", 0.0))
+            
+        ruzgar = float(instant_details.get("wind_speed", 5.0))
+        basinc = float(instant_details.get("air_pressure_at_sea_level", 1013.25))
+        
         return round(sicaklik, 2), round(nem, 2), round(yagis, 2), round(ruzgar, 2), round(basinc, 2)
     except Exception:
         return 20.00, 50.00, 0.00, 5.00, 1013.25
 
 def analiz_uret(lat, lon):
-    with st.spinner("🛰️ Uluslararası Meteoroloji Kaynağı ve 10 NASA Uydu Katmanı Senkronize Ediliyor..."):
-        sicaklik, nem, yagis, ruzgar, basinc = uluslararasi_hava_durumu_cek(lat, lon)
+    with st.spinner("🛰️ Resmi MET Norway Meteoroloji İstasyonu ve 10 NASA Uydu Katmanı Senkronize Ediliyor..."):
+        sicaklik, nem, yagis, ruzgar, basinc = resmi_meteoroloji_cek(lat, lon)
         radyasyon = round(max(2.0, min(9.0, 5.5 + (sicaklik * 0.1))), 2)
         gpm_precip = yagis
         smap_soil = round(max(5.0, min(45.0, 18.0 + (yagis * 15) - (sicaklik * 0.2))), 2)
@@ -172,7 +181,7 @@ def analiz_uret(lat, lon):
 # --- HEADER KUTUSU ---
 render_box(
     title="🛰️ Lightning Flora: Enterprise NASA Observatory",
-    subtitle="🟢 SYSTEM ONLINE • Uluslararası Hava Durumu ve Çok Katmanlı Uydu Analiz Platformu",
+    subtitle="🟢 SYSTEM ONLINE • Resmi MET Norway Meteoroloji Enstitüsü ve Çok Katmanlı Uydu Analiz Platformu",
     border_color="rgba(56, 189, 248, 0.8)",
     glow_color="rgba(56, 189, 248, 0.6)",
     bg_gradient="linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)"
@@ -221,7 +230,7 @@ render_box(
 # --- SEKMELER ---
 tab1, tab2, tab3 = st.tabs([
     "🗺️ Harita ve Uydu Katmanları", 
-    "📊 Uluslararası Canlı Hava & Su", 
+    "📊 Resmi Meteoroloji & Su", 
     "🌿 Ekosistem & Atmosfer"
 ])
 
@@ -289,8 +298,8 @@ with tab1:
 
 with tab2:
     render_box(
-        title="📊 Uluslararası Canlı Hava Durumu ve Su Kaynakları",
-        subtitle="Uluslararası meteoroloji ağından alınan yüksek ondalık hassasiyetli ölçümler.",
+        title="📊 Resmi MET Norway Meteoroloji Verileri",
+        subtitle="Uluslararası resmi meteoroloji enstitüsünden alınan yüksek ondalık hassasiyetli ölçümler.",
         border_color="rgba(56, 189, 248, 0.8)",
         glow_color="rgba(56, 189, 248, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(14, 116, 144, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -298,13 +307,13 @@ with tab2:
     
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        render_metric_card("1️⃣ Anlık Sıcaklık", f"{d['sicaklik']:.2f} °C", "Ondalıklı uluslararası dış ortam sıcaklığı", "rgba(56, 189, 248, 0.8)", "#38bdf8", "rgba(56, 189, 248, 0.5)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("1️⃣ Anlık Sıcaklık", f"{d['sicaklik']:.2f} °C", "Resmi istasyon dış ortam sıcaklığı", "rgba(56, 189, 248, 0.8)", "#38bdf8", "rgba(56, 189, 248, 0.5)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c2:
         render_metric_card("2️⃣ Anlık Bağıl Nem", f"%{d['nem']:.2f}", "Hassas atmosferik nem oranı", "rgba(16, 185, 129, 0.8)", "#34d399", "rgba(16, 185, 129, 0.5)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c3:
         render_metric_card("3️⃣ NASA GPM Yağış", f"{d['gpm_precip']:.2f} mm", "Hassas toplam yağış miktarı", "rgba(245, 158, 11, 0.8)", "#fbbf24", "rgba(245, 158, 11, 0.5)", "linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c4:
-        render_metric_card("4️⃣ Atmosferik Basınç", f"{d['basinc']:.2f} hPa", "Hassas yüzey hava basıncı", "rgba(168, 85, 247, 0.8)", "#c084fc", "rgba(168, 85, 247, 0.5)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("4️⃣ Atmosferik Basınç", f"{d['basinc']:.2f} hPa", "Hassas deniz seviyesi hava basıncı", "rgba(168, 85, 247, 0.8)", "#c084fc", "rgba(168, 85, 247, 0.5)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
 
 with tab3:
     render_box(
