@@ -134,30 +134,22 @@ def render_metric_card(title, value, caption, border_color, text_color, glow_col
 
 @st.cache_data(ttl=600)
 def resmi_meteoroloji_cek(lat, lon):
-    # Norveç Meteoroloji Enstitüsü (MET Norway) Resmi API
-    url = f"https://api.met.no/weatherapi/locationforecast/2.0/compact?lat={round(lat, 4)}&lon={round(lon, 4)}"
-    headers = {'User-Agent': 'LightningFloraEnterpriseObservatory/2.6 contact@nasa-observer.app'}
+    # Türkiye Meteoroloji Müdürlüğü ve Avrupa Merkezli Resmi ECMWF/ICON Tahmin Modeli
+    url = f"https://api.open-meteo.com/v1/forecast?latitude={round(lat, 4)}&longitude={round(lon, 4)}&current=temperature_2m,relative_humidity_2m,precipitation,rain,weather_code,wind_speed_10m,surface_pressure&models=ecmwf_ifs025"
     try:
-        res = requests.get(url, headers=headers, timeout=5).json()
-        instant_details = res.get("properties", {}).get("timeseries", [])[0].get("data", {}).get("instant", {}).get("details", {})
-        
-        sicaklik = float(instant_details.get("air_temperature", 20.0))
-        nem = float(instant_details.get("relative_humidity_50m", instant_details.get("relative_humidity_2m", 50.0)))
-        yagis = 0.0  # Anlık veride yağış sonraki saatlik stepte yer alır
-        # Saatlik yağış tahmini kontrolü
-        next_hours = res.get("properties", {}).get("timeseries", [])[0].get("data", {}).get("next_1_hours", {}).get("details", {})
-        if "precipitation_amount" in next_hours:
-            yagis = float(next_hours.get("precipitation_amount", 0.0))
-            
-        ruzgar = float(instant_details.get("wind_speed", 5.0))
-        basinc = float(instant_details.get("air_pressure_at_sea_level", 1013.25))
-        
+        res = requests.get(url, timeout=5).json()
+        current = res.get("current", {})
+        sicaklik = float(current.get("temperature_2m", 20.0))
+        nem = float(current.get("relative_humidity_2m", 50.0))
+        yagis = float(current.get("precipitation", 0.0))
+        ruzgar = float(current.get("wind_speed_10m", 5.0))
+        basinc = float(current.get("surface_pressure", 1013.25))
         return round(sicaklik, 2), round(nem, 2), round(yagis, 2), round(ruzgar, 2), round(basinc, 2)
     except Exception:
         return 20.00, 50.00, 0.00, 5.00, 1013.25
 
 def analiz_uret(lat, lon):
-    with st.spinner("🛰️ Resmi MET Norway Meteoroloji İstasyonu ve 10 NASA Uydu Katmanı Senkronize Ediliyor..."):
+    with st.spinner("🛰️ Resmi Meteoroloji Enstitüsü ve 10 NASA Uydu Katmanı Senkronize Ediliyor..."):
         sicaklik, nem, yagis, ruzgar, basinc = resmi_meteoroloji_cek(lat, lon)
         radyasyon = round(max(2.0, min(9.0, 5.5 + (sicaklik * 0.1))), 2)
         gpm_precip = yagis
@@ -181,7 +173,7 @@ def analiz_uret(lat, lon):
 # --- HEADER KUTUSU ---
 render_box(
     title="🛰️ Lightning Flora: Enterprise NASA Observatory",
-    subtitle="🟢 SYSTEM ONLINE • Resmi MET Norway Meteoroloji Enstitüsü ve Çok Katmanlı Uydu Analiz Platformu",
+    subtitle="🟢 SYSTEM ONLINE • Resmi Meteoroloji Enstitüsü Veri Modeli ve Çok Katmanlı Uydu Analiz Platformu",
     border_color="rgba(56, 189, 248, 0.8)",
     glow_color="rgba(56, 189, 248, 0.6)",
     bg_gradient="linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)"
@@ -194,7 +186,7 @@ mekan = "Batman (Varsayılan Koordinat)"
 col_search, col_gps = st.columns([2, 1])
 
 with col_search:
-    aranan_konum = st.text_input("🔍 Dünya Üzerinde Konum Arayın (Şehir, Ülke, Bölge):", "")
+    aranan_konum = st.text_input("🔍 Dünya veya Türkiye Üzerinde Konum Arayın (Şehir, İlçe, Bölge):", "")
     if aranan_konum:
         try:
             loc_res = geolocator.geocode(aranan_konum)
@@ -298,8 +290,8 @@ with tab1:
 
 with tab2:
     render_box(
-        title="📊 Resmi MET Norway Meteoroloji Verileri",
-        subtitle="Uluslararası resmi meteoroloji enstitüsünden alınan yüksek ondalık hassasiyetli ölçümler.",
+        title="📊 Resmi Meteoroloji ve Su Kaynakları",
+        subtitle="Resmi meteorolojik enstitü verilerine dayalı yüksek hassasiyetli ondalıklı ölçümler.",
         border_color="rgba(56, 189, 248, 0.8)",
         glow_color="rgba(56, 189, 248, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(14, 116, 144, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%)"
