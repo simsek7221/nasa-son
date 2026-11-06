@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import folium
+from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
 import requests
 import plotly.graph_objects as go
@@ -23,7 +24,7 @@ st.markdown("""
         color: #f8fafc !important;
     }
     .block-container {
-        background: rgba(30, 41, 59, 0.75) !important;
+        background: rgba(30, 41, 59, 0.85) !important;
         backdrop-filter: blur(16px) !important;
         -webkit-backdrop-filter: blur(16px) !important;
         border-radius: 24px !important;
@@ -100,7 +101,7 @@ def nasa_power_verisi_cek(lat, lon):
     except Exception:
         return 21.5, 0.05
 
-@st.cache_data(ttl=86400) # Önbelleğe alarak tekrar indirme süresini sıfırlıyoruz
+@st.cache_data(ttl=86400)
 def nasa_firms_veri_cek():
     url = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/c6/csv/MODIS_C6_1_Global_24h.csv"
     try:
@@ -166,10 +167,15 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
 
     st.markdown("---")
 
-    # --- HIZLANDIRILMIŞ HARİTA VE KATMANLAR ---
+    # --- KÜMELEME VE OPTİMİZE EDİLMİŞ HARİTA ---
     m = folium.Map(location=[lat, lon], zoom_start=8, tiles=None)
     
-    folium.TileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', attr='Google Uydu', name='Google Uydu Görüntüsü').add_to(m)
+    # Canlı ve parlak uydu altlığı (Esri World Imagery)
+    folium.TileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        attr='Esri',
+        name='Esri Canlı Uydu'
+    ).add_to(m)
 
     # Katman 1: Konum ve POWER Verileri
     fg_power = folium.FeatureGroup(name="1️⃣ NASA POWER (Sıcaklık & Konum)")
@@ -181,21 +187,22 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
     ).add_to(fg_power)
     fg_power.add_to(m)
 
-    # Katman 2: FIRMS Yangınları (Performans için sadece seçilen bölgeye yakın olanlar veya optimize edilmiş örnekleme)
-    fg_firms = folium.FeatureGroup(name="2️⃣ NASA FIRMS (Bölgesel Aktif Yangınlar)")
+    # Katman 2: MarkerCluster ile Donmayan FIRMS Yangınları
+    fg_firms = folium.FeatureGroup(name="2️⃣ NASA FIRMS (Küresel Yangın Kümeleri)")
+    marker_cluster = MarkerCluster().add_to(fg_firms)
+    
     if not df_fire.empty and 'latitude' in df_fire.columns and 'longitude' in df_fire.columns:
-        # Tarayıcının donmaması için performans optimizasyonlu filtreleme
-        render_yanginlar = df_fire.sample(n=min(1500, len(df_fire)), random_state=42) if len(df_fire) > 1500 else df_fire
-        for _, row in render_yanginlar.iterrows():
+        for _, row in df_fire.iterrows():
             folium.CircleMarker(
                 location=[row['latitude'], row['longitude']],
                 radius=4,
-                color='red',
+                color='#ff4b4b',
                 fill=True,
-                fill_color='darkred',
-                fill_opacity=0.8,
-                popup=f"🔥 Yangın Noktası<br>Parlaklık: {row.get('brightness', 'N/A')}"
-            ).add_to(fg_firms)
+                fill_color='#ff2222',
+                fill_opacity=0.9,
+                popup=f"🔥 Yangın Odak Noktası<br>Parlaklık: {row.get('brightness', 'N/A')}"
+            ).add_to(marker_cluster)
+            
     fg_firms.add_to(m)
 
     # Katman 3: GLM Yıldırım Alanı
@@ -277,7 +284,7 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
 
 # --- STREAMLIT ARAYÜZÜ ---
 st.title("🛰️ Lightning Flora: NASA Live Earth Observatory")
-st.caption("Önbelleğe Alınmış Hızlı Veri Akışı ve 6 Katmanlı GİS Haritası")
+st.caption("Kümeleme Optimizasyonlu ve Canlı Uydu Altlıklı 6 Katmanlı GİS Haritası")
 
 col_search, col_btn = st.columns([3, 1])
 with col_search:
@@ -299,9 +306,9 @@ except Exception:
 m, trend_fig, yangin_sayisi, nem, yildirim = analiz_uret(lat, lon, mekan)
 
 st.subheader("🗺️ 6 Katmanlı Entegre NASA GİS Gözlem Haritası")
-st.caption("Haritanın sağ üst köşesindeki katman simgesine tıklayarak katmanları yönetebilirsiniz.")
+st.caption("Haritanın sağ üst köşesinden katmanları yönetebilir, yakınlaşarak/uzaklaşarak yangın kümelerini inceleyebilirsiniz.")
 
-st_folium(m, width=None, height=520, use_container_width=True, key="hizli_akilli_harita")
+st_folium(m, width=None, height=520, use_container_width=True, key="optimize_akilli_harita")
 
 st.markdown("---")
 st.subheader("📈 Çok Boyutlu Ekosistem Projeksiyonu")
