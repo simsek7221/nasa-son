@@ -164,6 +164,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 
 with tab1:
     st.subheader("🗺️ Saha GPS Noktası ve 15 NASA Veri Katmanı")
+    st.caption("Haritanın sağ üst köşesindeki katman simgesine tıklayarak menüyü açıp kapatabilirsiniz.")
     
     m = folium.Map(location=[lat, lon], zoom_start=11, tiles=None)
     folium.TileLayer(
@@ -181,7 +182,7 @@ with tab1:
     ).add_to(fg_tablet)
     fg_tablet.add_to(m)
 
-    # 1. POWER & Konum Katmanı (Noktalı/Kesikli Çizgili Modern Radar Tasarımı)
+    # 1. POWER & Konum Katmanı (Modern Noktalı/Kesikli Çizgili Tasarım)
     fg_power = folium.FeatureGroup(name="1, 13, 14. NASA POWER & LST (Sıcaklık)")
     folium.Circle(
         [lat, lon], radius=8000, color='#38bdf8', weight=2, dash_array='6, 6', fill=True, fill_color='#38bdf8', fill_opacity=0.08,
@@ -229,7 +230,8 @@ with tab1:
     ).add_to(fg_sedac)
     fg_sedac.add_to(m)
 
-    folium.LayerControl(collapsed=False).add_to(m)
+    # Katman yöneticisi (collapsed=True ile açılıp kapanabilir ikon haline getirildi)
+    folium.LayerControl(collapsed=True).add_to(m)
     st_folium(m, width=None, height=480, use_container_width=True, key="map_gps_15")
 
 with tab2:
