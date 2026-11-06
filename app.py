@@ -136,8 +136,8 @@ st.caption("Tek Tuşla Saha GPS Konum Tespiti ve 15 NASA Uydu Verisi Entegrasyon
 
 # GPS Butonu Alanı
 st.markdown("### 📍 Saha Cihazı / Tablet Konum Tespiti")
-lat, lon = 36.8969, 30.7133 # Varsayılan (Antalya)
-mekan = "Antalya (Varsayılan)"
+lat, lon = 37.8859, 41.1198 # Varsayılan (Batman)
+mekan = "Batman (Varsayılan)"
 
 if streamlit_geolocation is not None:
     loc_data = streamlit_geolocation()
@@ -147,11 +147,11 @@ if streamlit_geolocation is not None:
         mekan = f"GPS Saha Konumu ({lat:.4f}, {lon:.4f})"
         st.success(f"✅ Konum başarıyla alındı: {lat}, {lon}")
 else:
-    st.info("💡 `streamlit-geolocation` kütüphanesi yüklü değilse varsayılan konum kullanılır. Yüklemek için: `pip install streamlit-geolocation`")
+    st.info("💡 `streamlit-geolocation` yüklü ise butona basarak anlık konumunuzu alabilirsiniz.")
 
 d = analiz_uret(lat, lon)
 
-st.markdown(f"### 🎯 Aktif Koordinat Bilgisi: **{mekan}**")
+st.markdown(f"### 🎯 Aktif Koordinat Bilgisi: **{mekan}** ({lat:.4f}, {lon:.4f})")
 
 # --- SEKMLER ---
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -237,46 +237,61 @@ with tab2:
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.metric("1️⃣ NASA GLM Yıldırım", f"{d['glm_flash']} Flash/h")
+        st.caption("Atmosferik şimşek aktivitesi ve fırtına yoğunluğu")
     with c2:
         st.metric("2️⃣ NASA OMI/TROPOMI NO₂", f"{d['omi_no2']} Pvu")
+        st.caption("Azot dioksit kolon yoğunluğu ve doğal azot fiksasyonu")
     with c3:
         st.metric("3️⃣ NASA AOD Aerosol", f"{d['aod_val']}")
+        st.caption("Atmosferik duman, toz ve partikül optik derinliği")
     with c4:
         st.metric("4️⃣ NASA GMAO Rüzgar", f"{d['gmao_wind']} m/s")
+        st.caption("Atmosferik taşınım ve rüzgar hızı modeli")
 
 with tab3:
     st.subheader("💧 Toprak ve Hidroloji Gözlemleri")
     c1, c2, c3 = st.columns(3)
     with c1:
         st.metric("5️⃣ NASA SMAP Toprak Nemi", f"%{d['smap_soil']}")
+        st.caption("Yüzey ve kök bölgesi toprak nem oranı")
     with c2:
         st.metric("6️⃣ NASA GPM Yağış Ölçümü", f"{d['gpm_precip']} mm")
+        st.caption("Milimetrik küresel yağış ve kar birikimi")
     with c3:
         st.metric("7️⃣ NASA GRACE Yeraltı Suyu", f"{d['grace_gw']} cm")
+        st.caption("Yeraltı su depolama anormallikleri")
 
 with tab4:
     st.subheader("🌿 Bitki Örtüsü ve Ekosistem Sağlığı")
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
         st.metric("8️⃣ MODIS NDVI", f"{d['ndvi_val']}")
+        st.caption("Bitki örtüsü yeşillik ve biyokütle indeksi")
     with c2:
         st.metric("9️⃣ ECOSTRESS Su Stresi", d['ecostress_stress'])
+        st.caption("Termal sensörlerle ölçülen bitki su stresi")
     with c3:
         st.metric("🔟 NASA SIF Floresan", f"{d['sif_val']} mW")
+        st.caption("Doğrudan fotosentez verimliliği")
     with c4:
         st.metric("11️⃣ Landsat Biyokütle", f"{d['landsat_biomass']} t/ha")
+        st.caption("Yüksek çözünürlüklü bitki biyokütlesi")
     with c5:
         st.metric("12️⃣ Phenology Evresi", d['phenology_phase'])
+        st.caption("Mevsimsel büyüme ve yeşillenme döngüsü")
 
 with tab5:
     st.subheader("🌡️ İklim, Yüzey Sıcaklığı ve Çevresel Risk")
     c1, c2, c3 = st.columns(3)
     with c1:
         st.metric("13️⃣ NASA POWER Sıcaklık", f"{d['sicaklik']} °C")
+        st.caption("Günlük yüzey sıcaklığı ve güneş radyasyonu")
     with c2:
         st.metric("14️⃣ MODIS LST Yüzey Sıcaklığı", f"{d['lst_temp']} °C")
+        st.caption("Yeryüzü termal sıcaklık anomalileri")
     with c3:
         st.metric("15️⃣ SEDAC Çevresel Risk", f"{d['sedac_risk']}")
+        st.caption("İnsan ayak izi ve çevresel baskı indeksi")
 
 st.markdown("---")
 
