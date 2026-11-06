@@ -105,14 +105,17 @@ def nasa_power_verisi_cek(lat, lon):
 def nasa_firms_veri_cek():
     url = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/c6/csv/MODIS_C6_1_Global_24h.csv"
     try:
-        df_fire = pd.read_csv(url)
+        # Donmayı önlemek için optimize edilmiş satır sınırı (nrows)
+        df_fire = pd.read_csv(url, nrows=3000)
         return df_fire
     except Exception:
         return pd.DataFrame()
 
 def analiz_uret(lat, lon, mekan="Seçilen Konum"):
     sicaklik, yagis = nasa_power_verisi_cek(lat, lon)
-    df_fire = nasa_firms_veri_cek()
+    
+    with st.spinner("🛰️ NASA Uydu Verileri ve Yangın Odakları Yükleniyor..."):
+        df_fire = nasa_firms_veri_cek()
 
     yakin_yanginlar = pd.DataFrame()
     if not df_fire.empty and 'latitude' in df_fire.columns and 'longitude' in df_fire.columns:
@@ -167,17 +170,16 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
 
     st.markdown("---")
 
-    # --- KÜMELEME VE OPTİMİZE EDİLMİŞ HARİTA ---
+    # --- HIZLANDIRILMIŞ HARİTA ---
     m = folium.Map(location=[lat, lon], zoom_start=8, tiles=None)
     
-    # Canlı ve parlak uydu altlığı (Esri World Imagery)
     folium.TileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         attr='Esri',
         name='Esri Canlı Uydu'
     ).add_to(m)
 
-    # Katman 1: Konum ve POWER Verileri
+    # Katman 1: Konum
     fg_power = folium.FeatureGroup(name="1️⃣ NASA POWER (Sıcaklık & Konum)")
     folium.Marker(
         [lat, lon],
@@ -187,8 +189,8 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
     ).add_to(fg_power)
     fg_power.add_to(m)
 
-    # Katman 2: MarkerCluster ile Donmayan FIRMS Yangınları
-    fg_firms = folium.FeatureGroup(name="2️⃣ NASA FIRMS (Küresel Yangın Kümeleri)")
+    # Katman 2: FIRMS Yangın Kümeleri
+    fg_firms = folium.FeatureGroup(name="2️⃣ NASA FIRMS (Aktif Yangın Odakları)")
     marker_cluster = MarkerCluster().add_to(fg_firms)
     
     if not df_fire.empty and 'latitude' in df_fire.columns and 'longitude' in df_fire.columns:
@@ -200,13 +202,13 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
                 fill=True,
                 fill_color='#ff2222',
                 fill_opacity=0.9,
-                popup=f"🔥 Yangın Odak Noktası<br>Parlaklık: {row.get('brightness', 'N/A')}"
+                popup=f"🔥 Yangın Noktası<br>Parlaklık: {row.get('brightness', 'N/A')}"
             ).add_to(marker_cluster)
             
     fg_firms.add_to(m)
 
-    # Katman 3: GLM Yıldırım Alanı
-    fg_glm = folium.FeatureGroup(name="3️⃣ NASA GLM (Yıldırım & Azot Fiksasyonu)")
+    # Katman 3: GLM
+    fg_glm = folium.FeatureGroup(name="3️⃣ NASA GLM (Yıldırım & Azot)")
     folium.Circle(
         location=[lat, lon],
         radius=30000,
@@ -218,8 +220,8 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
     ).add_to(fg_glm)
     fg_glm.add_to(m)
 
-    # Katman 4: SMAP Toprak Nemi Alanı
-    fg_smap = folium.FeatureGroup(name="4️⃣ NASA SMAP (Toprak Nemi Haritası)")
+    # Katman 4: SMAP
+    fg_smap = folium.FeatureGroup(name="4️⃣ NASA SMAP (Toprak Nemi)")
     folium.Circle(
         location=[lat, lon],
         radius=20000,
@@ -231,8 +233,8 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
     ).add_to(fg_smap)
     fg_smap.add_to(m)
 
-    # Katman 5: ECOSTRESS Su Stresi Alanı
-    fg_ecostress = folium.FeatureGroup(name="5️⃣ NASA ECOSTRESS (Bitki Su Stresi)")
+    # Katman 5: ECOSTRESS
+    fg_ecostress = folium.FeatureGroup(name="5️⃣ NASA ECOSTRESS (Su Stresi)")
     folium.Circle(
         location=[lat, lon],
         radius=15000,
@@ -244,8 +246,8 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
     ).add_to(fg_ecostress)
     fg_ecostress.add_to(m)
 
-    # Katman 6: AOD Duman / Aerosol Bulutu
-    fg_aod = folium.FeatureGroup(name="6️⃣ NASA AOD (Aerosol / Duman Yoğunluğu)")
+    # Katman 6: AOD
+    fg_aod = folium.FeatureGroup(name="6️⃣ NASA AOD (Aerosol / Duman)")
     folium.Circle(
         location=[lat, lon],
         radius=35000,
@@ -253,7 +255,7 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
         fill=True,
         fill_color='gray',
         fill_opacity=0.15,
-        popup=f"🌫️ AOD Aerosol Değeri: {aod_degeri} ({duman_durumu})"
+        popup=f"🌫️ AOD Değeri: {aod_degeri} ({duman_durumu})"
     ).add_to(fg_aod)
     fg_aod.add_to(m)
 
@@ -284,7 +286,7 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
 
 # --- STREAMLIT ARAYÜZÜ ---
 st.title("🛰️ Lightning Flora: NASA Live Earth Observatory")
-st.caption("Kümeleme Optimizasyonlu ve Canlı Uydu Altlıklı 6 Katmanlı GİS Haritası")
+st.caption("Hızlandırılmış Önbellek ve 6 Katmanlı Akıllı GİS Haritası")
 
 col_search, col_btn = st.columns([3, 1])
 with col_search:
@@ -308,7 +310,7 @@ m, trend_fig, yangin_sayisi, nem, yildirim = analiz_uret(lat, lon, mekan)
 st.subheader("🗺️ 6 Katmanlı Entegre NASA GİS Gözlem Haritası")
 st.caption("Haritanın sağ üst köşesinden katmanları yönetebilir, yakınlaşarak/uzaklaşarak yangın kümelerini inceleyebilirsiniz.")
 
-st_folium(m, width=None, height=520, use_container_width=True, key="optimize_akilli_harita")
+st_folium(m, width=None, height=520, use_container_width=True, key="hizli_akilli_harita")
 
 st.markdown("---")
 st.subheader("📈 Çok Boyutlu Ekosistem Projeksiyonu")
