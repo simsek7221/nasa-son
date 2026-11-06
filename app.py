@@ -134,7 +134,6 @@ def render_metric_card(title, value, caption, border_color, text_color, glow_col
 
 @st.cache_data(ttl=600)
 def uluslararasi_hava_durumu_cek(lat, lon):
-    # Open-Meteo Uluslararası Meteoroloji Kaynağı (Yüksek hassasiyetli ondalıklı veriler)
     url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,precipitation,rain,weather_code,wind_speed_10m,surface_pressure"
     try:
         res = requests.get(url, timeout=5).json()
