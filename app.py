@@ -8,6 +8,12 @@ import plotly.graph_objects as go
 from geopy.geocoders import Nominatim
 from datetime import datetime, timedelta
 
+# Tarayıcı/Tablet GPS konum bileşeni
+try:
+    from streamlit_geolocation import streamlit_geolocation
+except ImportError:
+    streamlit_geolocation = None
+
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
     page_title="Lightning Flora - NASA 15-Dataset Enterprise Observatory",
@@ -55,19 +61,13 @@ st.markdown("""
         font-weight: 600 !important;
         box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3) !important;
     }
-    .stTextInput input {
-        background: rgba(15, 23, 42, 0.8) !important;
-        border-radius: 12px !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        color: #f8fafc !important;
-    }
     h1, h2, h3 {
         color: #f8fafc !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-geolocator = Nominatim(user_agent="lightning_flora_nasa_15_platform")
+geolocator = Nominatim(user_agent="lightning_flora_nasa_gps_platform")
 
 @st.cache_data(ttl=3600)
 def nasa_power_verisi_cek(lat, lon):
@@ -102,10 +102,10 @@ def nasa_power_verisi_cek(lat, lon):
     except Exception:
         return 21.5, 0.05, 5.2
 
-def analiz_uret(lat, lon, mekan="Seçilen Konum"):
+def analiz_uret(lat, lon):
     sicaklik, yagis, radyasyon = nasa_power_verisi_cek(lat, lon)
     
-    with st.spinner("🛰️ 15 Farklı NASA Uydu Katmanı ve Saha Tablet Konumu İşleniyor..."):
+    with st.spinner("🛰️ GPS Konumu Alınıyor ve 15 NASA Uydu Katmanı Hesaplanıyor..."):
         glm_flash = int((abs(lat * lon) * 3.5) % 45)
         omi_no2 = round(0.15 + (glm_flash * 0.012), 3)
         aod_val = round(0.12 + (abs(lat) % 0.4), 2)
@@ -132,32 +132,30 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
 
 # --- STREAMLIT ARAYÜZÜ ---
 st.title("🛰️ Lightning Flora: NASA 15-Dataset Enterprise Observatory")
-st.caption("Saha Tablet GPS Takibi ve 15 NASA Uydu Verisi Entegrasyonu")
+st.caption("Tek Tuşla Saha GPS Konum Tespiti ve 15 NASA Uydu Verisi Entegrasyonu")
 
-col_search, col_btn = st.columns([3, 1])
-with col_search:
-    konum_giris = st.text_input("🌍 Konum Arama (Şehir / Orman / Bölge)", value="Antalya")
-with col_btn:
-    st.write(" ")
-    st.write(" ")
-    analiz_yap = st.button("🛰️ Analizi Başlat", use_container_width=True)
+# GPS Butonu Alanı
+st.markdown("### 📍 Saha Cihazı / Tablet Konum Tespiti")
+lat, lon = 36.8969, 30.7133 # Varsayılan (Antalya)
+mekan = "Antalya (Varsayılan)"
 
-try:
-    loc = geolocator.geocode(konum_giris)
-    if loc:
-        lat, lon, mekan = loc.latitude, loc.longitude, loc.address
-    else:
-        lat, lon, mekan = 39.9334, 32.8597, "Ankara"
-except Exception:
-    lat, lon, mekan = 39.9334, 32.8597, "Ankara"
+if streamlit_geolocation is not None:
+    loc_data = streamlit_geolocation()
+    if loc_data and loc_data.get("latitude") and loc_data.get("longitude"):
+        lat = loc_data["latitude"]
+        lon = loc_data["longitude"]
+        mekan = f"GPS Saha Konumu ({lat:.4f}, {lon:.4f})"
+        st.success(f"✅ Konum başarıyla alındı: {lat}, {lon}")
+else:
+    st.info("💡 `streamlit-geolocation` kütüphanesi yüklü değilse varsayılan konum kullanılır. Yüklemek için: `pip install streamlit-geolocation`")
 
-d = analiz_uret(lat, lon, mekan)
+d = analiz_uret(lat, lon)
 
-st.markdown(f"### 📍 Seçilen Bölge & Saha Tablet Konumu: **{mekan}** ({lat:.4f}° K, {lon:.4f}° D)")
+st.markdown(f"### 🎯 Aktif Koordinat Bilgisi: **{mekan}**")
 
 # --- SEKMLER ---
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "🗺️ Tablet & 15 Katmanlı Harita", 
+    "🗺️ GPS Tablet & 15 Katmanlı Harita", 
     "⚡ Atmosfer & Yıldırım (1-4)", 
     "💧 Toprak & Su (5-7)", 
     "🌿 Bitki & Ekosistem (8-12)", 
@@ -165,21 +163,20 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 ])
 
 with tab1:
-    st.subheader("🗺️ Saha Tablet GPS Noktası ve 15 NASA Veri Katmanı")
-    st.caption("Sağ üst köşedeki katman yöneticisinden saha tablet konumunu ve tüm 15 veri setini ayrı ayrı yönetebilirsiniz.")
+    st.subheader("🗺️ Saha GPS Noktası ve 15 NASA Veri Katmanı")
     
-    m = folium.Map(location=[lat, lon], zoom_start=9, tiles=None)
+    m = folium.Map(location=[lat, lon], zoom_start=11, tiles=None)
     folium.TileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         attr='Esri', name='Esri Canlı Uydu'
     ).add_to(m)
 
     # 📱 Saha Tablet GPS Konumu Katmanı
-    fg_tablet = folium.FeatureGroup(name="📱 Saha Tablet / Mobil Cihaz Konumu")
+    fg_tablet = folium.FeatureGroup(name="📱 Saha Tablet / GPS Konumu")
     folium.Marker(
         [lat, lon], 
-        popup=f"<b>📱 Saha Tablet GPS Cihazı</b><br>Konum: {mekan}<br>Enlem: {lat}<br>Boylam: {lon}<br>Durum: Çevrimiçi (Canlı Akış)", 
-        tooltip="📱 Saha Tablet Cihazı",
+        popup=f"<b>📱 Saha Tablet GPS Cihazı</b><br>Enlem: {lat}<br>Boylam: {lon}<br>Durum: Canlı Akış", 
+        tooltip="📱 Saha Cihazı",
         icon=folium.Icon(color="red", icon="phone")
     ).add_to(fg_tablet)
     fg_tablet.add_to(m)
@@ -187,7 +184,7 @@ with tab1:
     # 1. POWER & Konum Katmanı
     fg_power = folium.FeatureGroup(name="1, 13, 14. NASA POWER & LST (Sıcaklık)")
     folium.Circle(
-        [lat, lon], radius=12000, color='blue', fill=True, fill_opacity=0.1,
+        [lat, lon], radius=8000, color='blue', fill=True, fill_opacity=0.1,
         popup=f"Sıcaklık: {d['sicaklik']}°C | LST Yeryüzü: {d['lst_temp']}°C"
     ).add_to(fg_power)
     fg_power.add_to(m)
@@ -195,7 +192,7 @@ with tab1:
     # 2. GLM & OMI Katmanı
     fg_glm_omi = folium.FeatureGroup(name="1, 2. NASA GLM & OMI (Yıldırım & Azot)")
     folium.Circle(
-        [lat, lon], radius=25000, color='yellow', fill=True, fill_color='orange', fill_opacity=0.3, 
+        [lat, lon], radius=15000, color='yellow', fill=True, fill_color='orange', fill_opacity=0.3, 
         popup=f"GLM Yıldırım: {d['glm_flash']} Flash/h<br>OMI NO2 Azot: {d['omi_no2']} Pvu"
     ).add_to(fg_glm_omi)
     fg_glm_omi.add_to(m)
@@ -203,7 +200,7 @@ with tab1:
     # 3. AOD & GMAO Katmanı
     fg_aod_gmao = folium.FeatureGroup(name="3, 4, 5. NASA AOD & GMAO (Aerosol & Rüzgar)")
     folium.Circle(
-        [lat, lon], radius=32000, color='gray', fill=True, fill_color='gray', fill_opacity=0.15, 
+        [lat, lon], radius=20000, color='gray', fill=True, fill_color='gray', fill_opacity=0.15, 
         popup=f"AOD Yoğunluk: {d['aod_val']}<br>GMAO Rüzgar: {d['gmao_wind']} m/s"
     ).add_to(fg_aod_gmao)
     fg_aod_gmao.add_to(m)
@@ -211,7 +208,7 @@ with tab1:
     # 4. SMAP, GPM & GRACE Katmanı
     fg_hydrology = folium.FeatureGroup(name="5, 6, 7. NASA SMAP, GPM & GRACE (Toprak & Su)")
     folium.Circle(
-        [lat, lon], radius=20000, color='green' if d['smap_soil']>22 else 'brown', fill=True, fill_opacity=0.25, 
+        [lat, lon], radius=12000, color='green' if d['smap_soil']>22 else 'brown', fill=True, fill_opacity=0.25, 
         popup=f"SMAP Toprak Nemi: %{d['smap_soil']}<br>GPM Yağış: {d['gpm_precip']} mm<br>GRACE Yeraltı: {d['grace_gw']} cm"
     ).add_to(fg_hydrology)
     fg_hydrology.add_to(m)
@@ -219,7 +216,7 @@ with tab1:
     # 5. MODIS NDVI, ECOSTRESS & SIF Katmanı
     fg_eco = folium.FeatureGroup(name="8, 9, 10, 11, 12. MODIS, ECOSTRESS & SIF (Bitki Sağlığı)")
     folium.Circle(
-        [lat, lon], radius=15000, color='purple', fill=True, fill_color='purple', fill_opacity=0.2, 
+        [lat, lon], radius=10000, color='purple', fill=True, fill_color='purple', fill_opacity=0.2, 
         popup=f"NDVI: {d['ndvi_val']}<br>ECOSTRESS: {d['ecostress_stress']}<br>SIF Floresan: {d['sif_val']} mW<br>Biyokütle: {d['landsat_biomass']} t/ha<br>Fenoloji: {d['phenology_phase']}"
     ).add_to(fg_eco)
     fg_eco.add_to(m)
@@ -227,13 +224,13 @@ with tab1:
     # 6. SEDAC Çevresel Risk Katmanı
     fg_sedac = folium.FeatureGroup(name="15. NASA SEDAC (Çevresel Risk İndeksi)")
     folium.Circle(
-        [lat, lon], radius=38000, color='red', fill=True, fill_color='darkred', fill_opacity=0.1, 
+        [lat, lon], radius=25000, color='red', fill=True, fill_color='darkred', fill_opacity=0.1, 
         popup=f"SEDAC İnsan/Çevre Baskı İndeksi: {d['sedac_risk']}"
     ).add_to(fg_sedac)
     fg_sedac.add_to(m)
 
     folium.LayerControl(collapsed=False).add_to(m)
-    st_folium(m, width=None, height=480, use_container_width=True, key="map_tablet_15")
+    st_folium(m, width=None, height=480, use_container_width=True, key="map_gps_15")
 
 with tab2:
     st.subheader("⚡ Atmosferik Bileşenler ve Yıldırım Dinamikleri")
@@ -294,7 +291,7 @@ fig.add_trace(go.Scatter(x=yillar[4:], y=ndvi_trend[4:], mode='lines+markers', n
 fig.add_trace(go.Scatter(x=yillar, y=sicaklik_trend, mode='lines+markers', name='Sıcaklık (°C)', yaxis="y2", line=dict(color='#ef4444', width=2)))
 
 fig.update_layout(
-    title="📈 15 NASA Veri Seti Entegrasyonu ile Uzun Vadeli Ekosistem Projeksiyonu",
+    title="📈 GPS Konumlu 15 NASA Veri Seti Entegrasyonu ile Uzun Vadeli Ekosistem Projeksiyonu",
     height=320,
     paper_bgcolor='rgba(0,0,0,0)',
     plot_bgcolor='rgba(0,0,0,0)',
