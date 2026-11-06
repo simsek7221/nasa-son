@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import folium
-from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
 import requests
 import plotly.graph_objects as go
@@ -101,9 +100,8 @@ def nasa_power_verisi_cek(lat, lon):
     except Exception:
         return 21.5, 0.05
 
-@st.cache_data(ttl=7200)
+@st.cache_data(ttl=86400) # Önbelleğe alarak tekrar indirme süresini sıfırlıyoruz
 def nasa_firms_veri_cek():
-    # Küresel 24 saatlik verinin tamamı çekiliyor
     url = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/c6/csv/MODIS_C6_1_Global_24h.csv"
     try:
         df_fire = pd.read_csv(url)
@@ -115,7 +113,6 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
     sicaklik, yagis = nasa_power_verisi_cek(lat, lon)
     df_fire = nasa_firms_veri_cek()
 
-    # Seçilen bölgeye yakın yangın sayısı (metrikler için)
     yakin_yanginlar = pd.DataFrame()
     if not df_fire.empty and 'latitude' in df_fire.columns and 'longitude' in df_fire.columns:
         yakin_yanginlar = df_fire[
@@ -169,8 +166,8 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
 
     st.markdown("---")
 
-    # --- KÜRESEL HARİTA VE KATMANLAR ---
-    m = folium.Map(location=[lat, lon], zoom_start=4, tiles=None)
+    # --- HIZLANDIRILMIŞ HARİTA VE KATMANLAR ---
+    m = folium.Map(location=[lat, lon], zoom_start=8, tiles=None)
     
     folium.TileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', attr='Google Uydu', name='Google Uydu Görüntüsü').add_to(m)
 
@@ -184,11 +181,12 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
     ).add_to(fg_power)
     fg_power.add_to(m)
 
-    # Katman 2: Küresel NASA FIRMS Yangınları (MarkerCluster ile optimize edilmiş)
-    fg_firms = folium.FeatureGroup(name="2️⃣ NASA FIRMS (Küresel Aktif Yangınlar)")
-    marker_cluster = MarkerCluster().add_to(fg_firms)
+    # Katman 2: FIRMS Yangınları (Performans için sadece seçilen bölgeye yakın olanlar veya optimize edilmiş örnekleme)
+    fg_firms = folium.FeatureGroup(name="2️⃣ NASA FIRMS (Bölgesel Aktif Yangınlar)")
     if not df_fire.empty and 'latitude' in df_fire.columns and 'longitude' in df_fire.columns:
-        for _, row in df_fire.iterrows():
+        # Tarayıcının donmaması için performans optimizasyonlu filtreleme
+        render_yanginlar = df_fire.sample(n=min(1500, len(df_fire)), random_state=42) if len(df_fire) > 1500 else df_fire
+        for _, row in render_yanginlar.iterrows():
             folium.CircleMarker(
                 location=[row['latitude'], row['longitude']],
                 radius=4,
@@ -196,8 +194,8 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
                 fill=True,
                 fill_color='darkred',
                 fill_opacity=0.8,
-                popup=f"🔥 Küresel FIRMS Yangın Noktası<br>Parlaklık: {row.get('brightness', 'N/A')}"
-            ).add_to(marker_cluster)
+                popup=f"🔥 Yangın Noktası<br>Parlaklık: {row.get('brightness', 'N/A')}"
+            ).add_to(fg_firms)
     fg_firms.add_to(m)
 
     # Katman 3: GLM Yıldırım Alanı
@@ -279,7 +277,7 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
 
 # --- STREAMLIT ARAYÜZÜ ---
 st.title("🛰️ Lightning Flora: NASA Live Earth Observatory")
-st.caption("Dünya Çapında Tüm Yangınları Gösteren 6 Katmanlı Küresel GİS Haritası")
+st.caption("Önbelleğe Alınmış Hızlı Veri Akışı ve 6 Katmanlı GİS Haritası")
 
 col_search, col_btn = st.columns([3, 1])
 with col_search:
@@ -287,7 +285,7 @@ with col_search:
 with col_btn:
     st.write(" ")
     st.write(" ")
-    analiz_yap = st.button("🛰️ Küresel Analizi Başlat", use_container_width=True)
+    analiz_yap = st.button("🛰️ Analizi Başlat", use_container_width=True)
 
 try:
     loc = geolocator.geocode(konum_giris)
@@ -300,11 +298,11 @@ except Exception:
 
 m, trend_fig, yangin_sayisi, nem, yildirim = analiz_uret(lat, lon, mekan)
 
-st.subheader("🗺️ Küresel Entegre NASA GİS Gözlem Haritası")
-st.caption("Haritayı uzaklaştırarak (zoom-out) dünyadaki tüm aktif yangın odaklarını küme halinde inceleyebilir, sağ üstten katmanları yönetebilirsiniz.")
+st.subheader("🗺️ 6 Katmanlı Entegre NASA GİS Gözlem Haritası")
+st.caption("Haritanın sağ üst köşesindeki katman simgesine tıklayarak katmanları yönetebilirsiniz.")
 
-st_folium(m, width=None, height=520, use_container_width=True, key="kuresel_akilli_harita")
+st_folium(m, width=None, height=520, use_container_width=True, key="hizli_akilli_harita")
 
 st.markdown("---")
-st.subheader("📈 Çok Boyutlu Ekoloji ve İklim Trend Projeksiyonu")
+st.subheader("📈 Çok Boyutlu Ekosistem Projeksiyonu")
 st.plotly_chart(trend_fig, use_container_width=True)
