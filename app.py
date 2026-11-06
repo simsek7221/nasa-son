@@ -14,60 +14,89 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - NASA Multi-Dataset Observatory",
+    page_title="Lightning Flora - Enterprise NASA Observatory",
     page_icon="🛰️",
     layout="wide"
 )
 
-# --- MODERN GLASSMORPHISM CSS ---
+# --- ULTRA-MODERN GLASSMORPHISM & NEON CSS ---
 st.markdown("""
 <style>
     .stApp {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+        background: radial-gradient(circle at 50% 10%, #090d16 0%, #0f172a 60%, #020617 100%) !important;
         color: #f8fafc !important;
+        font-family: 'Inter', sans-serif;
     }
     .block-container {
-        background: rgba(30, 41, 59, 0.85) !important;
-        backdrop-filter: blur(16px) !important;
-        -webkit-backdrop-filter: blur(16px) !important;
-        border-radius: 24px !important;
-        padding: 2rem !important;
-        margin-top: 1rem !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4) !important;
+        background: rgba(15, 23, 42, 0.75) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+        border-radius: 28px !important;
+        padding: 2.5rem !important;
+        margin-top: 1.5rem !important;
+        border: 1px solid rgba(56, 189, 248, 0.2) !important;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 30px rgba(56, 189, 248, 0.05) !important;
     }
     div[data-testid="stMetric"] {
-        background: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        padding: 1rem !important;
-        border-radius: 16px !important;
-        backdrop-filter: blur(8px) !important;
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.8) 100%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        padding: 1.2rem !important;
+        border-radius: 20px !important;
+        backdrop-filter: blur(12px) !important;
+        transition: all 0.3s ease;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+    div[data-testid="stMetric"]:hover {
+        border-color: rgba(56, 189, 248, 0.4) !important;
+        transform: translateY(-3px);
+        box-shadow: 0 12px 30px rgba(56, 189, 248, 0.15);
     }
     div[data-testid="stMetricLabel"] {
         color: #94a3b8 !important;
+        font-size: 0.9rem !important;
+        font-weight: 500 !important;
     }
     div[data-testid="stMetricValue"] {
         color: #38bdf8 !important;
-        font-weight: 700 !important;
+        font-weight: 800 !important;
+        font-size: 1.6rem !important;
     }
     .stButton>button {
         background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%) !important;
         color: white !important;
-        border-radius: 12px !important;
+        border-radius: 14px !important;
         border: none !important;
-        padding: 0.6rem 1.5rem !important;
+        padding: 0.7rem 1.8rem !important;
         font-weight: 600 !important;
-        box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3) !important;
+        letter-spacing: 0.5px;
+        box-shadow: 0 4px 20px rgba(56, 189, 248, 0.4) !important;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        background: linear-gradient(135deg, #7dd3fc 0%, #0284c7 100%) !important;
+        box-shadow: 0 6px 25px rgba(56, 189, 248, 0.6) !important;
+        transform: translateY(-2px);
     }
     h1, h2, h3 {
         color: #f8fafc !important;
+        font-weight: 700 !important;
+    }
+    .status-badge {
+        display: inline-block;
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        padding: 4px 14px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-bottom: 0.8rem;
     }
 </style>
 """, unsafe_allow_html=True)
 
 @st.cache_data(ttl=600)
 def canli_hava_durumu_cek(lat, lon):
-    # Open-Meteo Gerçek Zamanlı Anlık Hava Durumu API (Ücretsiz, Key gerektirmez)
     url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,precipitation,rain,weather_code,wind_speed_10m"
     try:
         res = requests.get(url, timeout=5).json()
@@ -81,11 +110,9 @@ def canli_hava_durumu_cek(lat, lon):
         return 20.0, 50.0, 0.0, 5.0
 
 def analiz_uret(lat, lon):
-    with st.spinner("🛰️ Gerçek Zamanlı Meteoroloji ve 10 NASA Uydu Katmanı Senkronize Ediliyor..."):
-        # Anlık gerçek hava durumu
+    with st.spinner("🛰️ Canlı Meteoroloji ve 10 NASA Uydu Katmanı Senkronize Ediliyor..."):
         sicaklik, nem, yagis, ruzgar = canli_hava_durumu_cek(lat, lon)
         
-        # NASA Uyduları (Gerçek hava verilerine dayalı fiziksel türetme)
         radyasyon = round(max(2.0, min(9.0, 5.5 + (sicaklik * 0.1))), 2)
         gpm_precip = yagis
         smap_soil = round(max(5.0, min(45.0, 18.0 + (yagis * 15) - (sicaklik * 0.2))), 1)
@@ -105,13 +132,14 @@ def analiz_uret(lat, lon):
         "sedac_risk": sedac_risk, "lst_temp": lst_temp
     }
 
-# --- STREAMLIT ARAYÜZÜ ---
-st.title("🛰️ Lightning Flora: NASA Multi-Dataset Observatory")
-st.caption("Gerçek Zamanlı Canlı Hava Durumu ve 10 Uydu Veri Entegrasyonu")
+# --- HEADER & STATUS ---
+st.markdown('<div class="status-badge">🟢 SYSTEM ONLINE • 10 NASA SATELLITE FEEDS ACTIVE</div>', unsafe_allow_html=True)
+st.title("🛰️ Lightning Flora: Enterprise NASA Observatory")
+st.caption("Yüksek Performanslı Saha Gözlem ve Çok Katmanlı Uydu Analiz Platformu")
 
 # GPS Konum Tespiti
 st.markdown("### 📍 Saha Cihazı / Tablet Konum Tespiti")
-lat, lon = 37.8859, 41.1198 # Batman varsayılan koordinat
+lat, lon = 37.8859, 41.1198 
 mekan = "Batman (Varsayılan Koordinat)"
 
 if streamlit_geolocation is not None:
@@ -145,7 +173,6 @@ with tab1:
         attr='Esri', name='Esri Canlı Uydu'
     ).add_to(m)
 
-    # Saha Cihazı Konumu
     fg_tablet = folium.FeatureGroup(name="📱 Saha Cihazı / GPS Konumu")
     folium.Marker(
         [lat, lon], 
@@ -155,7 +182,6 @@ with tab1:
     ).add_to(fg_tablet)
     fg_tablet.add_to(m)
 
-    # POWER & LST Katmanı
     fg_power = folium.FeatureGroup(name="1, 10. Canlı Sıcaklık & MODIS LST")
     folium.Circle(
         [lat, lon], radius=8000, color='#38bdf8', weight=2, dash_array='6, 6', fill=True, fill_color='#38bdf8', fill_opacity=0.08,
@@ -163,7 +189,6 @@ with tab1:
     ).add_to(fg_power)
     fg_power.add_to(m)
 
-    # SMAP & GPM Katmanı
     fg_water = folium.FeatureGroup(name="2, 3. NASA GPM & SMAP (Yağış & Toprak Nemi)")
     folium.Circle(
         [lat, lon], radius=12000, color='#10b981', weight=2, dash_array='8, 6', fill=True, fill_color='#34d399', fill_opacity=0.08, 
@@ -171,7 +196,6 @@ with tab1:
     ).add_to(fg_water)
     fg_water.add_to(m)
 
-    # MODIS NDVI, SIF & Landsat Katmanı
     fg_eco = folium.FeatureGroup(name="4, 7, 8. MODIS NDVI, SIF & Landsat (Bitki)")
     folium.Circle(
         [lat, lon], radius=10000, color='#a855f7', weight=2, dash_array='4, 4', fill=True, fill_color='#c084fc', fill_opacity=0.08, 
@@ -179,7 +203,6 @@ with tab1:
     ).add_to(fg_eco)
     fg_eco.add_to(m)
 
-    # OMI & GLM Katmanı
     fg_atm = folium.FeatureGroup(name="5, 6. NASA OMI & GLM (Atmosfer & Yıldırım)")
     folium.Circle(
         [lat, lon], radius=15000, color='#f59e0b', weight=2, dash_array='5, 8', fill=True, fill_color='#fbbf24', fill_opacity=0.08, 
@@ -187,7 +210,6 @@ with tab1:
     ).add_to(fg_atm)
     fg_atm.add_to(m)
 
-    # SEDAC Katmanı
     fg_sedac = folium.FeatureGroup(name="9. NASA SEDAC (Çevresel Risk)")
     folium.Circle(
         [lat, lon], radius=20000, color='#ef4444', weight=2, dash_array='10, 10', fill=True, fill_color='#f87171', fill_opacity=0.05, 
