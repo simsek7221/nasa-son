@@ -153,7 +153,7 @@ d = analiz_uret(lat, lon)
 
 st.markdown(f"### 🎯 Aktif Koordinat Bilgisi: **{mekan}** ({lat:.4f}, {lon:.4f})")
 
-# --- SEKMLER ---
+# --- SEKMELER ---
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🗺️ GPS Tablet & 15 Katmanlı Harita", 
     "⚡ Atmosfer & Yıldırım (1-4)", 
@@ -181,10 +181,10 @@ with tab1:
     ).add_to(fg_tablet)
     fg_tablet.add_to(m)
 
-    # 1. POWER & Konum Katmanı
+    # 1. POWER & Konum Katmanı (Noktalı/Kesikli Çizgili Modern Radar Tasarımı)
     fg_power = folium.FeatureGroup(name="1, 13, 14. NASA POWER & LST (Sıcaklık)")
     folium.Circle(
-        [lat, lon], radius=8000, color='blue', fill=True, fill_opacity=0.1,
+        [lat, lon], radius=8000, color='#38bdf8', weight=2, dash_array='6, 6', fill=True, fill_color='#38bdf8', fill_opacity=0.08,
         popup=f"Sıcaklık: {d['sicaklik']}°C | LST Yeryüzü: {d['lst_temp']}°C"
     ).add_to(fg_power)
     fg_power.add_to(m)
@@ -192,7 +192,7 @@ with tab1:
     # 2. GLM & OMI Katmanı
     fg_glm_omi = folium.FeatureGroup(name="1, 2. NASA GLM & OMI (Yıldırım & Azot)")
     folium.Circle(
-        [lat, lon], radius=15000, color='yellow', fill=True, fill_color='orange', fill_opacity=0.3, 
+        [lat, lon], radius=15000, color='#f59e0b', weight=2, dash_array='5, 8', fill=True, fill_color='#fbbf24', fill_opacity=0.08, 
         popup=f"GLM Yıldırım: {d['glm_flash']} Flash/h<br>OMI NO2 Azot: {d['omi_no2']} Pvu"
     ).add_to(fg_glm_omi)
     fg_glm_omi.add_to(m)
@@ -200,7 +200,7 @@ with tab1:
     # 3. AOD & GMAO Katmanı
     fg_aod_gmao = folium.FeatureGroup(name="3, 4, 5. NASA AOD & GMAO (Aerosol & Rüzgar)")
     folium.Circle(
-        [lat, lon], radius=20000, color='gray', fill=True, fill_color='gray', fill_opacity=0.15, 
+        [lat, lon], radius=20000, color='#94a3b8', weight=1.5, dash_array='4, 6', fill=True, fill_color='#cbd5e1', fill_opacity=0.05, 
         popup=f"AOD Yoğunluk: {d['aod_val']}<br>GMAO Rüzgar: {d['gmao_wind']} m/s"
     ).add_to(fg_aod_gmao)
     fg_aod_gmao.add_to(m)
@@ -208,7 +208,7 @@ with tab1:
     # 4. SMAP, GPM & GRACE Katmanı
     fg_hydrology = folium.FeatureGroup(name="5, 6, 7. NASA SMAP, GPM & GRACE (Toprak & Su)")
     folium.Circle(
-        [lat, lon], radius=12000, color='green' if d['smap_soil']>22 else 'brown', fill=True, fill_opacity=0.25, 
+        [lat, lon], radius=12000, color='#10b981', weight=2, dash_array='8, 6', fill=True, fill_color='#34d399', fill_opacity=0.08, 
         popup=f"SMAP Toprak Nemi: %{d['smap_soil']}<br>GPM Yağış: {d['gpm_precip']} mm<br>GRACE Yeraltı: {d['grace_gw']} cm"
     ).add_to(fg_hydrology)
     fg_hydrology.add_to(m)
@@ -216,7 +216,7 @@ with tab1:
     # 5. MODIS NDVI, ECOSTRESS & SIF Katmanı
     fg_eco = folium.FeatureGroup(name="8, 9, 10, 11, 12. MODIS, ECOSTRESS & SIF (Bitki Sağlığı)")
     folium.Circle(
-        [lat, lon], radius=10000, color='purple', fill=True, fill_color='purple', fill_opacity=0.2, 
+        [lat, lon], radius=10000, color='#a855f7', weight=2, dash_array='4, 4', fill=True, fill_color='#c084fc', fill_opacity=0.08, 
         popup=f"NDVI: {d['ndvi_val']}<br>ECOSTRESS: {d['ecostress_stress']}<br>SIF Floresan: {d['sif_val']} mW<br>Biyokütle: {d['landsat_biomass']} t/ha<br>Fenoloji: {d['phenology_phase']}"
     ).add_to(fg_eco)
     fg_eco.add_to(m)
@@ -224,7 +224,7 @@ with tab1:
     # 6. SEDAC Çevresel Risk Katmanı
     fg_sedac = folium.FeatureGroup(name="15. NASA SEDAC (Çevresel Risk İndeksi)")
     folium.Circle(
-        [lat, lon], radius=25000, color='red', fill=True, fill_color='darkred', fill_opacity=0.1, 
+        [lat, lon], radius=25000, color='#ef4444', weight=2, dash_array='10, 10', fill=True, fill_color='#f87171', fill_opacity=0.05, 
         popup=f"SEDAC İnsan/Çevre Baskı İndeksi: {d['sedac_risk']}"
     ).add_to(fg_sedac)
     fg_sedac.add_to(m)
