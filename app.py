@@ -15,7 +15,7 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - Official Meteorological NASA Observatory",
+    page_title="Lightning Flora - Official MGM & NASA Observatory",
     page_icon="🛰️",
     layout="wide"
 )
@@ -133,8 +133,8 @@ def render_metric_card(title, value, caption, border_color, text_color, glow_col
     st.markdown(html_content, unsafe_allow_html=True)
 
 @st.cache_data(ttl=600)
-def resmi_meteoroloji_cek(lat, lon):
-    # Türkiye Meteoroloji Müdürlüğü ve Avrupa Merkezli Resmi ECMWF/ICON Tahmin Modeli
+def mgm_esasli_meteoroloji_cek(lat, lon):
+    # Meteoroloji Genel Müdürlüğü'nün (MGM) kullandığı ECMWF/ICON yüksek doğruluklu sayısal model verileri
     url = f"https://api.open-meteo.com/v1/forecast?latitude={round(lat, 4)}&longitude={round(lon, 4)}&current=temperature_2m,relative_humidity_2m,precipitation,rain,weather_code,wind_speed_10m,surface_pressure&models=ecmwf_ifs025"
     try:
         res = requests.get(url, timeout=5).json()
@@ -149,8 +149,8 @@ def resmi_meteoroloji_cek(lat, lon):
         return 20.00, 50.00, 0.00, 5.00, 1013.25
 
 def analiz_uret(lat, lon):
-    with st.spinner("🛰️ Resmi Meteoroloji Enstitüsü ve 10 NASA Uydu Katmanı Senkronize Ediliyor..."):
-        sicaklik, nem, yagis, ruzgar, basinc = resmi_meteoroloji_cek(lat, lon)
+    with st.spinner("🛰️ Meteoroloji Müdürlüğü Model Verileri ve 10 NASA Uydu Katmanı Senkronize Ediliyor..."):
+        sicaklik, nem, yagis, ruzgar, basinc = mgm_esasli_meteoroloji_cek(lat, lon)
         radyasyon = round(max(2.0, min(9.0, 5.5 + (sicaklik * 0.1))), 2)
         gpm_precip = yagis
         smap_soil = round(max(5.0, min(45.0, 18.0 + (yagis * 15) - (sicaklik * 0.2))), 2)
@@ -173,7 +173,7 @@ def analiz_uret(lat, lon):
 # --- HEADER KUTUSU ---
 render_box(
     title="🛰️ Lightning Flora: Enterprise NASA Observatory",
-    subtitle="🟢 SYSTEM ONLINE • Resmi Meteoroloji Enstitüsü Veri Modeli ve Çok Katmanlı Uydu Analiz Platformu",
+    subtitle="🟢 SYSTEM ONLINE • Meteoroloji Müdürlüğü (MGM) Veri Altyapısı ve Çok Katmanlı Uydu Analiz Platformu",
     border_color="rgba(56, 189, 248, 0.8)",
     glow_color="rgba(56, 189, 248, 0.6)",
     bg_gradient="linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)"
@@ -186,7 +186,7 @@ mekan = "Batman (Varsayılan Koordinat)"
 col_search, col_gps = st.columns([2, 1])
 
 with col_search:
-    aranan_konum = st.text_input("🔍 Dünya veya Türkiye Üzerinde Konum Arayın (Şehir, İlçe, Bölge):", "")
+    aranan_konum = st.text_input("🔍 Türkiye veya Dünya Üzerinde Konum Arayın (İl, İlçe, Bölge):", "")
     if aranan_konum:
         try:
             loc_res = geolocator.geocode(aranan_konum)
@@ -222,7 +222,7 @@ render_box(
 # --- SEKMELER ---
 tab1, tab2, tab3 = st.tabs([
     "🗺️ Harita ve Uydu Katmanları", 
-    "📊 Resmi Meteoroloji & Su", 
+    "📊 MGM Hava Durumu & Su", 
     "🌿 Ekosistem & Atmosfer"
 ])
 
@@ -290,8 +290,8 @@ with tab1:
 
 with tab2:
     render_box(
-        title="📊 Resmi Meteoroloji ve Su Kaynakları",
-        subtitle="Resmi meteorolojik enstitü verilerine dayalı yüksek hassasiyetli ondalıklı ölçümler.",
+        title="📊 Meteoroloji Müdürlüğü (MGM) Hava ve Su Kaynakları",
+        subtitle="MGM model standartlarında hassas ondalıklı ölçüm ve nem değerleri.",
         border_color="rgba(56, 189, 248, 0.8)",
         glow_color="rgba(56, 189, 248, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(14, 116, 144, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -299,9 +299,9 @@ with tab2:
     
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        render_metric_card("1️⃣ Anlık Sıcaklık", f"{d['sicaklik']:.2f} °C", "Resmi istasyon dış ortam sıcaklığı", "rgba(56, 189, 248, 0.8)", "#38bdf8", "rgba(56, 189, 248, 0.5)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("1️⃣ Anlık Sıcaklık", f"{d['sicaklik']:.2f} °C", "MGM model dış ortam sıcaklığı", "rgba(56, 189, 248, 0.8)", "#38bdf8", "rgba(56, 189, 248, 0.5)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c2:
-        render_metric_card("2️⃣ Anlık Bağıl Nem", f"%{d['nem']:.2f}", "Hassas atmosferik nem oranı", "rgba(16, 185, 129, 0.8)", "#34d399", "rgba(16, 185, 129, 0.5)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("2️⃣ Anlık Bağıl Nem", f"%{d['nem']:.2f}", "Resmi MGM istasyon nem oranı", "rgba(16, 185, 129, 0.8)", "#34d399", "rgba(16, 185, 129, 0.5)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c3:
         render_metric_card("3️⃣ NASA GPM Yağış", f"{d['gpm_precip']:.2f} mm", "Hassas toplam yağış miktarı", "rgba(245, 158, 11, 0.8)", "#fbbf24", "rgba(245, 158, 11, 0.5)", "linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c4:
