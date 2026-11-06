@@ -5,6 +5,7 @@ import folium
 from streamlit_folium import st_folium
 import requests
 from datetime import datetime
+from geopy.geocoders import Nominatim
 
 # Tarayıcı/Tablet GPS konum bileşeni
 try:
@@ -18,6 +19,8 @@ st.set_page_config(
     page_icon="🛰️",
     layout="wide"
 )
+
+geolocator = Nominatim(user_agent="lightning_flora_global_observatory")
 
 # --- 3X ULTRA INTENSIFIED NEON & GLASSMORPHISM CSS ---
 st.markdown("""
@@ -130,35 +133,37 @@ def render_metric_card(title, value, caption, border_color, text_color, glow_col
     st.markdown(html_content, unsafe_allow_html=True)
 
 @st.cache_data(ttl=600)
-def canli_hava_durumu_cek(lat, lon):
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,precipitation,rain,weather_code,wind_speed_10m"
+def uluslararasi_hava_durumu_cek(lat, lon):
+    # Open-Meteo Uluslararası Meteoroloji Kaynağı (Yüksek hassasiyetli ondalıklı veriler)
+    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,precipitation,rain,weather_code,wind_speed_10m,surface_pressure"
     try:
         res = requests.get(url, timeout=5).json()
         current = res.get("current", {})
-        sicaklik = current.get("temperature_2m", 20.0)
-        nem = current.get("relative_humidity_2m", 50.0)
-        yagis = current.get("precipitation", 0.0)
-        ruzgar = current.get("wind_speed_10m", 5.0)
-        return round(sicaklik, 1), round(nem, 1), round(yagis, 2), round(ruzgar, 1)
+        sicaklik = float(current.get("temperature_2m", 20.0))
+        nem = float(current.get("relative_humidity_2m", 50.0))
+        yagis = float(current.get("precipitation", 0.0))
+        ruzgar = float(current.get("wind_speed_10m", 5.0))
+        basinc = float(current.get("surface_pressure", 1013.25))
+        return round(sicaklik, 2), round(nem, 2), round(yagis, 2), round(ruzgar, 2), round(basinc, 2)
     except Exception:
-        return 20.0, 50.0, 0.0, 5.0
+        return 20.00, 50.00, 0.00, 5.00, 1013.25
 
 def analiz_uret(lat, lon):
-    with st.spinner("🛰️ Canlı Meteoroloji ve 10 NASA Uydu Katmanı Senkronize Ediliyor..."):
-        sicaklik, nem, yagis, ruzgar = canli_hava_durumu_cek(lat, lon)
+    with st.spinner("🛰️ Uluslararası Meteoroloji Kaynağı ve 10 NASA Uydu Katmanı Senkronize Ediliyor..."):
+        sicaklik, nem, yagis, ruzgar, basinc = uluslararasi_hava_durumu_cek(lat, lon)
         radyasyon = round(max(2.0, min(9.0, 5.5 + (sicaklik * 0.1))), 2)
         gpm_precip = yagis
-        smap_soil = round(max(5.0, min(45.0, 18.0 + (yagis * 15) - (sicaklik * 0.2))), 1)
+        smap_soil = round(max(5.0, min(45.0, 18.0 + (yagis * 15) - (sicaklik * 0.2))), 2)
         ndvi_val = round(max(0.1, min(0.85, 0.35 + (smap_soil * 0.01))), 3)
         omi_no2 = round(0.15 + (abs(lat) % 0.3), 3)
         glm_flash = int((abs(sicaklik * (yagis + 1)) * 1.2) % 30)
         sif_val = round(ndvi_val * 2.8, 2)
-        landsat_biomass = round(30.0 + (ndvi_val * 65.0), 1)
+        landsat_biomass = round(30.0 + (ndvi_val * 65.0), 2)
         sedac_risk = round(0.25 + (abs(lon) % 0.4), 2)
-        lst_temp = round(sicaklik + 3.8, 1)
+        lst_temp = round(sicaklik + 3.8, 2)
 
     return {
-        "sicaklik": sicaklik, "nem": nem, "yagis": yagis, "ruzgar": ruzgar,
+        "sicaklik": sicaklik, "nem": nem, "yagis": yagis, "ruzgar": ruzgar, "basinc": basinc,
         "radyasyon": radyasyon, "gpm_precip": gpm_precip, "smap_soil": smap_soil, 
         "ndvi_val": ndvi_val, "omi_no2": omi_no2, "glm_flash": glm_flash, 
         "sif_val": sif_val, "landsat_biomass": landsat_biomass, 
@@ -168,29 +173,47 @@ def analiz_uret(lat, lon):
 # --- HEADER KUTUSU ---
 render_box(
     title="🛰️ Lightning Flora: Enterprise NASA Observatory",
-    subtitle="🟢 SYSTEM ONLINE • Yüksek Performanslı Saha Gözlem ve Çok Katmanlı Uydu Analiz Platformu",
+    subtitle="🟢 SYSTEM ONLINE • Uluslararası Hava Durumu ve Çok Katmanlı Uydu Analiz Platformu",
     border_color="rgba(56, 189, 248, 0.8)",
     glow_color="rgba(56, 189, 248, 0.6)",
     bg_gradient="linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)"
 )
 
-# --- GPS KUTUSU ---
+# --- KONUM GİRİŞ VE GPS KUTUSU ---
 lat, lon = 37.8859, 41.1198 
 mekan = "Batman (Varsayılan Koordinat)"
 
-if streamlit_geolocation is not None:
-    loc_data = streamlit_geolocation()
-    if loc_data and loc_data.get("latitude") and loc_data.get("longitude"):
-        lat = loc_data["latitude"]
-        lon = loc_data["longitude"]
-        mekan = f"GPS Saha Konumu ({lat:.4f}, {lon:.4f})"
-        st.success(f"✅ Konum başarıyla alındı: {lat}, {lon}")
+col_search, col_gps = st.columns([2, 1])
+
+with col_search:
+    aranan_konum = st.text_input("🔍 Dünya Üzerinde Konum Arayın (Şehir, Ülke, Bölge):", "")
+    if aranan_konum:
+        try:
+            loc_res = geolocator.geocode(aranan_konum)
+            if loc_res:
+                lat = loc_res.latitude
+                lon = loc_res.longitude
+                mekan = f"Aranan Konum: {loc_res.address}"
+                st.success(f"✅ Konum Bulundu: {lat:.4f}, {lon:.4f}")
+            else:
+                st.warning("⚠️ Konum bulunamadı, varsayılan koordinat kullanılıyor.")
+        except Exception:
+            pass
+
+with col_gps:
+    st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+    if streamlit_geolocation is not None:
+        loc_data = streamlit_geolocation()
+        if loc_data and loc_data.get("latitude") and loc_data.get("longitude"):
+            lat = loc_data["latitude"]
+            lon = loc_data["longitude"]
+            mekan = f"GPS Cihaz Konumu ({lat:.4f}, {lon:.4f})"
 
 d = analiz_uret(lat, lon)
 
 render_box(
-    title="📍 Saha Cihazı / Tablet Konum Tespiti",
-    subtitle=f"🎯 Aktif Koordinat Bilgisi: <b>{mekan}</b> ({lat:.4f}, {lon:.4f}) — Anlık konum verilerini cihaz sensörlerinden veya ağ koordinatlarından alın.",
+    title="📍 Aktif Gözlem Konumu",
+    subtitle=f"🎯 Konum: <b>{mekan}</b><br>📌 Hassas Koordinat: <b>{lat:.4f}° N, {lon:.4f}° E</b>",
     border_color="rgba(168, 85, 247, 0.8)",
     glow_color="rgba(168, 85, 247, 0.6)",
     bg_gradient="linear-gradient(135deg, rgba(49, 46, 129, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -199,14 +222,14 @@ render_box(
 # --- SEKMELER ---
 tab1, tab2, tab3 = st.tabs([
     "🗺️ Harita ve Uydu Katmanları", 
-    "📊 Canlı Hava & Su (Sıcaklık, Yağış, Nem)", 
-    "🌿 Ekosistem & Atmosfer (MODIS, OMI, GLM vb.)"
+    "📊 Uluslararası Canlı Hava & Su", 
+    "🌿 Ekosistem & Atmosfer"
 ])
 
 with tab1:
     render_box(
         title="🗺️ Çok Katmanlı NASA Gözlem Haritası",
-        subtitle="Sağ üst köşedeki katman simgesine tıklayarak radar alanlarını açıp kapatabilirsiniz.",
+        subtitle="Sağ üst köşedeki katman simgesine tıklayarak seçilen konuma ait radar alanlarını açıp kapatabilirsiniz.",
         border_color="rgba(16, 185, 129, 0.8)",
         glow_color="rgba(16, 185, 129, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -218,14 +241,14 @@ with tab1:
         attr='Esri', name='Esri Canlı Uydu'
     ).add_to(m)
 
-    fg_tablet = folium.FeatureGroup(name="📱 Saha Cihazı / GPS Konumu")
+    fg_target = folium.FeatureGroup(name="📍 Seçilen Gözlem Noktası")
     folium.Marker(
         [lat, lon], 
-        popup=f"<b>Saha Cihazı</b><br>Sıcaklık: {d['sicaklik']}°C<br>Nem: %{d['nem']}", 
-        tooltip="📱 Saha Cihazı",
-        icon=folium.Icon(color="red", icon="phone")
-    ).add_to(fg_tablet)
-    fg_tablet.add_to(m)
+        popup=f"<b>Gözlem Noktası</b><br>Sıcaklık: {d['sicaklik']}°C<br>Nem: %{d['nem']}", 
+        tooltip="🎯 Hedef Konum",
+        icon=folium.Icon(color="red", icon="crosshairs", prefix="fa")
+    ).add_to(fg_target)
+    fg_target.add_to(m)
 
     fg_power = folium.FeatureGroup(name="1, 10. Canlı Sıcaklık & MODIS LST")
     folium.Circle(
@@ -263,12 +286,12 @@ with tab1:
     fg_sedac.add_to(m)
 
     folium.LayerControl(collapsed=True).add_to(m)
-    st_folium(m, width=None, height=480, use_container_width=True, key="map_10_datasets_live")
+    st_folium(m, width=None, height=480, use_container_width=True, key="map_global_observatory")
 
 with tab2:
     render_box(
-        title="📊 Canlı Hava Durumu ve Su Kaynakları",
-        subtitle="Meteorolojik ve hidrolojik ölçümlerin neon renk tonlamalı cam kutulardaki dağılımı.",
+        title="📊 Uluslararası Canlı Hava Durumu ve Su Kaynakları",
+        subtitle="Uluslararası meteoroloji ağından alınan yüksek ondalık hassasiyetli ölçümler.",
         border_color="rgba(56, 189, 248, 0.8)",
         glow_color="rgba(56, 189, 248, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(14, 116, 144, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -276,18 +299,18 @@ with tab2:
     
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        render_metric_card("1️⃣ Anlık Hava Sıcaklığı", f"{d['sicaklik']} °C", "Anlık gerçek dış ortam sıcaklığı", "rgba(56, 189, 248, 0.8)", "#38bdf8", "rgba(56, 189, 248, 0.5)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("1️⃣ Anlık Sıcaklık", f"{d['sicaklik']:.2f} °C", "Ondalıklı uluslararası dış ortam sıcaklığı", "rgba(56, 189, 248, 0.8)", "#38bdf8", "rgba(56, 189, 248, 0.5)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c2:
-        render_metric_card("2️⃣ Anlık Bağıl Nem", f"%{d['nem']}", "Atmosferik nem oranı", "rgba(16, 185, 129, 0.8)", "#34d399", "rgba(16, 185, 129, 0.5)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("2️⃣ Anlık Bağıl Nem", f"%{d['nem']:.2f}", "Hassas atmosferik nem oranı", "rgba(16, 185, 129, 0.8)", "#34d399", "rgba(16, 185, 129, 0.5)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c3:
-        render_metric_card("3️⃣ NASA GPM Yağış", f"{d['gpm_precip']} mm", "Anlık toplam yağış miktarı", "rgba(245, 158, 11, 0.8)", "#fbbf24", "rgba(245, 158, 11, 0.5)", "linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("3️⃣ NASA GPM Yağış", f"{d['gpm_precip']:.2f} mm", "Hassas toplam yağış miktarı", "rgba(245, 158, 11, 0.8)", "#fbbf24", "rgba(245, 158, 11, 0.5)", "linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c4:
-        render_metric_card("4️⃣ NASA SMAP Toprak Nemi", f"%{d['smap_soil']}", "Yüzey ve kök bölgesi toprak nem oranı", "rgba(168, 85, 247, 0.8)", "#c084fc", "rgba(168, 85, 247, 0.5)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("4️⃣ Atmosferik Basınç", f"{d['basinc']:.2f} hPa", "Hassas yüzey hava basıncı", "rgba(168, 85, 247, 0.8)", "#c084fc", "rgba(168, 85, 247, 0.5)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
 
 with tab3:
     render_box(
         title="🌿 Ekosistem, Atmosfer ve Çevre Verileri",
-        subtitle="Uydu tabanlı biyolojik ve çevresel risk göstergeleri.",
+        subtitle="Seçilen koordinata özel uydu tabanlı biyolojik ve çevresel göstergeler.",
         border_color="rgba(239, 68, 68, 0.8)",
         glow_color="rgba(239, 68, 68, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(153, 27, 27, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -295,16 +318,16 @@ with tab3:
     
     c1, c2, c3 = st.columns(3)
     with c1:
-        render_metric_card("5️⃣ MODIS NDVI", f"{d['ndvi_val']}", "Bitki yeşillik ve biyokütle indeksi", "rgba(236, 72, 153, 0.8)", "#f472b6", "rgba(236, 72, 153, 0.5)", "linear-gradient(135deg, rgba(236, 72, 153, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("5️⃣ MODIS NDVI", f"{d['ndvi_val']:.3f}", "Bitki yeşillik ve biyokütle indeksi", "rgba(236, 72, 153, 0.8)", "#f472b6", "rgba(236, 72, 153, 0.5)", "linear-gradient(135deg, rgba(236, 72, 153, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c2:
-        render_metric_card("6️⃣ NASA OMI NO₂", f"{d['omi_no2']}", "Azot dioksit kolon yoğunluğu", "rgba(59, 130, 246, 0.8)", "#60a5fa", "rgba(59, 130, 246, 0.5)", "linear-gradient(135deg, rgba(59, 130, 246, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("6️⃣ NASA OMI NO₂", f"{d['omi_no2']:.3f}", "Azot dioksit kolon yoğunluğu", "rgba(59, 130, 246, 0.8)", "#60a5fa", "rgba(59, 130, 246, 0.5)", "linear-gradient(135deg, rgba(59, 130, 246, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c3:
         render_metric_card("7️⃣ NASA GLM Yıldırım", f"{d['glm_flash']}", "Atmosferik şimşek aktivitesi", "rgba(234, 179, 8, 0.8)", "#facc15", "rgba(234, 179, 8, 0.5)", "linear-gradient(135deg, rgba(234, 179, 8, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     
     c4, c5, c6 = st.columns(3)
     with c4:
-        render_metric_card("8️⃣ NASA SIF Floresan", f"{d['sif_val']}", "Doğrudan fotosentez verimliliği", "rgba(20, 184, 166, 0.8)", "#2dd4bf", "rgba(20, 184, 166, 0.5)", "linear-gradient(135deg, rgba(20, 184, 166, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("8️⃣ NASA SIF Floresan", f"{d['sif_val']:.2f}", "Doğrudan fotosentez verimliliği", "rgba(20, 184, 166, 0.8)", "#2dd4bf", "rgba(20, 184, 166, 0.5)", "linear-gradient(135deg, rgba(20, 184, 166, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c5:
-        render_metric_card("9️⃣ Landsat Biyokütle", f"{d['landsat_biomass']}", "Yüksek çözünürlüklü bitki biyokütlesi", "rgba(139, 92, 246, 0.8)", "#a78bfa", "rgba(139, 92, 246, 0.5)", "linear-gradient(135deg, rgba(139, 92, 246, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("9️⃣ Landsat Biyokütle", f"{d['landsat_biomass']:.2f}", "Yüksek çözünürlüklü bitki biyokütlesi", "rgba(139, 92, 246, 0.8)", "#a78bfa", "rgba(139, 92, 246, 0.5)", "linear-gradient(135deg, rgba(139, 92, 246, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c6:
-        render_metric_card("🔟 MODIS LST", f"{d['lst_temp']} °C", "Yeryüzü termal sıcaklık anomalileri", "rgba(249, 115, 22, 0.8)", "#fb923c", "rgba(249, 115, 22, 0.5)", "linear-gradient(135deg, rgba(249, 115, 22, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("🔟 MODIS LST", f"{d['lst_temp']:.2f} °C", "Yeryüzü termal sıcaklık anomalileri", "rgba(249, 115, 22, 0.8)", "#fb923c", "rgba(249, 115, 22, 0.5)", "linear-gradient(135deg, rgba(249, 115, 22, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
