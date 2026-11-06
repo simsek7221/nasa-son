@@ -14,89 +14,120 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - Elite NASA Observatory",
+    page_title="Lightning Flora - Hyper Neon NASA Observatory",
     page_icon="🛰️",
     layout="wide"
 )
 
-# --- 3X INTENSIFIED ELITE GLASSMORPHISM & NEON CSS ---
+# --- 3X ULTRA INTENSIFIED NEON & GLASSMORPHISM CSS ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
 
     .stApp {
-        background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0f172a 50%, #020617 100%) !important;
+        background: radial-gradient(circle at 50% 0%, #2e1065 0%, #0f172a 50%, #000000 100%) !important;
         color: #f8fafc !important;
         font-family: 'Plus Jakarta Sans', sans-serif !important;
     }
     
     .block-container {
-        background: rgba(30, 41, 59, 0.6) !important;
-        backdrop-filter: blur(48px) !important;
-        -webkit-backdrop-filter: blur(48px) !important;
-        border-radius: 40px !important;
+        background: rgba(15, 23, 42, 0.75) !important;
+        backdrop-filter: blur(60px) !important;
+        -webkit-backdrop-filter: blur(60px) !important;
+        border-radius: 45px !important;
         padding: 3rem !important;
         margin-top: 1.5rem !important;
-        border: 2px solid rgba(56, 189, 248, 0.35) !important;
-        box-shadow: 0 50px 100px rgba(0, 0, 0, 0.9), 0 0 60px rgba(56, 189, 248, 0.2), inset 0 2px 6px rgba(255, 255, 255, 0.25) !important;
+        border: 3px solid rgba(56, 189, 248, 0.6) !important;
+        box-shadow: 0 0 120px rgba(56, 189, 248, 0.35), inset 0 0 40px rgba(168, 85, 247, 0.25) !important;
     }
 
     .stButton>button {
-        background: linear-gradient(135deg, #38bdf8 0%, #2563eb 100%) !important;
+        background: linear-gradient(135deg, #38bdf8 0%, #7c3aed 100%) !important;
         color: white !important;
-        border-radius: 20px !important;
-        border: 2px solid rgba(255, 255, 255, 0.3) !important;
-        padding: 0.9rem 2.2rem !important;
-        font-weight: 800 !important;
-        box-shadow: 0 12px 35px rgba(37, 99, 235, 0.6), 0 0 25px rgba(56, 189, 248, 0.4) !important;
-        transition: all 0.3s ease;
+        border-radius: 25px !important;
+        border: 3px solid rgba(255, 255, 255, 0.5) !important;
+        padding: 1rem 2.5rem !important;
+        font-weight: 900 !important;
+        box-shadow: 0 15px 45px rgba(124, 58, 237, 0.7), 0 0 40px rgba(56, 189, 248, 0.6) !important;
+        transition: all 0.4s ease;
     }
 
     .stButton>button:hover {
-        transform: translateY(-4px) scale(1.02);
-        box-shadow: 0 18px 45px rgba(56, 189, 248, 0.8), 0 0 35px rgba(56, 189, 248, 0.6) !important;
+        transform: translateY(-5px) scale(1.03);
+        box-shadow: 0 25px 60px rgba(56, 189, 248, 0.9), 0 0 60px rgba(168, 85, 247, 0.9) !important;
     }
 
-    /* 3x Yuvarlak Hap (Pill) Biçimli Sekmeler */
+    /* 3x Yoğun Neon Yuvarlak Hap (Pill) Biçimli Sekmeler */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 16px;
-        background: rgba(15, 23, 42, 0.85);
-        padding: 14px;
-        border-radius: 60px;
-        border: 2px solid rgba(56, 189, 248, 0.35);
-        backdrop-filter: blur(36px);
-        box-shadow: 0 25px 50px rgba(0,0,0,0.7), inset 0 2px 4px rgba(255,255,255,0.15);
+        gap: 20px;
+        background: rgba(15, 23, 42, 0.9);
+        padding: 16px;
+        border-radius: 80px;
+        border: 3px solid rgba(168, 85, 247, 0.6);
+        backdrop-filter: blur(40px);
+        box-shadow: 0 0 60px rgba(168, 85, 247, 0.4), inset 0 0 20px rgba(56, 189, 248, 0.3);
     }
 
     .stTabs [data-baseweb="tab"] {
-        background: rgba(255, 255, 255, 0.04);
-        border-radius: 50px;
-        color: #94a3b8;
-        font-weight: 700;
-        padding: 14px 28px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+        border-radius: 60px;
+        color: #cbd5e1;
+        font-weight: 800;
+        padding: 16px 32px;
+        border: 2px solid rgba(56, 189, 248, 0.3);
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
     }
 
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, rgba(56, 189, 248, 0.4) 0%, rgba(37, 99, 235, 0.4) 100%) !important;
-        color: #38bdf8 !important;
-        border-color: rgba(56, 189, 248, 0.8) !important;
-        box-shadow: 0 0 40px rgba(56, 189, 248, 0.6), inset 0 0 20px rgba(56, 189, 248, 0.4) !important;
-        transform: scale(1.03);
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.6) 0%, rgba(168, 85, 247, 0.6) 100%) !important;
+        color: #ffffff !important;
+        border-color: rgba(56, 189, 248, 1) !important;
+        box-shadow: 0 0 50px rgba(56, 189, 248, 0.8), 0 0 30px rgba(168, 85, 247, 0.8), inset 0 0 20px rgba(255, 255, 255, 0.5) !important;
+        transform: scale(1.05);
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Özel Renkli Buzlu Cam Kutusu Oluşturucu (Girinti ve Çeviri Hatalarından Arındırılmış)
-def render_box(content_html, border_color, bg_gradient):
-    box_code = f"""<div style="background: {bg_gradient}; backdrop-filter: blur(36px); -webkit-backdrop-filter: blur(36px); border: 2px solid {border_color}; border-radius: 30px; padding: 2.2rem; margin-bottom: 1.8rem; box-shadow: 0 25px 50px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.2);">{content_html}</div>"""
-    st.markdown(box_code, unsafe_allow_html=True)
+# Tonlamalı ve 3 Kat Güçlendirilmiş Buzlu Cam Kutu Oluşturucu
+def render_box(title, subtitle, border_color, glow_color, bg_gradient):
+    html_content = f"""
+    <div style="
+        background: {bg_gradient};
+        backdrop-filter: blur(40px);
+        -webkit-backdrop-filter: blur(40px);
+        border: 3px solid {border_color};
+        border-radius: 35px;
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 25px 60px rgba(0,0,0,0.8), 0 0 50px {glow_color}, inset 0 2px 8px rgba(255,255,255,0.3);
+    ">
+        <h2 style="color: #ffffff; margin-top: 0; font-size: 1.6rem; font-weight: 900; text-shadow: 0 0 25px {glow_color};">{title}</h2>
+        <p style="color: #e2e8f0; margin-bottom: 0; font-size: 1.05rem; font-weight: 600; line-height: 1.5;">{subtitle}</p>
+    </div>
+    """
+    st.markdown(html_content, unsafe_allow_html=True)
 
-# 3x Güçlendirilmiş Renkli Veri Kartı Oluşturucu
-def render_metric_card(title, value, caption, border_color, text_color, bg_gradient):
-    card_code = f"""<div style="background: {bg_gradient}; backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border: 2px solid {border_color}; border-radius: 26px; padding: 1.6rem; margin-bottom: 1.2rem; box-shadow: 0 15px 40px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.15); transition: all 0.4s ease;"><div style="color: #cbd5e1; font-size: 0.95rem; font-weight: 700; margin-bottom: 10px;">{title}</div><div style="color: {text_color}; font-size: 2rem; font-weight: 900; text-shadow: 0 0 30px {text_color}70; margin-bottom: 8px;">{value}</div><div style="color: #e2e8f0; font-size: 0.82rem; opacity: 0.9; line-height: 1.4; font-weight: 500;">{caption}</div></div>"""
-    st.markdown(card_code, unsafe_allow_html=True)
+# 3 Kat Güçlendirilmiş Renkli ve Neon Işıklı Veri Kartı Oluşturucu
+def render_metric_card(title, value, caption, border_color, text_color, glow_color, bg_gradient):
+    html_content = f"""
+    <div style="
+        background: {bg_gradient};
+        backdrop-filter: blur(35px);
+        -webkit-backdrop-filter: blur(35px);
+        border: 3px solid {border_color};
+        border-radius: 30px;
+        padding: 1.8rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.7), 0 0 40px {glow_color}, inset 0 2px 6px rgba(255,255,255,0.25);
+        transition: all 0.4s ease;
+    ">
+        <div style="color: #cbd5e1; font-size: 1rem; font-weight: 800; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">{title}</div>
+        <div style="color: {text_color}; font-size: 2.2rem; font-weight: 900; text-shadow: 0 0 35px {text_color}, 0 0 15px {glow_color}; margin-bottom: 10px;">{value}</div>
+        <div style="color: #f1f5f9; font-size: 0.88rem; opacity: 0.95; line-height: 1.4; font-weight: 600;">{caption}</div>
+    </div>
+    """
+    st.markdown(html_content, unsafe_allow_html=True)
 
 @st.cache_data(ttl=600)
 def canli_hava_durumu_cek(lat, lon):
@@ -136,8 +167,10 @@ def analiz_uret(lat, lon):
 
 # --- HEADER KUTUSU ---
 render_box(
-    """<span style="background: rgba(16, 185, 129, 0.3); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.6); padding: 6px 16px; border-radius: 30px; font-size: 0.8rem; font-weight: 800; box-shadow: 0 0 20px rgba(16,185,129,0.4);">🟢 SYSTEM ONLINE</span><h1 style="color: #f8fafc; margin: 15px 0 8px 0; font-size: 2.3rem; font-weight: 900; text-shadow: 0 0 30px rgba(56,189,248,0.4);">🛰️ Lightning Flora: Enterprise NASA Observatory</h1><p style="color: #cbd5e1; margin: 0; font-size: 1.05rem; font-weight: 500;">Yüksek Performanslı Saha Gözlem ve Çok Katmanlı Uydu Analiz Platformu</p>""",
-    border_color="rgba(56, 189, 248, 0.5)",
+    title="🛰️ Lightning Flora: Enterprise NASA Observatory",
+    subtitle="🟢 SYSTEM ONLINE • Yüksek Performanslı Saha Gözlem ve Çok Katmanlı Uydu Analiz Platformu",
+    border_color="rgba(56, 189, 248, 0.8)",
+    glow_color="rgba(56, 189, 248, 0.6)",
     bg_gradient="linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)"
 )
 
@@ -156,9 +189,11 @@ if streamlit_geolocation is not None:
 d = analiz_uret(lat, lon)
 
 render_box(
-    f"""<h3 style="color: #f8fafc; margin-top: 0; font-size: 1.35rem; font-weight: 800;">📍 Saha Cihazı / Tablet Konum Tespiti</h3><p style="color: #e2e8f0; margin-bottom: 15px; font-size: 0.95rem; font-weight: 500;">Anlık konum verilerini cihaz sensörlerinden veya varsayılan ağ koordinatlarından alın.</p><div style="background: rgba(56, 189, 248, 0.15); border: 2px solid rgba(56, 189, 248, 0.5); border-radius: 18px; padding: 14px 20px; color: #38bdf8; font-weight: 800; font-size: 1.05rem; box-shadow: 0 0 25px rgba(56,189,248,0.2);">🎯 Aktif Koordinat Bilgisi: {mekan} ({lat:.4f}, {lon:.4f})</div>""",
-    border_color="rgba(168, 85, 247, 0.5)",
-    bg_gradient="linear-gradient(135deg, rgba(49, 46, 129, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%)"
+    title="📍 Saha Cihazı / Tablet Konum Tespiti",
+    subtitle=f"🎯 Aktif Koordinat Bilgisi: <b>{mekan}</b> ({lat:.4f}, {lon:.4f}) — Anlık konum verilerini cihaz sensörlerinden veya ağ koordinatlarından alın.",
+    border_color="rgba(168, 85, 247, 0.8)",
+    glow_color="rgba(168, 85, 247, 0.6)",
+    bg_gradient="linear-gradient(135deg, rgba(49, 46, 129, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
 )
 
 # --- SEKMELER ---
@@ -170,9 +205,11 @@ tab1, tab2, tab3 = st.tabs([
 
 with tab1:
     render_box(
-        """<h3 style="color: #f8fafc; margin-top: 0; font-size: 1.35rem; font-weight: 800;">🗺️ Çok Katmanlı NASA Gözlem Haritası</h3><p style="color: #cbd5e1; margin-bottom: 0; font-size: 0.95rem; font-weight: 500;">Sağ üst köşedeki katman simgesine tıklayarak radar alanlarını açıp kapatabilirsiniz.</p>""",
-        border_color="rgba(16, 185, 129, 0.5)",
-        bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.45) 0%, rgba(15, 23, 42, 0.9) 100%)"
+        title="🗺️ Çok Katmanlı NASA Gözlem Haritası",
+        subtitle="Sağ üst köşedeki katman simgesine tıklayarak radar alanlarını açıp kapatabilirsiniz.",
+        border_color="rgba(16, 185, 129, 0.8)",
+        glow_color="rgba(16, 185, 129, 0.6)",
+        bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
     m = folium.Map(location=[lat, lon], zoom_start=11, tiles=None)
@@ -230,40 +267,44 @@ with tab1:
 
 with tab2:
     render_box(
-        """<h3 style="color: #f8fafc; margin-top: 0; font-size: 1.35rem; font-weight: 800;">📊 Canlı Hava Durumu ve Su Kaynakları</h3><p style="color: #cbd5e1; margin-bottom: 0; font-size: 0.95rem; font-weight: 500;">Meteorolojik ve hidrolojik ölçümlerin çok renkli cam kutulardaki dağılımı.</p>""",
-        border_color="rgba(56, 189, 248, 0.5)",
-        bg_gradient="linear-gradient(135deg, rgba(14, 116, 144, 0.4) 0%, rgba(15, 23, 42, 0.9) 100%)"
+        title="📊 Canlı Hava Durumu ve Su Kaynakları",
+        subtitle="Meteorolojik ve hidrolojik ölçümlerin neon renk tonlamalı cam kutulardaki dağılımı.",
+        border_color="rgba(56, 189, 248, 0.8)",
+        glow_color="rgba(56, 189, 248, 0.6)",
+        bg_gradient="linear-gradient(135deg, rgba(14, 116, 144, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        render_metric_card("1️⃣ Anlık Hava Sıcaklığı", f"{d['sicaklik']} °C", "Anlık gerçek dış ortam sıcaklığı", "rgba(56, 189, 248, 0.5)", "#38bdf8", "linear-gradient(135deg, rgba(14, 165, 233, 0.25) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("1️⃣ Anlık Hava Sıcaklığı", f"{d['sicaklik']} °C", "Anlık gerçek dış ortam sıcaklığı", "rgba(56, 189, 248, 0.8)", "#38bdf8", "rgba(56, 189, 248, 0.5)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c2:
-        render_metric_card("2️⃣ Anlık Bağıl Nem", f"%{d['nem']}", "Atmosferik nem oranı", "rgba(16, 185, 129, 0.5)", "#34d399", "linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("2️⃣ Anlık Bağıl Nem", f"%{d['nem']}", "Atmosferik nem oranı", "rgba(16, 185, 129, 0.8)", "#34d399", "rgba(16, 185, 129, 0.5)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c3:
-        render_metric_card("3️⃣ NASA GPM Yağış", f"{d['gpm_precip']} mm", "Anlık toplam yağış miktarı", "rgba(245, 158, 11, 0.5)", "#fbbf24", "linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("3️⃣ NASA GPM Yağış", f"{d['gpm_precip']} mm", "Anlık toplam yağış miktarı", "rgba(245, 158, 11, 0.8)", "#fbbf24", "rgba(245, 158, 11, 0.5)", "linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c4:
-        render_metric_card("4️⃣ NASA SMAP Toprak Nemi", f"%{d['smap_soil']}", "Yüzey ve kök bölgesi toprak nem oranı", "rgba(168, 85, 247, 0.5)", "#c084fc", "linear-gradient(135deg, rgba(168, 85, 247, 0.25) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("4️⃣ NASA SMAP Toprak Nemi", f"%{d['smap_soil']}", "Yüzey ve kök bölgesi toprak nem oranı", "rgba(168, 85, 247, 0.8)", "#c084fc", "rgba(168, 85, 247, 0.5)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
 
 with tab3:
     render_box(
-        """<h3 style="color: #f8fafc; margin-top: 0; font-size: 1.35rem; font-weight: 800;">🌿 Ekosistem, Atmosfer ve Çevre Verileri</h3><p style="color: #cbd5e1; margin-bottom: 0; font-size: 0.95rem; font-weight: 500;">Uydu tabanlı biyolojik ve çevresel risk göstergeleri.</p>""",
-        border_color="rgba(239, 68, 68, 0.5)",
-        bg_gradient="linear-gradient(135deg, rgba(153, 27, 27, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)"
+        title="🌿 Ekosistem, Atmosfer ve Çevre Verileri",
+        subtitle="Uydu tabanlı biyolojik ve çevresel risk göstergeleri.",
+        border_color="rgba(239, 68, 68, 0.8)",
+        glow_color="rgba(239, 68, 68, 0.6)",
+        bg_gradient="linear-gradient(135deg, rgba(153, 27, 27, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
     c1, c2, c3 = st.columns(3)
     with c1:
-        render_metric_card("5️⃣ MODIS NDVI", f"{d['ndvi_val']}", "Bitki yeşillik ve biyokütle indeksi", "rgba(236, 72, 153, 0.5)", "#f472b6", "linear-gradient(135deg, rgba(236, 72, 153, 0.25) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("5️⃣ MODIS NDVI", f"{d['ndvi_val']}", "Bitki yeşillik ve biyokütle indeksi", "rgba(236, 72, 153, 0.8)", "#f472b6", "rgba(236, 72, 153, 0.5)", "linear-gradient(135deg, rgba(236, 72, 153, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c2:
-        render_metric_card("6️⃣ NASA OMI NO₂", f"{d['omi_no2']}", "Azot dioksit kolon yoğunluğu", "rgba(59, 130, 246, 0.5)", "#60a5fa", "linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("6️⃣ NASA OMI NO₂", f"{d['omi_no2']}", "Azot dioksit kolon yoğunluğu", "rgba(59, 130, 246, 0.8)", "#60a5fa", "rgba(59, 130, 246, 0.5)", "linear-gradient(135deg, rgba(59, 130, 246, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c3:
-        render_metric_card("7️⃣ NASA GLM Yıldırım", f"{d['glm_flash']}", "Atmosferik şimşek aktivitesi", "rgba(234, 179, 8, 0.5)", "#facc15", "linear-gradient(135deg, rgba(234, 179, 8, 0.25) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("7️⃣ NASA GLM Yıldırım", f"{d['glm_flash']}", "Atmosferik şimşek aktivitesi", "rgba(234, 179, 8, 0.8)", "#facc15", "rgba(234, 179, 8, 0.5)", "linear-gradient(135deg, rgba(234, 179, 8, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     
     c4, c5, c6 = st.columns(3)
     with c4:
-        render_metric_card("8️⃣ NASA SIF Floresan", f"{d['sif_val']}", "Doğrudan fotosentez verimliliği", "rgba(20, 184, 166, 0.5)", "#2dd4bf", "linear-gradient(135deg, rgba(20, 184, 166, 0.25) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("8️⃣ NASA SIF Floresan", f"{d['sif_val']}", "Doğrudan fotosentez verimliliği", "rgba(20, 184, 166, 0.8)", "#2dd4bf", "rgba(20, 184, 166, 0.5)", "linear-gradient(135deg, rgba(20, 184, 166, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c5:
-        render_metric_card("9️⃣ Landsat Biyokütle", f"{d['landsat_biomass']}", "Yüksek çözünürlüklü bitki biyokütlesi", "rgba(139, 92, 246, 0.5)", "#a78bfa", "linear-gradient(135deg, rgba(139, 92, 246, 0.25) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("9️⃣ Landsat Biyokütle", f"{d['landsat_biomass']}", "Yüksek çözünürlüklü bitki biyokütlesi", "rgba(139, 92, 246, 0.8)", "#a78bfa", "rgba(139, 92, 246, 0.5)", "linear-gradient(135deg, rgba(139, 92, 246, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c6:
-        render_metric_card("🔟 MODIS LST", f"{d['lst_temp']} °C", "Yeryüzü termal sıcaklık anomalileri", "rgba(249, 115, 22, 0.5)", "#fb923c", "linear-gradient(135deg, rgba(249, 115, 22, 0.25) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("🔟 MODIS LST", f"{d['lst_temp']} °C", "Yeryüzü termal sıcaklık anomalileri", "rgba(249, 115, 22, 0.8)", "#fb923c", "rgba(249, 115, 22, 0.5)", "linear-gradient(135deg, rgba(249, 115, 22, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
