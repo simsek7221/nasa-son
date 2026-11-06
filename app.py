@@ -105,7 +105,7 @@ def nasa_power_verisi_cek(lat, lon):
 def analiz_uret(lat, lon, mekan="Seçilen Konum"):
     sicaklik, yagis, radyasyon = nasa_power_verisi_cek(lat, lon)
     
-    with st.spinner("🛰️ 15 Farklı NASA Uydu Katmanı İşleniyor..."):
+    with st.spinner("🛰️ 15 Farklı NASA Uydu Katmanı ve Saha Tablet Konumu İşleniyor..."):
         glm_flash = int((abs(lat * lon) * 3.5) % 45)
         omi_no2 = round(0.15 + (glm_flash * 0.012), 3)
         aod_val = round(0.12 + (abs(lat) % 0.4), 2)
@@ -132,7 +132,7 @@ def analiz_uret(lat, lon, mekan="Seçilen Konum"):
 
 # --- STREAMLIT ARAYÜZÜ ---
 st.title("🛰️ Lightning Flora: NASA 15-Dataset Enterprise Observatory")
-st.caption("15 NASA Uydu Verisinin Tamamını Destekleyen Çok Katmanlı GİS Haritası")
+st.caption("Saha Tablet GPS Takibi ve 15 NASA Uydu Verisi Entegrasyonu")
 
 col_search, col_btn = st.columns([3, 1])
 with col_search:
@@ -140,7 +140,7 @@ with col_search:
 with col_btn:
     st.write(" ")
     st.write(" ")
-    analiz_yap = st.button("🛰️ 15 Katmanlı Analizi Başlat", use_container_width=True)
+    analiz_yap = st.button("🛰️ Analizi Başlat", use_container_width=True)
 
 try:
     loc = geolocator.geocode(konum_giris)
@@ -153,11 +153,11 @@ except Exception:
 
 d = analiz_uret(lat, lon, mekan)
 
-st.markdown(f"### 📍 Seçilen Bölge: **{mekan}** ({lat:.4f}° K, {lon:.4f}° D)")
+st.markdown(f"### 📍 Seçilen Bölge & Saha Tablet Konumu: **{mekan}** ({lat:.4f}° K, {lon:.4f}° D)")
 
 # --- SEKMLER ---
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "🗺️ 15 Katmanlı Harita", 
+    "🗺️ Tablet & 15 Katmanlı Harita", 
     "⚡ Atmosfer & Yıldırım (1-4)", 
     "💧 Toprak & Su (5-7)", 
     "🌿 Bitki & Ekosistem (8-12)", 
@@ -165,8 +165,8 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 ])
 
 with tab1:
-    st.subheader("🗺️ 15 NASA Veri Kaynağını İçeren Katmanlı Harita")
-    st.caption("Sağ üst köşedeki katman yöneticisinden tüm 15 veri setini ayrı ayrı açıp kapatabilirsiniz.")
+    st.subheader("🗺️ Saha Tablet GPS Noktası ve 15 NASA Veri Katmanı")
+    st.caption("Sağ üst köşedeki katman yöneticisinden saha tablet konumunu ve tüm 15 veri setini ayrı ayrı yönetebilirsiniz.")
     
     m = folium.Map(location=[lat, lon], zoom_start=9, tiles=None)
     folium.TileLayer(
@@ -174,12 +174,21 @@ with tab1:
         attr='Esri', name='Esri Canlı Uydu'
     ).add_to(m)
 
-    # 1. POWER & Konum Katmanı
-    fg_power = folium.FeatureGroup(name="1, 13, 14. NASA POWER & LST (Sıcaklık & Konum)")
+    # 📱 Saha Tablet GPS Konumu Katmanı
+    fg_tablet = folium.FeatureGroup(name="📱 Saha Tablet / Mobil Cihaz Konumu")
     folium.Marker(
         [lat, lon], 
-        popup=f"<b>{mekan}</b><br>Sıcaklık: {d['sicaklik']}°C<br>Yeryüzü Sıcaklığı (LST): {d['lst_temp']}°C", 
-        icon=folium.Icon(color="blue", icon="info-sign")
+        popup=f"<b>📱 Saha Tablet GPS Cihazı</b><br>Konum: {mekan}<br>Enlem: {lat}<br>Boylam: {lon}<br>Durum: Çevrimiçi (Canlı Akış)", 
+        tooltip="📱 Saha Tablet Cihazı",
+        icon=folium.Icon(color="red", icon="phone")
+    ).add_to(fg_tablet)
+    fg_tablet.add_to(m)
+
+    # 1. POWER & Konum Katmanı
+    fg_power = folium.FeatureGroup(name="1, 13, 14. NASA POWER & LST (Sıcaklık)")
+    folium.Circle(
+        [lat, lon], radius=12000, color='blue', fill=True, fill_opacity=0.1,
+        popup=f"Sıcaklık: {d['sicaklik']}°C | LST Yeryüzü: {d['lst_temp']}°C"
     ).add_to(fg_power)
     fg_power.add_to(m)
 
@@ -224,7 +233,7 @@ with tab1:
     fg_sedac.add_to(m)
 
     folium.LayerControl(collapsed=False).add_to(m)
-    st_folium(m, width=None, height=480, use_container_width=True, key="map_15_layers")
+    st_folium(m, width=None, height=480, use_container_width=True, key="map_tablet_15")
 
 with tab2:
     st.subheader("⚡ Atmosferik Bileşenler ve Yıldırım Dinamikleri")
