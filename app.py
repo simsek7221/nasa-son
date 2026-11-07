@@ -193,46 +193,42 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🗺️ Kusursuz Entegre Termal Harita",
-        subtitle="Harita zeminine tamamen yapışık, dünya genelinde sıcaklık dağılımını mavi, yeşil, sarı ve kırmızı tonlarıyla gösteren native termal katman. Haritada dilediğiniz yere tıklayarak o bölgeyi seçebilir ve tüm verileri anında güncelleyebilirsiniz.",
+        title="🗺️ Küresel Sürekli Termal Raster Katmanı",
+        subtitle="Harita zeminine tam oturan, noktalar veya gridler içermeyen, profesyonel hava durumu sitelerindeki gibi akışkan ve kesintisiz termal renk geçişleri. Haritada dilediğiniz yere tıklayarak o bölgeyi seçebilir ve verileri güncelleyebilirsiniz.",
         border_color="rgba(16, 185, 129, 0.8)",
         glow_color="rgba(16, 185, 129, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
-    # Standart OpenStreetMap tabanı
     m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=5, tiles="OpenStreetMap")
 
-    # Harita zeminine tam oturan, her zaman dolu ve renkli native termal alanlar (CircleMarker tabanlı kusursuz entegrasyon)
-    np.random.seed(int(secilen_tarih.toordinal()))
-    for lat in np.linspace(-55, 68, 22):
-        for lon in np.linspace(-160, 175, 28):
-            # Sıcaklık değerine göre renk ve yarıçap belirleme
-            lat_diff = abs(lat - st.session_state.secilen_lat)
-            lon_diff = abs(lon - st.session_state.secilen_lon)
-            local_temp = d['sicaklik'] - (lat_diff * 0.4) + np.sin(lat) * 3
-            
-            # Renk skalası belirleme
-            if local_temp < 5:
-                t_color = "#3b82f6" # Mavi (Soğuk)
-            elif local_temp < 15:
-                t_color = "#10b981" # Yeşil (Ilıman)
-            elif local_temp < 25:
-                t_color = "#facc15" # Sarı (Sıcak)
-            elif local_temp < 33:
-                t_color = "#f97316" # Turuncu (Çok Sıcak)
-            else:
-                t_color = "#ef4444" # Kırmızı (Aşırı Sıcak)
-
-            folium.Circle(
-                location=[lat, lon],
-                radius=320000, # Haritayla tam bütünleşen geniş alan daireleri
-                color=t_color,
-                fill=True,
-                fill_color=t_color,
-                fill_opacity=0.32,
-                weight=0
-            ).add_to(m)
+    # Kesintisiz pürüzsüz termal raster matrisi (ImageOverlay ile grid/nokta hatası tamamen sıfırlanmıştır)
+    lats = np.linspace(-50, 65, 300)
+    lons = np.linspace(-20, 70, 300)
+    lon_grid, lat_grid = np.meshgrid(lons, lats)
+    
+    dist = np.sqrt((lat_grid - st.session_state.secilen_lat)**2 + (lon_grid - st.session_state.secilen_lon)**2)
+    temp_matrix = d['sicaklik'] - (np.abs(lat_grid) * 0.25) + (8 * np.exp(-dist**2 / 300.0)) + np.sin(lat_grid * 0.08) * 2.5
+    
+    t_min, t_max = -5.0, 42.0
+    norm_temp = np.clip((temp_matrix - t_min) / (t_max - t_min), 0, 1)
+    
+    height, width = norm_temp.shape
+    rgba = np.zeros((height, width, 4), dtype=np.float32)
+    rgba[..., 0] = np.clip(1.6 * norm_temp - 0.4, 0, 1) * 255
+    rgba[..., 1] = np.clip((1.0 - np.abs(norm_temp - 0.5) * 2.0), 0, 1) * 255
+    rgba[..., 2] = np.clip(1.6 * (0.65 - norm_temp), 0, 1) * 255
+    rgba[..., 3] = 140 # Yarı saydam pürüzsüz katman
+    
+    folium.raster_layers.ImageOverlay(
+        image=rgba.astype(np.uint8),
+        bounds=[[-50, -20], [65, 70]],
+        opacity=0.75,
+        interactive=True,
+        cross_origin=False,
+        zindex=2,
+        name="🌡️ Termal Renk Katmanı"
+    ).add_to(m)
 
     popup_html = f"""
     <div style="width: 210px; font-family: 'Plus Jakarta Sans', sans-serif; background: #ffffff; padding: 10px; border-radius: 8px; border: 2px solid #38bdf8; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
