@@ -15,7 +15,7 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - Global Weather Observatory",
+    page_title="Lightning Flora - Interactive Thermal Observatory",
     page_icon="🛰️",
     layout="wide"
 )
@@ -206,7 +206,15 @@ def analiz_uret(lat, lon, secilen_tarih):
         "sedac_risk": sedac_risk, "lst_temp": lst_temp, "gun_farki": gun_farki
     }
 
-# --- HEADER KUTUSU & GÖRSELDEKİ MENÜ ÇUBUĞU BENZERİ ---
+# --- Oturum Durumu (Session State) ile Harita Tıklama Koordinat Yönetimi ---
+if "secilen_lat" not in st.session_state:
+    st.session_state.secilen_lat = 37.8859
+if "secilen_lon" not in st.session_state:
+    st.session_state.secilen_lon = 41.1198
+if "mekan_adi" not in st.session_state:
+    st.session_state.mekan_adi = "Batman (Varsayılan Konum)"
+
+# --- ÜST MENÜ VE SKALA ÇUBUĞU ---
 st.markdown("""
 <div style="background: rgba(15, 23, 42, 0.9); padding: 12px 20px; border-radius: 20px; border: 2px solid rgba(56, 189, 248, 0.5); margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 15px; justify-content: space-between; align-items: center; font-size: 0.85rem; font-weight: 700; color: #38bdf8;">
     <span>HARITALAR</span>
@@ -219,14 +227,10 @@ st.markdown("""
     <span>GÜN DOĞUMU VE GÜN BATIMI</span>
     <span>HABERLER</span>
 </div>
-<!-- Görseldeki dBZ Yağış Skalası Çubuğu -->
 <div style="background: linear-gradient(90deg, #10b981, #34d399, #fbbf24, #f87171, #dc2626); height: 10px; border-radius: 5px; margin-bottom: 25px; box-shadow: 0 0 15px rgba(56, 189, 248, 0.5);"></div>
 """, unsafe_allow_html=True)
 
-# --- ANA Konum Arama, GPS & Tarih Seçici ---
-lat, lon = 37.8859, 41.1198 
-mekan = "Batman (Varsayılan Koordinat)"
-
+# --- ARAMA, GPS & TARİH ---
 col_search, col_gps, col_date = st.columns([2, 1, 1])
 
 with col_search:
@@ -234,25 +238,24 @@ with col_search:
     if aranan_konum:
         coords, addr = konum_bul(aranan_konum)
         if coords:
-            lat, lon = coords
-            mekan = f"Aranan Konum: {addr or aranan_konum}"
-            st.success(f"✅ Konum Bulundu: {lat:.4f}, {lon:.4f}")
-        else:
-            st.warning("⚠️ Konum bulunamadı.")
+            st.session_state.secilen_lat, st.session_state.secilen_lon = coords
+            st.session_state.mekan_adi = f"Aranan Konum: {addr or aranan_konum}"
+            st.success(f"✅ Konum Bulundu: {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}")
 
 with col_gps:
     st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
     if streamlit_geolocation is not None:
         loc_data = streamlit_geolocation()
         if loc_data and loc_data.get("latitude") and loc_data.get("longitude"):
-            lat = loc_data["latitude"]
-            lon = loc_data["longitude"]
-            mekan = f"GPS Cihaz Konumu ({lat:.4f}, {lon:.4f})"
+            st.session_state.secilen_lat = loc_data["latitude"]
+            st.session_state.secilen_lon = loc_data["longitude"]
+            st.session_state.mekan_adi = f"GPS Cihaz Konumu ({st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f})"
 
 with col_date:
     secilen_tarih = st.date_input("📅 Analiz Tarihi Seçin:", value=datetime.now().date())
 
-d = analiz_uret(lat, lon, secilen_tarih)
+# Verileri aktif koordinatlara göre çek
+d = analiz_uret(st.session_state.secilen_lat, st.session_state.secilen_lon, secilen_tarih)
 
 zaman_aciklama = "Bugünkü Canlı Gözlem Verileri"
 if d['gun_farki'] < 0:
@@ -262,7 +265,7 @@ elif d['gun_farki'] > 0:
 
 render_box(
     title=f"📍 Aktif Gözlem Konumu ve Zaman Modu: {zaman_aciklama}",
-    subtitle=f"🎯 Konum: <b>{mekan}</b><br>📌 Koordinat: <b>{lat:.4f}° N, {lon:.4f}° E</b> | Seçilen Tarih: <b>{secilen_tarih.strftime('%d.%m.%Y')}</b>",
+    subtitle=f"🎯 Konum: <b>{st.session_state.mekan_adi}</b><br>📌 Koordinat: <b>{st.session_state.secilen_lat:.4f}° N, {st.session_state.secilen_lon:.4f}° E</b> | Seçilen Tarih: <b>{secilen_tarih.strftime('%d.%m.%Y')}</b>",
     border_color="rgba(168, 85, 247, 0.8)",
     glow_color="rgba(168, 85, 247, 0.6)",
     bg_gradient="linear-gradient(135deg, rgba(49, 46, 129, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -270,7 +273,7 @@ render_box(
 
 # --- SEKMELER ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ Küresel Hava Radarı", 
+    "🗺️ İnteraktif Termal Harita", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -278,46 +281,63 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🗺️ Canlı Küresel Yağış Radarı ve Isı Haritası",
-        subtitle=f"Seçilen konum ({mekan}) merkezli, dünya genelindeki aktif hava ve yağış hareketleri.",
+        title="🗺️ Standart Harita ve Termal Isı Analizi",
+        subtitle="Harita üzerinde dilediğiniz noktaya tıklayarak o bölgenin verilerini sisteme işleyebilir ve detaylı bilgi kutusunu görebilirsiniz.",
         border_color="rgba(16, 185, 129, 0.8)",
         glow_color="rgba(16, 185, 129, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
-    m = folium.Map(location=[39.1667, 35.6667], zoom_start=5, tiles=None)
-    folium.TileLayer(
-        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        attr='Esri', name='Esri Uydu Arka Planı'
-    ).add_to(m)
+    # Standart (Uydu olmayan, temiz ve beyaz/standart) harita arkaplanı: CartoDB Positron
+    m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=6, tiles="CartoDB Positron")
 
-    # Gönderdiğiniz görseldeki gibi küresel radar ısı haritası katmanı
+    # Küresel Hava Radarı Isı Haritası Katmanı
     radar_url = rainviewer_radar_url_al()
     folium.TileLayer(
         tiles=radar_url,
         attr='Weather data by RainViewer',
-        name='🌧️ Küresel Hava Radarı (Isı Haritası)',
+        name='🌧️ Termal Isı & Yağış Radarı',
         overlay=True,
         control=True,
         opacity=0.85
     ).add_to(m)
 
-    fg_target = folium.FeatureGroup(name="📍 Seçilen Gözlem Noktası")
+    # Tıklanan veya aratılan konum için bilgi kare kutusu (Popup)
+    popup_html = f"""
+    <div style="width: 200px; font-family: 'Plus Jakarta Sans', sans-serif;">
+        <h4 style="margin: 0 0 5px 0; color: #0f172a;">📍 Seçilen Bölge</h4>
+        <b>Enlem/Boylam:</b> {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}<br>
+        <b>Sıcaklık:</b> {d['sicaklik']:.2f} °C<br>
+        <b>Bağıl Nem:</b> %{d['nem']:.2f}<br>
+        <b>Yağış:</b> {d['gpm_precip']:.2f} mm
+    </div>
+    """
+    
     folium.Marker(
-        [lat, lon], 
-        popup=f"<b>{mekan}</b><br>Sıcaklık: {d['sicaklik']}°C<br>Nem: %{d['nem']}", 
-        tooltip="🎯 Hedef Konum",
-        icon=folium.Icon(color="red", icon="crosshairs", prefix="fa")
-    ).add_to(fg_target)
-    fg_target.add_to(m)
+        [st.session_state.secilen_lat, st.session_state.secilen_lon], 
+        popup=folium.Popup(popup_html, max_width=250), 
+        tooltip="🔍 Detaylar için tıklayın",
+        icon=folium.Icon(color="red", icon="info-sign")
+    ).add_to(m)
 
     folium.LayerControl(collapsed=False).add_to(m)
-    st_folium(m, width=None, height=520, use_container_width=True, key="map_radar_observatory")
+    
+    # Harita etkileşimi (Tıklanan koordinatları yakalama)
+    map_data = st_folium(m, width=None, height=520, key="map_interactive_observatory")
+    
+    if map_data and map_data.get("last_clicked"):
+        clicked_lat = map_data["last_clicked"]["lat"]
+        clicked_lon = map_data["last_clicked"]["lng"]
+        if clicked_lat != st.session_state.secilen_lat or clicked_lon != st.session_state.secilen_lon:
+            st.session_state.secilen_lat = clicked_lat
+            st.session_state.secilen_lon = clicked_lon
+            st.session_state.mekan_adi = f"Özel Harita Konumu ({clicked_lat:.4f}, {clicked_lon:.4f})"
+            st.rerun()
 
 with tab2:
     render_box(
         title=f"📊 {secilen_tarih.strftime('%d.%m.%Y')} Tarihli Simülasyon Verileri",
-        subtitle=f"Mod Türü: {zaman_aciklama}",
+        subtitle=f"Seçilen Koordinat: {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}",
         border_color="rgba(56, 189, 248, 0.8)",
         glow_color="rgba(56, 189, 248, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(14, 116, 144, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -333,9 +353,9 @@ with tab2:
     with c4:
         render_metric_card("4️⃣ Basınç", f"{d['basinc']:.2f} hPa", "Deniz seviyesi basınç", "rgba(168, 85, 247, 0.8)", "#c084fc", "rgba(168, 85, 247, 0.5)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
 
-    st.markdown("### 📈 Seçilen Tarih Çevresindeki 30 Günlük Trend")
+    st.markdown("### 📈 Seçilen Nokta Çevresindeki 30 Günlük Trend")
     dates = [secilen_tarih - timedelta(days=i) for i in range(15, -15, -1)]
-    np.random.seed(int(lat + lon + secilen_tarih.toordinal()))
+    np.random.seed(int(st.session_state.secilen_lat + st.session_state.secilen_lon + secilen_tarih.toordinal()))
     trend_temp = [d['sicaklik'] + np.sin(i/3)*3 + np.random.normal(0, 0.5) for i in range(30)]
     df_trend = pd.DataFrame({"Tarih": dates, "Sıcaklık (°C)": trend_temp})
     
@@ -347,7 +367,7 @@ with tab2:
 with tab3:
     render_box(
         title="🚨 Yapay Zeka Risk ve Alarm Analizi",
-        subtitle=f"{secilen_tarih.strftime('%d.%m.%Y')} tarihi için ekolojik risk değerlendirmesi.",
+        subtitle=f"Koordinat: {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f} | Tarih: {secilen_tarih.strftime('%d.%m.%Y')}",
         border_color="rgba(239, 68, 68, 0.8)",
         glow_color="rgba(239, 68, 68, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(153, 27, 27, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -365,30 +385,29 @@ with tab3:
     st.markdown(f"""
     <div style="background: rgba(15, 23, 42, 0.85); border: 2px solid {risk_renk}; border-radius: 20px; padding: 1.5rem; margin-bottom: 1.5rem; text-align: center;">
         <h3 style="color: {risk_renk}; margin: 0; font-weight: 900;">{risk_seviyesi}</h3>
-        <p style="color: #cbd5e1; margin-top: 8px; font-size: 0.95rem;">Seçilen tarih ({secilen_tarih}) için toprak nemi (%{d['smap_soil']:.2f}) ve sıcaklık analiz edilmiştir.</p>
+        <p style="color: #cbd5e1; margin-top: 8px; font-size: 0.95rem;">Seçilen konum ve tarih için toprak nemi (%{d['smap_soil']:.2f}) ve sıcaklık analiz edilmiştir.</p>
     </div>
     """, unsafe_allow_html=True)
     
     rapor_metni = f"""
-    # LIGHTNING FLORA - ZAMAN SİMÜLASYONU RAPORU
+    # LIGHTNING FLORA - KONUM ANALİZ RAPORU
+    - **Koordinat:** {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}
     - **Tarih:** {secilen_tarih}
-    - **Mod:** {zaman_aciklama}
-    - **Konum:** {mekan}
     - **Sıcaklık:** {d['sicaklik']:.2f} °C
     - **Bağıl Nem:** %{d['nem']:.2f}
     - **Risk Durumu:** {risk_seviyesi}
     """
     st.download_button(
-        label="📄 Simülasyon Raporunu İndir",
+        label="📄 Konum Raporunu İndir",
         data=rapor_metni,
-        file_name=f"Zaman_Raporu_{secilen_tarih}.md",
+        file_name=f"Konum_Raporu_{secilen_tarih}.md",
         mime="text/markdown"
     )
 
 with tab4:
     render_box(
         title="⚖️ Bölgesel Karşılaştırma",
-        subtitle=f"{secilen_tarih.strftime('%d.%m.%Y')} tarihi için iki farklı bölgenin eş zamanlı analizi.",
+        subtitle="İki farklı bölgenin eş zamanlı analizi.",
         border_color="rgba(168, 85, 247, 0.8)",
         glow_color="rgba(168, 85, 247, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(76, 29, 149, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%)"
