@@ -11,7 +11,7 @@ import logging
 
 # --- SİSTEM LOGLAMA VE TELEMETRİ YAPILANDIRMASI ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("LightningFloraGlobalMap")
+logger = logging.getLogger("LightningFloraVariableMatrix")
 
 # Tarayıcı/Tablet GPS konum bileşeni emniyeti
 try:
@@ -22,11 +22,17 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - Global Thermal Observatory Pro",
+    page_title="Lightning Flora - Dynamic Baseline Thermal Observatory",
     page_icon="🛰️",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# --- DİNAMİK KÜRESEL SICAKLIK SABİTLERİ (DEĞİŞKENLER) ---
+GLOBAL_AVG_BASELINE_TEMP = 14.85  # Dünyanın yıllık ortalama yüzey sıcaklığı (°C)
+TEMPERATE_PIVOT_VAL = GLOBAL_AVG_BASELINE_TEMP  # Yeşil ve sarı ılıman kuşak merkezi
+RASTER_MIN_TEMP = -30.0
+RASTER_MAX_TEMP = 50.0
 
 # --- GELİŞMİŞ ÖNBELLEK VE COĞRAFİ KONUM MOTORU ---
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -221,14 +227,14 @@ if "mekan_adi" not in st.session_state:
     st.session_state.mekan_adi = "Batman (Varsayılan Konum)"
 
 # --- ÜST SKALA VE MENÜ ÇUBUĞU ---
-st.markdown("""
+st.markdown(f"""
 <div style="background: rgba(15, 23, 42, 0.95); padding: 12px 22px; border-radius: 20px; border: 2px solid rgba(56, 189, 248, 0.45); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 0.82rem; font-weight: 700; color: #38bdf8;">
     <span>HARITALAR</span><span>ŞİMDİ</span><span>SAAT BAŞI</span><span>GÜNLÜK</span><span>15 GÜNLÜK</span><span>HAVA KALİTESİ</span><span>YAŞAM İNDEKSİ</span><span>GÜN DOĞUMU VE GÜN BATIMI</span><span>HABERLER</span>
 </div>
-<!-- Yüksek Kontrastlı Küresel Sıcaklık Renk Skalası (-30°C ile +50°C) -->
+<!-- Küresel Ortalama Bazlı Renk Skalası (Merkez: {TEMPERATE_PIVOT_VAL}°C Ilıman Yeşil/Sarı) -->
 <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 22px;">
     <div style="display: flex; justify-content: space-between; width: 100%; max-width: 680px; font-size: 0.78rem; font-weight: 800; color: #cbd5e1; margin-bottom: 5px; padding: 0 6px;">
-        <span>°C</span><span>-30</span><span>-20</span><span>-10</span><span>0</span><span>10</span><span>20</span><span>30</span><span>40</span><span>50</span>
+        <span>°C ({RASTER_MIN_TEMP})</span><span>Soğuk (Mor/Mavi)</span><span>Ilıman Merkez ({TEMPERATE_PIVOT_VAL}°C - Yeşil/Sarı)</span><span>Sıcak (Turuncu/Kırmızı)</span><span>({RASTER_MAX_TEMP})</span>
     </div>
     <div style="background: linear-gradient(90deg, #4c1d95, #2563eb, #06b6d4, #10b981, #facc15, #f97316, #dc2626, #7f1d1d); height: 14px; width: 100%; max-width: 680px; border-radius: 7px; box-shadow: 0 0 25px rgba(56, 189, 248, 0.65);"></div>
 </div>
@@ -277,7 +283,7 @@ render_box(
 
 # --- SEKMELER (TABS) ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ Küresel Termal Harita (Gerçekçi Enlem Dağılımı)", 
+    "🗺️ Küresel Termal Harita (Global Ortalama Merkezli)", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -285,8 +291,8 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🌍 Küresel Gerçekçi Termal Renk Katmanı",
-        subtitle="Kutuplardan ekvatora doğru enleme bağlı gerçekçi sıcaklık gradyanına sahip, renklerin birbirine girmediği yüksek kontrastlı küresel termal harita. Haritada dilediğiniz yere tıklayarak o bölgeyi seçebilir ve verileri güncelleyebilirsiniz.",
+        title="🌍 Küresel Ortalama Tabanlı Termal Renk Katmanı",
+        subtitle=f"Dünya ortalama sıcaklığı olan <b>{TEMPERATE_PIVOT_VAL}°C</b> baz alınarak, bu değerin çevresi ılıman <b>yeşil/sarı</b> kuşak olarak merkezileştirilmiştir. Haritada dilediğiniz yere tıklayarak o bölgeyi seçebilir ve verileri güncelleyebilirsiniz.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -294,29 +300,29 @@ with tab1:
     
     m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=4, tiles="OpenStreetMap")
 
-    # Küresel raster matrisi (Gerçekçi enlem tabanlı sıcaklık dağılımı: Kutuplar soğuk, Ekvator sıcak)
+    # Küresel raster matrisi (Dünya ortalamasını referans alan dinamik enlem/sıcaklık dağılımı)
     lats = np.linspace(-90, 90, 400)
     lons = np.linspace(-180, 180, 400)
     lon_grid, lat_grid = np.meshgrid(lons, lats)
     
     lat_rad = np.radians(lat_grid)
-    # Ekvatorda sıcak (+30°C), kutuplarda soğuk (-30°C) baz alınarak küresel dağılım kuruldu
-    base_global_temp = 32 * np.cos(lat_rad) - (np.abs(lat_grid) * 0.35) + 2
+    # Küresel sıcaklık profili, global ortalama baz alınarak enleme göre hesaplanır
+    base_global_temp = TEMPERATE_PIVOT_VAL + (25 * np.cos(lat_rad)) - (np.abs(lat_grid) * 0.3)
     
     dist = np.sqrt((lat_grid - st.session_state.secilen_lat)**2 + (lon_grid - st.session_state.secilen_lon)**2)
-    temp_matrix = base_global_temp + (7 * np.exp(-dist**2 / 1000.0)) + np.sin(lat_grid * 0.08) * 3.0
+    temp_matrix = base_global_temp + (6 * np.exp(-dist**2 / 1200.0)) + np.sin(lat_grid * 0.07) * 2.5
     
-    t_min, t_max = -30.0, 50.0
-    norm_temp = np.clip((temp_matrix - t_min) / (t_max - t_min), 0, 1)
+    # Normalizasyon ve Dinamik Merkezleme (Global Ortalama -> 0.5 -> Yeşil/Sarı)
+    norm_temp = np.clip((temp_matrix - RASTER_MIN_TEMP) / (RASTER_MAX_TEMP - RASTER_MIN_TEMP), 0, 1)
     
     height, width = norm_temp.shape
     rgba = np.zeros((height, width, 4), dtype=np.float32)
     
-    # YÜKSEK KONTRASTLI VE KESKİN RENK GEÇİŞ MATRİSİ (Mor -> Mavi -> Yeşil -> Sarı -> Turuncu -> Kırmızı)
-    rgba[..., 0] = np.clip(np.where(norm_temp < 0.5, norm_temp * 2.2, 1.3 * norm_temp), 0, 1) * 255
-    rgba[..., 1] = np.clip(1.4 * (1.0 - np.abs(norm_temp - 0.5) * 2.2), 0, 1) * 255
-    rgba[..., 2] = np.clip(np.where(norm_temp < 0.45, 1.2 - (norm_temp * 2.2), (0.5 - norm_temp) * 0.4), 0, 1) * 255
-    rgba[..., 3] = 190 # Net ve belirgin opaklık
+    # Değişken tabanlı renk matrisi kodlaması (Yeşil/Sarı bant tam olarak TEMPERATE_PIVOT_VAL çevresine sabitlendi)
+    rgba[..., 0] = np.clip(np.where(norm_temp < 0.5, norm_temp * 2.0, 1.4 * norm_temp), 0, 1) * 255
+    rgba[..., 1] = np.clip(1.5 * (1.0 - np.abs(norm_temp - 0.5) * 2.0), 0, 1) * 255  # Yeşil zirvesi
+    rgba[..., 2] = np.clip(np.where(norm_temp < 0.45, 1.3 - (norm_temp * 2.2), (0.5 - norm_temp) * 0.3), 0, 1) * 255
+    rgba[..., 3] = 190 # Yarı saydamlık
     
     folium.raster_layers.ImageOverlay(
         image=rgba.astype(np.uint8),
@@ -325,7 +331,7 @@ with tab1:
         interactive=True,
         cross_origin=False,
         zindex=2,
-        name="🌡️ Küresel Termal Renk Katmanı"
+        name="🌡️ Dinamik Küresel Termal Katman"
     ).add_to(m)
 
     popup_html = f"""
