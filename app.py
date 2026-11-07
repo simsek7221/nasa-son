@@ -279,7 +279,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 with tab1:
     render_box(
         title="🌍 NASA Space Apps Challenge - Lightning Flora Küresel Gözlemevi",
-        subtitle=f"Seçilen noktanın anlık gerçek sıcaklığı: <b>{d['sicaklik']} °C</b> | Rüzgar: <b>{d['ruzgar']} km/s</b>. Harita kontrolleri ve zaman kaydırıcısı tamamen serbesttir.",
+        subtitle=f"Seçilen noktanın anlık gerçek sıcaklığı: <b>{d['sicaklik']} °C</b> | Rüzgar: <b>{d['ruzgar']} km/s</b>. Harita kontrolleri ve zaman kaydırıcısı tam işlevseldir.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -306,15 +306,21 @@ with tab1:
     lon_val = st.session_state.secilen_lon
     windy_embed_url = f"https://embed.windy.com/embed2.html?lat={lat_val}&lon={lon_val}&zoom=6&level=surface&overlay={aktif_overlay}&menu=&message=&marker=&pressure=&calendar=now&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
     
-    # Telefon ekranı çentiği (notch) tasarımı ve minimalist telemetri rozeti (Hiçbir harita butonunu veya zaman çubuğunu engellemez)
+    # Üst kısımdaki dış kaynaklı logoları ve yazıları tamamen kapatan özel NASA Telemetry maskesi ve başlık çubuğu
     components.html(f"""
     <div style="position: relative; width: 100%; height: 560px; border-radius: 24px; overflow: hidden; border: 2px solid rgba(56, 189, 248, 0.4); box-shadow: 0 0 40px rgba(56, 189, 248, 0.25);">
-        <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 220px; height: 26px; background: #0f172a; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; z-index: 1000; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(56, 189, 248, 0.5); border-top: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
-            <div style="display: flex; align-items: center; gap: 6px;">
-                <div style="width: 6px; height: 6px; background: #38bdf8; border-radius: 50%; box-shadow: 0 0 8px #38bdf8;"></div>
-                <span style="color: #38bdf8; font-weight: 800; font-size: 0.72rem; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.5px;">NASA TELEMETRY</span>
+        <!-- Üst Kısım Kapatıcı ve NASA Telemetry Bandı -->
+        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 46px; background: #0f172a; z-index: 1000; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 2px solid rgba(56, 189, 248, 0.5);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 8px; height: 8px; background: #38bdf8; border-radius: 50%; box-shadow: 0 0 10px #38bdf8;"></div>
+                <span style="color: #38bdf8; font-weight: 800; font-size: 0.85rem; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.5px;">NASA SPACE APPS | LIGHTNING FLORA TELEMETRY</span>
+            </div>
+            <div style="background: rgba(56, 189, 248, 0.2); padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(56, 189, 248, 0.4);">
+                <span style="color: #4ade80; font-weight: 700; font-size: 0.75rem;">● SECURE FEED</span>
             </div>
         </div>
+        <!-- Sağ Alt Köşe Filigran Maskesi -->
+        <div style="position: absolute; bottom: 0; right: 0; width: 180px; height: 35px; background: #0f172a; z-index: 999; pointer-events: none;"></div>
         <iframe src="{windy_embed_url}" width="100%" height="560px" style="border:none;"></iframe>
     </div>
     """, height=575)
