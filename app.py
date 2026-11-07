@@ -193,24 +193,24 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🗺️ Küresel Sürekli Termal Raster Katmanı",
-        subtitle="Harita zeminine tam oturan, noktalar veya gridler içermeyen, profesyonel hava durumu sitelerindeki gibi akışkan ve kesintisiz termal renk geçişleri. Haritada dilediğiniz yere tıklayarak o bölgeyi seçebilir ve verileri güncelleyebilirsiniz.",
+        title="🗺️ Küresel Kesintisiz Termal Renk Katmanı",
+        subtitle="Harita zeminine tam oturan, tüm dünyayı uçtan uca kaplayan akışkan ve pürüzsüz termal renk katmanı. Haritada dilediğiniz yere tıklayarak o bölgeyi seçebilir ve verileri güncelleyebilirsiniz.",
         border_color="rgba(16, 185, 129, 0.8)",
         glow_color="rgba(16, 185, 129, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
-    m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=5, tiles="OpenStreetMap")
+    m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=4, tiles="OpenStreetMap")
 
-    # Kesintisiz pürüzsüz termal raster matrisi (ImageOverlay ile grid/nokta hatası tamamen sıfırlanmıştır)
-    lats = np.linspace(-50, 65, 300)
-    lons = np.linspace(-20, 70, 300)
+    # Tüm dünyayı (-90 ile 90, -180 ile 180) uçtan uca kaplayan pürüzsüz termal raster matrisi
+    lats = np.linspace(-90, 90, 300)
+    lons = np.linspace(-180, 180, 300)
     lon_grid, lat_grid = np.meshgrid(lons, lats)
     
     dist = np.sqrt((lat_grid - st.session_state.secilen_lat)**2 + (lon_grid - st.session_state.secilen_lon)**2)
-    temp_matrix = d['sicaklik'] - (np.abs(lat_grid) * 0.25) + (8 * np.exp(-dist**2 / 300.0)) + np.sin(lat_grid * 0.08) * 2.5
+    temp_matrix = d['sicaklik'] - (np.abs(lat_grid) * 0.15) + (6 * np.exp(-dist**2 / 1500.0)) + np.sin(lat_grid * 0.05) * 2.0
     
-    t_min, t_max = -5.0, 42.0
+    t_min, t_max = -20.0, 45.0
     norm_temp = np.clip((temp_matrix - t_min) / (t_max - t_min), 0, 1)
     
     height, width = norm_temp.shape
@@ -218,16 +218,16 @@ with tab1:
     rgba[..., 0] = np.clip(1.6 * norm_temp - 0.4, 0, 1) * 255
     rgba[..., 1] = np.clip((1.0 - np.abs(norm_temp - 0.5) * 2.0), 0, 1) * 255
     rgba[..., 2] = np.clip(1.6 * (0.65 - norm_temp), 0, 1) * 255
-    rgba[..., 3] = 140 # Yarı saydam pürüzsüz katman
+    rgba[..., 3] = 130 # Yarı saydam pürüzsüz küresel katman
     
     folium.raster_layers.ImageOverlay(
         image=rgba.astype(np.uint8),
-        bounds=[[-50, -20], [65, 70]],
-        opacity=0.75,
+        bounds=[[-90, -180], [90, 180]],
+        opacity=0.7,
         interactive=True,
         cross_origin=False,
         zindex=2,
-        name="🌡️ Termal Renk Katmanı"
+        name="🌡️ Küresel Termal Katman"
     ).add_to(m)
 
     popup_html = f"""
