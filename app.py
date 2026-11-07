@@ -11,7 +11,7 @@ import logging
 
 # --- SİSTEM LOGLAMA VE TELEMETRİ YAPILANDIRMASI ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("LightningFloraHighContrast")
+logger = logging.getLogger("LightningFloraGlobalMap")
 
 # Tarayıcı/Tablet GPS konum bileşeni emniyeti
 try:
@@ -22,7 +22,7 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - High Contrast Thermal Observatory",
+    page_title="Lightning Flora - Global Thermal Observatory Pro",
     page_icon="🛰️",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -225,7 +225,7 @@ st.markdown("""
 <div style="background: rgba(15, 23, 42, 0.95); padding: 12px 22px; border-radius: 20px; border: 2px solid rgba(56, 189, 248, 0.45); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 0.82rem; font-weight: 700; color: #38bdf8;">
     <span>HARITALAR</span><span>ŞİMDİ</span><span>SAAT BAŞI</span><span>GÜNLÜK</span><span>15 GÜNLÜK</span><span>HAVA KALİTESİ</span><span>YAŞAM İNDEKSİ</span><span>GÜN DOĞUMU VE GÜN BATIMI</span><span>HABERLER</span>
 </div>
-<!-- Yüksek Kontrastlı Sıcaklık Renk Skalası (-30°C ile +50°C) -->
+<!-- Yüksek Kontrastlı Küresel Sıcaklık Renk Skalası (-30°C ile +50°C) -->
 <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 22px;">
     <div style="display: flex; justify-content: space-between; width: 100%; max-width: 680px; font-size: 0.78rem; font-weight: 800; color: #cbd5e1; margin-bottom: 5px; padding: 0 6px;">
         <span>°C</span><span>-30</span><span>-20</span><span>-10</span><span>0</span><span>10</span><span>20</span><span>30</span><span>40</span><span>50</span>
@@ -277,7 +277,7 @@ render_box(
 
 # --- SEKMELER (TABS) ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ Yüksek Kontrastlı Küresel Termal Harita", 
+    "🗺️ Küresel Termal Harita (Gerçekçi Enlem Dağılımı)", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -285,8 +285,8 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🌍 Yüksek Kontrastlı Kesintisiz Termal Renk Katmanı",
-        subtitle="Renk tonlarının birbirine girmesini önlemek için tamamen ayrıştırılmış, soğuk mor/mavi, ılıman yeşil/sarı ve sıcak turuncu/kırmızı tonlarına sahip net ve akışkan küresel termal gradyan. Haritada dilediğiniz yere tıklayarak o bölgeyi seçebilir ve verileri güncelleyebilirsiniz.",
+        title="🌍 Küresel Gerçekçi Termal Renk Katmanı",
+        subtitle="Kutuplardan ekvatora doğru enleme bağlı gerçekçi sıcaklık gradyanına sahip, renklerin birbirine girmediği yüksek kontrastlı küresel termal harita. Haritada dilediğiniz yere tıklayarak o bölgeyi seçebilir ve verileri güncelleyebilirsiniz.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -294,13 +294,17 @@ with tab1:
     
     m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=4, tiles="OpenStreetMap")
 
-    # Küresel raster matrisi
+    # Küresel raster matrisi (Gerçekçi enlem tabanlı sıcaklık dağılımı: Kutuplar soğuk, Ekvator sıcak)
     lats = np.linspace(-90, 90, 400)
     lons = np.linspace(-180, 180, 400)
     lon_grid, lat_grid = np.meshgrid(lons, lats)
     
+    lat_rad = np.radians(lat_grid)
+    # Ekvatorda sıcak (+30°C), kutuplarda soğuk (-30°C) baz alınarak küresel dağılım kuruldu
+    base_global_temp = 32 * np.cos(lat_rad) - (np.abs(lat_grid) * 0.35) + 2
+    
     dist = np.sqrt((lat_grid - st.session_state.secilen_lat)**2 + (lon_grid - st.session_state.secilen_lon)**2)
-    temp_matrix = d['sicaklik'] - (np.abs(lat_grid) * 0.2) + (8 * np.exp(-dist**2 / 1000.0)) + np.sin(lat_grid * 0.05) * 3.5
+    temp_matrix = base_global_temp + (7 * np.exp(-dist**2 / 1000.0)) + np.sin(lat_grid * 0.08) * 3.0
     
     t_min, t_max = -30.0, 50.0
     norm_temp = np.clip((temp_matrix - t_min) / (t_max - t_min), 0, 1)
@@ -308,23 +312,20 @@ with tab1:
     height, width = norm_temp.shape
     rgba = np.zeros((height, width, 4), dtype=np.float32)
     
-    # YÜKSEK KONTRASTLI VE KESKİN RENK GEÇİŞ MATRİSİ (Tonlar birbirinden uzakta ve net)
-    # Kırmızı Kanal (Yüksek sıcaklıklarda çok keskin artış)
-    rgba[..., 0] = np.clip(np.where(norm_temp < 0.5, norm_temp * 2.2, 1.2 * norm_temp), 0, 1) * 255
-    # Yeşil Kanal (Orta sıcaklıklarda dar bir bantta zirve yapar, böylece renkler çorba olmaz)
-    rgba[..., 1] = np.clip(1.3 * (1.0 - np.abs(norm_temp - 0.5) * 2.2), 0, 1) * 255
-    # Mavi Kanal (Düşük sıcaklıklarda çok baskın)
-    rgba[..., 2] = np.clip(np.where(norm_temp < 0.45, 1.1 - (norm_temp * 2.0), (0.5 - norm_temp) * 0.5), 0, 1) * 255
-    rgba[..., 3] = 185 # Net ve belirgin opaklık
+    # YÜKSEK KONTRASTLI VE KESKİN RENK GEÇİŞ MATRİSİ (Mor -> Mavi -> Yeşil -> Sarı -> Turuncu -> Kırmızı)
+    rgba[..., 0] = np.clip(np.where(norm_temp < 0.5, norm_temp * 2.2, 1.3 * norm_temp), 0, 1) * 255
+    rgba[..., 1] = np.clip(1.4 * (1.0 - np.abs(norm_temp - 0.5) * 2.2), 0, 1) * 255
+    rgba[..., 2] = np.clip(np.where(norm_temp < 0.45, 1.2 - (norm_temp * 2.2), (0.5 - norm_temp) * 0.4), 0, 1) * 255
+    rgba[..., 3] = 190 # Net ve belirgin opaklık
     
     folium.raster_layers.ImageOverlay(
         image=rgba.astype(np.uint8),
         bounds=[[-90, -180], [90, 180]],
-        opacity=0.82,
+        opacity=0.85,
         interactive=True,
         cross_origin=False,
         zindex=2,
-        name="🌡️ Yüksek Kontrastlı Termal Katman"
+        name="🌡️ Küresel Termal Renk Katmanı"
     ).add_to(m)
 
     popup_html = f"""
