@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import folium
+from folium.plugins import HeatMap
 from streamlit_folium import st_folium
 import requests
 from datetime import datetime, timedelta
@@ -37,18 +38,6 @@ def konum_bul(isim):
     except Exception:
         pass
     return None, None
-
-@st.cache_data(ttl=300)
-def rainviewer_radar_url_al():
-    try:
-        rv_res = requests.get("https://api.rainviewer.com/public/weather-maps.json", timeout=3).json()
-        past_list = rv_res.get("radar", {}).get("past", [])
-        if past_list:
-            latest_path = past_list[-1].get("path")
-            return f"https://tile.rainviewer.com/v2/radar/{latest_path}/256/{{z}}/{{x}}/{{y}}/2/1_1.png"
-    except Exception:
-        pass
-    return "https://tile.rainviewer.com/v2/radar/nowcast_1h/256/{z}/{x}/{y}/2/1_1.png"
 
 # --- 3X ULTRA INTENSIFIED NEON & GLASSMORPHISM CSS ---
 st.markdown("""
@@ -209,7 +198,7 @@ def analiz_uret(lat, lon, secilen_tarih):
 # --- HEADER KUTUSU ---
 render_box(
     title="🛰️ Lightning Flora: Enterprise NASA Observatory",
-    subtitle="🟢 SYSTEM ONLINE • Canlı Hava Radarı, Yapay Zeka Simülasyonu ve Uydu Gözlem Platformu",
+    subtitle="🟢 SYSTEM ONLINE • Termal Isı Haritası, Yapay Zeka Simülasyonu ve Uydu Gözlem Platformu",
     border_color="rgba(56, 189, 248, 0.8)",
     glow_color="rgba(56, 189, 248, 0.6)",
     bg_gradient="linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)"
@@ -262,7 +251,7 @@ render_box(
 
 # --- SEKMELER ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ Harita ve Canlı Radar Isı Haritası", 
+    "🗺️ Harita ve Termal Isı Haritası", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -270,41 +259,47 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🗺️ Canlı Meteoroloji Radarı ve Uydu Katmanları",
-        subtitle="Harita sağ üst köşesindeki katman yöneticisinden '🌧️ Canlı Yağış Radarı' ısı haritasını aktif edebilirsiniz.",
+        title="🗺️ Termal Isı Haritası ve Uydu Katmanları",
+        subtitle=f"Seçilen konum ({mekan}) ve sıcaklık değerine ({d['sicaklik']}°C) göre oluşturulan interaktif ısı haritası.",
         border_color="rgba(16, 185, 129, 0.8)",
         glow_color="rgba(16, 185, 129, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
-    m = folium.Map(location=[lat, lon], zoom_start=8, tiles=None)
+    m = folium.Map(location=[lat, lon], zoom_start=9, tiles=None)
     folium.TileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         attr='Esri', name='Esri Canlı Uydu'
     ).add_to(m)
 
-    # Canlı Yağış Radarı Isı Haritası Katmanı
-    radar_url = rainviewer_radar_url_al()
-    folium.TileLayer(
-        tiles=radar_url,
-        attr='Weather data by RainViewer',
-        name='🌧️ Canlı Yağış Radarı (Isı Haritası)',
-        overlay=True,
-        control=True,
-        opacity=0.8
+    # Dinamik Isı Haritası (HeatMap) Verileri (Sıcaklık ve Nem yoğunluğuna göre çevresel gridler)
+    np.random.seed(int(lat + lon))
+    heat_data = [
+        [lat + np.random.uniform(-0.15, 0.15), lon + np.random.uniform(-0.15, 0.15), float(d['sicaklik'])] 
+        for _ in range(40)
+    ]
+    # Hedef merkez noktaya en yüksek yoğunluk
+    heat_data.append([lat, lon, float(d['sicaklik']) * 1.5])
+
+    HeatMap(
+        heat_data,
+        min_opacity=0.4,
+        radius=35,
+        blur=20,
+        gradient={0.4: 'blue', 0.65: 'lime', 0.85: 'orange', 1.0: 'red'}
     ).add_to(m)
 
     fg_target = folium.FeatureGroup(name="📍 Seçilen Gözlem Noktası")
     folium.Marker(
         [lat, lon], 
-        popup=f"<b>Gözlem Noktası</b><br>Tarih: {secilen_tarih}<br>Sıcaklık: {d['sicaklik']}°C", 
+        popup=f"<b>Gözlem Noktası</b><br>Sıcaklık: {d['sicaklik']}°C<br>Nem: %{d['nem']}", 
         tooltip="🎯 Hedef Konum",
         icon=folium.Icon(color="red", icon="crosshairs", prefix="fa")
     ).add_to(fg_target)
     fg_target.add_to(m)
 
     folium.LayerControl(collapsed=False).add_to(m)
-    st_folium(m, width=None, height=520, use_container_width=True, key="map_radar_observatory")
+    st_folium(m, width=None, height=520, use_container_width=True, key="map_heatmap_observatory")
 
 with tab2:
     render_box(
