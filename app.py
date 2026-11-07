@@ -220,7 +220,7 @@ def analiz_uret(lat, lon, secilen_tarih):
     sicaklik, nem, yagis, ruzgar, ruzgar_yon, basinc, gun_farki = gercek_veri_cek(lat, lon, secilen_tarih)
     radyasyon = round(max(2.0, min(9.0, 5.0 + (sicaklik * 0.1))), 2)
     smap_soil = round(max(5.0, min(45.0, 20.0 + (yagis * 12) - (sicaklik * 0.15))), 2)
-    ndvi_val = round(max(0.1, min(0.85, 0.4 + (smap_soil * 0.01)), 3)
+    ndvi_val = round(max(0.1, min(0.85, 0.4 + (smap_soil * 0.01)), 3))
 
     return {
         "sicaklik": sicaklik, "nem": nem, "yagis": yagis, "ruzgar": ruzgar, "ruzgar_yon": ruzgar_yon,
