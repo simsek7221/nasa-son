@@ -254,7 +254,6 @@ with col_gps:
 with col_date:
     secilen_tarih = st.date_input("📅 Analiz Tarihi Seçin:", value=datetime.now().date())
 
-# Verileri aktif koordinatlara göre çek
 d = analiz_uret(st.session_state.secilen_lat, st.session_state.secilen_lon, secilen_tarih)
 
 zaman_aciklama = "Bugünkü Canlı Gözlem Verileri"
@@ -288,8 +287,8 @@ with tab1:
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
-    # Standart (Uydu olmayan, temiz ve beyaz/standart) harita arkaplanı: CartoDB Positron
-    m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=6, tiles="CartoDB Positron")
+    # Standart OpenStreetMap arka planı (Anahtar gerektirmez)
+    m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=6, tiles="OpenStreetMap")
 
     # Küresel Hava Radarı Isı Haritası Katmanı
     radar_url = rainviewer_radar_url_al()
@@ -302,7 +301,6 @@ with tab1:
         opacity=0.85
     ).add_to(m)
 
-    # Tıklanan veya aratılan konum için bilgi kare kutusu (Popup)
     popup_html = f"""
     <div style="width: 200px; font-family: 'Plus Jakarta Sans', sans-serif;">
         <h4 style="margin: 0 0 5px 0; color: #0f172a;">📍 Seçilen Bölge</h4>
@@ -322,7 +320,6 @@ with tab1:
 
     folium.LayerControl(collapsed=False).add_to(m)
     
-    # Harita etkileşimi (Tıklanan koordinatları yakalama)
     map_data = st_folium(m, width=None, height=520, key="map_interactive_observatory")
     
     if map_data and map_data.get("last_clicked"):
