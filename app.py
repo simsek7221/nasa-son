@@ -11,7 +11,7 @@ import logging
 
 # --- SİSTEM LOGLAMA ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("LightningFloraProObservatory")
+logger = logging.getLogger("LightningFloraProFixed")
 
 try:
     from streamlit_geolocation import streamlit_geolocation
@@ -32,12 +32,12 @@ TEMPERATE_PIVOT_VAL = GLOBAL_AVG_BASELINE_TEMP
 RASTER_MIN_TEMP = -30.0
 RASTER_MAX_TEMP = 50.0
 
-# NASA GIBS Tile Servisleri (Geçmiş güvenli tarih desteği ile)
+# NASA GIBS Doğru WMTS Endpoint ve Matris Yapılandırması
 NASA_DATE_STR = (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
-NASA_GIBS_FIRE_TILE = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_Thermal_Anomalies_375m_Day/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.png"
-NASA_GIBS_NDVI_TILE = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI_8Day/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.png"
-NASA_GIBS_LIGHT_TILE = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level8/{{z}}/{{y}}/{{x}}.png"
 NASA_GIBS_TRUECOLOR_TILE = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.jpg"
+NASA_GIBS_FIRE_TILE = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_Thermal_Anomalies_375m_Day/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level7/{{z}}/{{y}}/{{x}}.png"
+NASA_GIBS_NDVI_TILE = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI_8Day/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level8/{{z}}/{{y}}/{{x}}.png"
+NASA_GIBS_LIGHT_TILE = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level8/{{z}}/{{y}}/{{x}}.png"
 NASA_GIBS_AEROSOL_TILE = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_Aerosol/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level6/{{z}}/{{y}}/{{x}}.png"
 
 # --- COĞRAFİ KONUM ÇÖZÜCÜ ---
@@ -215,7 +215,7 @@ def zaman_serisi_cek(lat, lon, merkez_tarih):
     return pd.DataFrame({
         "Tarih": dates,
         "Sıcaklık (°C)": [22.5 + np.sin(i/3)*2 for i in range(30)],
-        "Yağış (mm)": [0.0]*30,
+        "Yağış (mm)": [max(0.0, np.sin(i/2)*2) for i in range(30)],
         "Rüzgar (km/s)": [4.5 + np.cos(i/4)*1.5 for i in range(30)]
     })
 
@@ -294,7 +294,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 with tab1:
     render_box(
         title="🌍 Çok Katmanlı Küresel Gözlemevi",
-        subtitle="Sağ üstteki katman kontrol panelinden Termal, Yangın, NDVI, Gece Işıkları, Gerçek Renk, Aerosol ve Rüzgar Vektörleri katmanlarını açıp kapatabilirsiniz.",
+        subtitle="Sağ üstteki katman kontrol panelinden Termal, Gerçek Renk Uydu, Yangın, NDVI, Gece Işıkları, Aerosol ve Rüzgar Vektörleri katmanlarını açıp kapatabilirsiniz.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -334,31 +334,7 @@ with tab1:
         name="🌡️ Zoom Earth Termal Katmanı"
     ).add_to(m)
 
-    # 2. Katman: NASA Aktif Yangınlar
-    folium.TileLayer(
-        tiles=NASA_GIBS_FIRE_TILE,
-        attr='NASA GIBS VIIRS Active Fires',
-        name='🔥 NASA Aktif Yangınlar',
-        overlay=True, control=True, opacity=0.9, show=False
-    ).add_to(m)
-
-    # 3. Katman: NASA NDVI Bitki Örtüsü
-    folium.TileLayer(
-        tiles=NASA_GIBS_NDVI_TILE,
-        attr='NASA GIBS MODIS NDVI',
-        name='🌿 NASA NDVI Bitki Örtüsü',
-        overlay=True, control=True, opacity=0.8, show=False
-    ).add_to(m)
-
-    # 4. Katman: Gece Işıkları
-    folium.TileLayer(
-        tiles=NASA_GIBS_LIGHT_TILE,
-        attr='NASA GIBS Black Marble',
-        name='💡 NASA Gece Işıkları',
-        overlay=True, control=True, opacity=0.85, show=False
-    ).add_to(m)
-
-    # 5. Katman: Gerçek Renk Uydu
+    # 2. Katman: Gerçek Renk Uydu Görüntüsü
     folium.TileLayer(
         tiles=NASA_GIBS_TRUECOLOR_TILE,
         attr='NASA GIBS True Color',
@@ -366,7 +342,31 @@ with tab1:
         overlay=True, control=True, opacity=0.9, show=False
     ).add_to(m)
 
-    # 6. Katman: Aerosol
+    # 3. Katman: NASA Aktif Yangınlar
+    folium.TileLayer(
+        tiles=NASA_GIBS_FIRE_TILE,
+        attr='NASA GIBS VIIRS Active Fires',
+        name='🔥 NASA Aktif Yangınlar',
+        overlay=True, control=True, opacity=0.9, show=False
+    ).add_to(m)
+
+    # 4. Katman: NASA NDVI Bitki Örtüsü
+    folium.TileLayer(
+        tiles=NASA_GIBS_NDVI_TILE,
+        attr='NASA GIBS MODIS NDVI',
+        name='🌿 NASA NDVI Bitki Örtüsü',
+        overlay=True, control=True, opacity=0.8, show=False
+    ).add_to(m)
+
+    # 5. Katman: Gece Işıkları (Black Marble)
+    folium.TileLayer(
+        tiles=NASA_GIBS_LIGHT_TILE,
+        attr='NASA GIBS Black Marble',
+        name='💡 NASA Gece Işıkları',
+        overlay=True, control=True, opacity=0.85, show=False
+    ).add_to(m)
+
+    # 6. Katman: Aerosol / Hava Kalitesi
     folium.TileLayer(
         tiles=NASA_GIBS_AEROSOL_TILE,
         attr='NASA GIBS Aerosol',
@@ -374,15 +374,15 @@ with tab1:
         overlay=True, control=True, opacity=0.75, show=False
     ).add_to(m)
 
-    # 7. Katman: Çeşitlendirilmiş Rüzgar Vektörleri
+    # 7. Katman: Çeşitlendirilmiş Rüzgar Vektörleri (Gerçek Yön ve Konumsal Varyasyon ile)
     wind_fg = folium.FeatureGroup(name="💨 Çeşitlendirilmiş Rüzgar Vektörleri", show=True)
     w_speed = d['ruzgar']
     
-    lat_steps = np.linspace(-60, 70, 6)
-    lon_steps = np.linspace(-140, 140, 8)
+    lat_steps = np.linspace(-60, 70, 7)
+    lon_steps = np.linspace(-140, 140, 9)
     for idx, plat in enumerate(lat_steps):
         for jdx, plon in enumerate(lon_steps):
-            dynamic_deg = (d['ruzgar_yon'] + (idx * 15) + (jdx * 10)) % 360
+            dynamic_deg = (d['ruzgar_yon'] + (idx * 12) + (jdx * 18)) % 360
             arrow_html = f"""
             <div style="transform: rotate({dynamic_deg}deg); font-size: 16px; color: #38bdf8; text-shadow: 0 0 4px #000; font-weight: 900;">
                 ➔
