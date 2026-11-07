@@ -36,7 +36,6 @@ st.set_page_config(
 def arduino_veri_gonder(temp, hum, pres, wind, ndvi, soil):
     if serial is None:
         return
-    # Oturumda aktif seri bağlantı var mı kontrol et
     if "arduino_ser" in st.session_state and st.session_state.arduino_ser:
         try:
             veri_paketi = f"T:{temp:.1f},H:{hum},P:{pres},W:{wind:.1f},N:{ndvi:.2f},S:{soil:.1f}\n"
@@ -427,8 +426,11 @@ with tab4:
     with c_b2:
         yer_2 = st.text_input("2. Bölge:", "Ankara", key="compare_loc_2")
 
-    lat1, lon1 = konum_bul(yer_1)[0] if konum_bul(yer_1) else (37.8859, 41.1198)
-    lat2, lon2 = konum_bul(yer_2)[0] if konum_bul(yer_2) else (39.9334, 32.8597)
+    res1 = konum_bul(yer_1)
+    res2 = konum_bul(yer_2)
+
+    lat1, lon1 = res1[0] if res1 and res1[0] else (37.8859, 41.1198)
+    lat2, lon2 = res2[0] if res2 and res2[0] else (39.9334, 32.8597)
 
     d1 = analiz_uret(lat1, lon1, secilen_tarih)
     d2 = analiz_uret(lat2, lon2, secilen_tarih)
