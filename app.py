@@ -38,6 +38,18 @@ def konum_bul(isim):
         pass
     return None, None
 
+@st.cache_data(ttl=300)
+def rainviewer_radar_url_al():
+    try:
+        rv_res = requests.get("https://api.rainviewer.com/public/weather-maps.json", timeout=3).json()
+        past_list = rv_res.get("radar", {}).get("past", [])
+        if past_list:
+            latest_path = past_list[-1].get("path")
+            return f"https://tile.rainviewer.com/v2/radar/{latest_path}/256/{{z}}/{{x}}/{{y}}/2/1_1.png"
+    except Exception:
+        pass
+    return "https://tile.rainviewer.com/v2/radar/nowcast_1h/256/{z}/{x}/{y}/2/1_1.png"
+
 # --- 3X ULTRA INTENSIFIED NEON & GLASSMORPHISM CSS ---
 st.markdown("""
 <style>
@@ -150,7 +162,6 @@ def zaman_bazli_veri_cek(lat, lon, secilen_tarih):
     bugun = datetime.now().date()
     gun_farki = (secilen_tarih - bugun).days
     
-    # Geçmiş tarih için Arşiv API, bugün veya gelecek için Tahmin API
     if gun_farki < 0:
         tarih_str = secilen_tarih.strftime("%Y-%m-%d")
         url = f"https://archive-api.open-meteo.com/v1/archive?latitude={round(lat, 4)}&longitude={round(lon, 4)}&start_date={tarih_str}&end_date={tarih_str}&current=temperature_2m,relative_humidity_2m,precipitation,surface_pressure,wind_speed_10m"
@@ -159,18 +170,13 @@ def zaman_bazli_veri_cek(lat, lon, secilen_tarih):
         
     try:
         res = requests.get(url, timeout=5).json()
-        if gun_farki < 0:
-            current = res.get("current", {})
-        else:
-            current = res.get("current", {})
-            
+        current = res.get("current", {})
         sicaklik = float(current.get("temperature_2m", 20.0))
         nem = float(current.get("relative_humidity_2m", 50.0))
         yagis = float(current.get("precipitation", current.get("rain", 0.0)))
         ruzgar = float(current.get("wind_speed_10m", 5.0))
         basinc = float(current.get("surface_pressure", 1013.25))
         
-        # Gelecek tarihler için yapay zeka projeksiyon varyasyonu ekle
         if gun_farki > 0:
             sicaklik += gun_farki * 0.05
             nem = max(10.0, min(100.0, nem + (gun_farki % 3 - 1) * 1.5))
@@ -203,7 +209,7 @@ def analiz_uret(lat, lon, secilen_tarih):
 # --- HEADER KUTUSU ---
 render_box(
     title="🛰️ Lightning Flora: Enterprise NASA Observatory",
-    subtitle="🟢 SYSTEM ONLINE • Yapay Zeka Zaman Simülasyonu ve Uydu Gözlem Platformu",
+    subtitle="🟢 SYSTEM ONLINE • Canlı Hava Radarı, Yapay Zeka Simülasyonu ve Uydu Gözlem Platformu",
     border_color="rgba(56, 189, 248, 0.8)",
     glow_color="rgba(56, 189, 248, 0.6)",
     bg_gradient="linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)"
@@ -240,7 +246,6 @@ with col_date:
 
 d = analiz_uret(lat, lon, secilen_tarih)
 
-# Zaman Durumu Açıklaması
 zaman_aciklama = "Bugünkü Canlı Gözlem Verileri"
 if d['gun_farki'] < 0:
     zaman_aciklama = f"📜 Geçmiş Arşiv Verisi ({abs(d['gun_farki'])} gün önce)"
@@ -257,7 +262,7 @@ render_box(
 
 # --- SEKMELER ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ Harita ve Uydu Katmanları", 
+    "🗺️ Harita ve Canlı Radar Isı Haritası", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -265,17 +270,28 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🗺️ Çok Katmanlı NASA Gözlem Haritası",
-        subtitle=f"Seçilen tarih ({secilen_tarih.strftime('%d.%m.%Y')}) için konuma ait uydu radar alanları.",
+        title="🗺️ Canlı Meteoroloji Radarı ve Uydu Katmanları",
+        subtitle="Harita katman yöneticisinden '🌧️ Canlı Yağış Radarı' seçeneğini açarak ısı haritasını görüntüleyebilirsiniz.",
         border_color="rgba(16, 185, 129, 0.8)",
         glow_color="rgba(16, 185, 129, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
-    m = folium.Map(location=[lat, lon], zoom_start=11, tiles=None)
+    m = folium.Map(location=[lat, lon], zoom_start=8, tiles=None)
     folium.TileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         attr='Esri', name='Esri Canlı Uydu'
+    ).add_to(m)
+
+    # Canlı Yağış Radarı Isı Haritası Katmanı (RainViewer API)
+    radar_url = rainviewer_radar_url_al()
+    folium.TileLayer(
+        tiles=radar_url,
+        attr='Weather data by RainViewer',
+        name='🌧️ Canlı Yağış Radarı (Isı Haritası)',
+        overlay=True,
+        control=True,
+        opacity=0.75
     ).add_to(m)
 
     fg_target = folium.FeatureGroup(name="📍 Seçilen Gözlem Noktası")
@@ -287,15 +303,8 @@ with tab1:
     ).add_to(fg_target)
     fg_target.add_to(m)
 
-    fg_power = folium.FeatureGroup(name="1, 10. Sıcaklık & MODIS LST")
-    folium.Circle(
-        [lat, lon], radius=8000, color='#38bdf8', weight=2, dash_array='6, 6', fill=True, fill_color='#38bdf8', fill_opacity=0.08,
-        popup=f"Sıcaklık: {d['sicaklik']}°C | LST: {d['lst_temp']}°C"
-    ).add_to(fg_power)
-    fg_power.add_to(m)
-
-    folium.LayerControl(collapsed=True).add_to(m)
-    st_folium(m, width=None, height=480, use_container_width=True, key="map_global_observatory")
+    folium.LayerControl(collapsed=False).add_to(m)
+    st_folium(m, width=None, height=520, use_container_width=True, key="map_radar_observatory")
 
 with tab2:
     render_box(
