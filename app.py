@@ -21,7 +21,34 @@ st.set_page_config(
     layout="wide"
 )
 
-geolocator = Nominatim(user_agent="lightning_flora_global_observatory")
+geolocator = Nominatim(user_agent="lightning_flora_global_observatory_v3")
+
+@st.cache_data(ttl=3600)
+def konum_bul(isim):
+    # Popüler şehirler için anında yanıt veren yedek sözlük (API sınırlarına takılmamak için)
+    yedek_konumlar = {
+        "batman": (37.8859, 41.1198),
+        "ankara": (39.9334, 32.8597),
+        "istanbul": (41.0082, 28.9784),
+        "izmir": (38.4192, 27.1287),
+        "antalya": (36.8841, 30.7056),
+        "adana": (37.0000, 35.3213),
+        "bursa": (40.1828, 29.0665),
+        "trabzon": (41.0015, 39.7178),
+        "van": (38.4891, 43.4089),
+        "Diyarbakır": (37.9144, 40.2306)
+    }
+    isim_lower = isim.strip().lower()
+    if isim_lower in yedek_konumlar:
+        return yedek_konumlar[isim_lower], isim.capitalize()
+    
+    try:
+        loc = geolocator.geocode(isim, timeout=5)
+        if loc:
+            return (loc.latitude, loc.longitude), loc.address
+    except Exception:
+        pass
+    return None, None
 
 # --- 3X ULTRA INTENSIFIED NEON & GLASSMORPHISM CSS ---
 st.markdown("""
@@ -61,7 +88,6 @@ st.markdown("""
         box-shadow: 0 25px 60px rgba(56, 189, 248, 0.9), 0 0 60px rgba(168, 85, 247, 0.9) !important;
     }
 
-    /* 3x Yoğun Neon Yuvarlak Hap (Pill) Biçimli Sekmeler */
     .stTabs [data-baseweb="tab-list"] {
         gap: 15px;
         background: rgba(15, 23, 42, 0.9);
@@ -93,7 +119,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Tonlamalı ve 3 Kat Güçlendirilmiş Buzlu Cam Kutu Oluşturucu
 def render_box(title, subtitle, border_color, glow_color, bg_gradient):
     html_content = f"""
     <div style="
@@ -112,7 +137,6 @@ def render_box(title, subtitle, border_color, glow_color, bg_gradient):
     """
     st.markdown(html_content, unsafe_allow_html=True)
 
-# 3 Kat Güçlendirilmiş Renkli ve Neon Işıklı Veri Kartı Oluşturucu
 def render_metric_card(title, value, caption, border_color, text_color, glow_color, bg_gradient):
     html_content = f"""
     <div style="
@@ -178,26 +202,22 @@ render_box(
     bg_gradient="linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)"
 )
 
-# --- KONUM GİRİŞ VE GPS KUTUSU ---
+# --- ANA Konum Arama & GPS ---
 lat, lon = 37.8859, 41.1198 
 mekan = "Batman (Varsayılan Koordinat)"
 
 col_search, col_gps = st.columns([2, 1])
 
 with col_search:
-    aranan_konum = st.text_input("🔍 Dünya Üzerinde Konum Arayın (Şehir, İlçe, Bölge):", "")
+    aranan_konum = st.text_input("🔍 Dünya Üzerinde Konum Arayın (Şehir, İlçe, Bölge):", "", key="main_search_input")
     if aranan_konum:
-        try:
-            loc_res = geolocator.geocode(aranan_konum)
-            if loc_res:
-                lat = loc_res.latitude
-                lon = loc_res.longitude
-                mekan = f"Aranan Konum: {loc_res.address}"
-                st.success(f"✅ Konum Bulundu: {lat:.4f}, {lon:.4f}")
-            else:
-                st.warning("⚠️ Konum bulunamadı, varsayılan koordinat kullanılıyor.")
-        except Exception:
-            pass
+        coords, addr = konum_bul(aranan_konum)
+        if coords:
+            lat, lon = coords
+            mekan = f"Aranan Konum: {addr or aranan_konum}"
+            st.success(f"✅ Konum Bulundu: {lat:.4f}, {lon:.4f}")
+        else:
+            st.warning("⚠️ Konum bulunamadı, varsayılan koordinat kullanılıyor.")
 
 with col_gps:
     st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
@@ -218,7 +238,7 @@ render_box(
     bg_gradient="linear-gradient(135deg, rgba(49, 46, 129, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
 )
 
-# --- SEKMELER (4 GELİŞMİŞ SEKME) ---
+# --- SEKMELER ---
 tab1, tab2, tab3, tab4 = st.tabs([
     "🗺️ Harita ve Uydu Katmanları", 
     "📊 Canlı Veriler & 30 Günlük Trend", 
@@ -308,8 +328,6 @@ with tab2:
         render_metric_card("4️⃣ Basınç", f"{d['basinc']:.2f} hPa", "Deniz seviyesi hava basıncı", "rgba(168, 85, 247, 0.8)", "#c084fc", "rgba(168, 85, 247, 0.5)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
 
     st.markdown("### 📈 Son 30 Günlük Zaman Serisi ve Ekolojik Trend Analizi")
-    
-    # 30 günlük simüle edilmiş trend verisi oluşturma
     dates = [datetime.now() - timedelta(days=i) for i in range(30, 0, -1)]
     np.random.seed(int(lat + lon))
     trend_temp = [d['sicaklik'] + np.sin(i/3)*3 + np.random.normal(0, 0.5) for i in range(30)]
@@ -331,7 +349,6 @@ with tab3:
         bg_gradient="linear-gradient(135deg, rgba(153, 27, 27, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
-    # Akıllı Risk Değerlendirmesi
     risk_seviyesi = "🟢 DÜŞÜK RİSK (Stabil Ekosistem)"
     risk_renk = "#34d399"
     if d['sicaklik'] > 28 and d['smap_soil'] < 15:
@@ -372,7 +389,7 @@ with tab3:
 with tab4:
     render_box(
         title="⚖️ Bölgesel ve Konumlar Arası Karşılaştırma",
-        subtitle="İki farklı bölgenin uydu verilerini ve meteorolojik göstergelerini yan yana kıyaslayın.",
+        subtitle="İki farklı bölgenin uydu verilerini ve meteorolojik göstergelerini bağımsız olarak yan yana kıyaslayın.",
         border_color="rgba(168, 85, 247, 0.8)",
         glow_color="rgba(168, 85, 247, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(76, 29, 149, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -380,28 +397,28 @@ with tab4:
     
     col_b1, col_b2 = st.columns(2)
     with col_b1:
-        yer_1 = st.text_input("1. Bölge:", "Batman")
+        yer_1 = st.text_input("1. Bölge:", "Batman", key="compare_loc_1")
     with col_b2:
-        yer_2 = st.text_input("2. Bölge:", "Ankara")
+        yer_2 = st.text_input("2. Bölge:", "Ankara", key="compare_loc_2")
         
-    lat1, lon1, lat2, lon2 = 37.8859, 41.1198, 39.9334, 32.8597
-    try:
-        res1 = geolocator.geocode(yer_1)
-        if res1: lat1, lon1 = res1.latitude, res1.longitude
-        res2 = geolocator.geocode(yer_2)
-        if res2: lat2, lon2 = res2.latitude, res2.longitude
-    except Exception:
-        pass
+    lat1, lon1 = (37.8859, 41.1198)
+    lat2, lon2 = (39.9334, 32.8597)
+    
+    coords1, _ = konum_bul(yer_1)
+    if coords1: lat1, lon1 = coords1
+    
+    coords2, _ = konum_bul(yer_2)
+    if coords2: lat2, lon2 = coords2
         
     d1 = analiz_uret(lat1, lon1)
     d2 = analiz_uret(lat2, lon2)
     
     col_k1, col_k2 = st.columns(2)
     with col_k1:
-        st.markdown(f"### 📍 {yer_1}")
+        st.markdown(f"### 📍 {yer_1.capitalize()} ({lat1:.2f}, {lon1:.2f})")
         render_metric_card("Sıcaklık", f"{d1['sicaklik']:.2f} °C", f"Nem: %{d1['nem']:.2f}", "rgba(56, 189, 248, 0.6)", "#38bdf8", "rgba(56, 189, 248, 0.3)", "linear-gradient(135deg, rgba(14, 165, 233, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%)")
         render_metric_card("Toprak Nemi", f"%{d1['smap_soil']:.2f}", f"NDVI: {d1['ndvi_val']:.3f}", "rgba(16, 185, 129, 0.6)", "#34d399", "rgba(16, 185, 129, 0.3)", "linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with col_k2:
-        st.markdown(f"### 📍 {yer_2}")
+        st.markdown(f"### 📍 {yer_2.capitalize()} ({lat2:.2f}, {lon2:.2f})")
         render_metric_card("Sıcaklık", f"{d2['sicaklik']:.2f} °C", f"Nem: %{d2['nem']:.2f}", "rgba(168, 85, 247, 0.6)", "#c084fc", "rgba(168, 85, 247, 0.3)", "linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%)")
         render_metric_card("Toprak Nemi", f"%{d2['smap_soil']:.2f}", f"NDVI: {d2['ndvi_val']:.3f}", "rgba(245, 158, 11, 0.6)", "#fbbf24", "rgba(245, 158, 11, 0.3)", "linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%)")
