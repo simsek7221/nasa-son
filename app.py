@@ -11,7 +11,7 @@ import logging
 
 # --- SİSTEM LOGLAMA VE TELEMETRİ YAPILANDIRMASI ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("LightningFloraZoomMaster")
+logger = logging.getLogger("LightningFloraHighContrast")
 
 # Tarayıcı/Tablet GPS konum bileşeni emniyeti
 try:
@@ -22,7 +22,7 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - Zoom Earth Pro Thermal Observatory",
+    page_title="Lightning Flora - High Contrast Thermal Observatory",
     page_icon="🛰️",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -58,7 +58,7 @@ def konum_bul(isim):
         
     return None, None
 
-# --- ZOOM EARTH STYLE ULTRA GLASSMORPHISM CSS ---
+# --- ULTRA GLASSMORPHISM CSS ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
@@ -70,7 +70,7 @@ st.markdown("""
     }
     
     .block-container {
-        background: rgba(15, 23, 42, 0.85) !important;
+        background: rgba(15, 23, 42, 0.88) !important;
         backdrop-filter: blur(60px) !important;
         -webkit-backdrop-filter: blur(60px) !important;
         border-radius: 45px !important;
@@ -166,7 +166,7 @@ def render_metric_card(title, value, caption, border_color, text_color, glow_col
 def zaman_bazli_veri_cek(lat, lon, secilen_tarih):
     """
     Seçilen koordinat ve tarih için Open-Meteo Tahmin veya Arşiv API'sinden 
-    gerçek zamanlı/tarihsel meteorolojik parametreleri (ECMWF modeli) çeker.
+    gerçek zamanlı/tarihsel meteorolojik parametreleri çeker.
     """
     bugun = datetime.now().date()
     gun_farki = (secilen_tarih - bugun).days
@@ -220,17 +220,17 @@ if "secilen_lon" not in st.session_state:
 if "mekan_adi" not in st.session_state:
     st.session_state.mekan_adi = "Batman (Varsayılan Konum)"
 
-# --- ZOOM EARTH STİLİ ÜST SKALA VE MENÜ ÇUBUĞU ---
+# --- ÜST SKALA VE MENÜ ÇUBUĞU ---
 st.markdown("""
 <div style="background: rgba(15, 23, 42, 0.95); padding: 12px 22px; border-radius: 20px; border: 2px solid rgba(56, 189, 248, 0.45); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 0.82rem; font-weight: 700; color: #38bdf8;">
     <span>HARITALAR</span><span>ŞİMDİ</span><span>SAAT BAŞI</span><span>GÜNLÜK</span><span>15 GÜNLÜK</span><span>HAVA KALİTESİ</span><span>YAŞAM İNDEKSİ</span><span>GÜN DOĞUMU VE GÜN BATIMI</span><span>HABERLER</span>
 </div>
-<!-- Zoom Earth Benzeri Sıcaklık Renk Skalası (-30°C ile +50°C)[span_1](start_span)[span_1](end_span) -->
+<!-- Yüksek Kontrastlı Sıcaklık Renk Skalası (-30°C ile +50°C) -->
 <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 22px;">
     <div style="display: flex; justify-content: space-between; width: 100%; max-width: 680px; font-size: 0.78rem; font-weight: 800; color: #cbd5e1; margin-bottom: 5px; padding: 0 6px;">
         <span>°C</span><span>-30</span><span>-20</span><span>-10</span><span>0</span><span>10</span><span>20</span><span>30</span><span>40</span><span>50</span>
     </div>
-    <div style="background: linear-gradient(90deg, #581c87, #3b82f6, #06b6d4, #10b981, #facc15, #f97316, #ef4444, #991b1b); height: 14px; width: 100%; max-width: 680px; border-radius: 7px; box-shadow: 0 0 25px rgba(56, 189, 248, 0.65);"></div>
+    <div style="background: linear-gradient(90deg, #4c1d95, #2563eb, #06b6d4, #10b981, #facc15, #f97316, #dc2626, #7f1d1d); height: 14px; width: 100%; max-width: 680px; border-radius: 7px; box-shadow: 0 0 25px rgba(56, 189, 248, 0.65);"></div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -277,7 +277,7 @@ render_box(
 
 # --- SEKMELER (TABS) ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ Zoom Earth Stilinde Küresel Termal Harita", 
+    "🗺️ Yüksek Kontrastlı Küresel Termal Harita", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -285,8 +285,8 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🌍 Zoom Earth Model Sıcaklık Raster Katmanı",
-        subtitle="Harita zeminine kusursuz entegre edilmiş, mor/mavi soğuk bölgelerden yeşil ılıman ve kırmızı aşırı sıcak bölgelere kadar uzanan kesintisiz termal gradyan[span_2](start_span)[span_2](end_span). Haritada dilediğiniz yere tıklayarak o bölgeyi seçebilir ve verileri anında güncelleyebilirsiniz.",
+        title="🌍 Yüksek Kontrastlı Kesintisiz Termal Renk Katmanı",
+        subtitle="Renk tonlarının birbirine girmesini önlemek için tamamen ayrıştırılmış, soğuk mor/mavi, ılıman yeşil/sarı ve sıcak turuncu/kırmızı tonlarına sahip net ve akışkan küresel termal gradyan. Haritada dilediğiniz yere tıklayarak o bölgeyi seçebilir ve verileri güncelleyebilirsiniz.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -294,13 +294,13 @@ with tab1:
     
     m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=4, tiles="OpenStreetMap")
 
-    # Zoom Earth tarzı pürüzsüz küresel raster sıcaklık matrisi (ImageOverlay)
-    lats = np.linspace(-90, 90, 380)
-    lons = np.linspace(-180, 180, 380)
+    # Küresel raster matrisi
+    lats = np.linspace(-90, 90, 400)
+    lons = np.linspace(-180, 180, 400)
     lon_grid, lat_grid = np.meshgrid(lons, lats)
     
     dist = np.sqrt((lat_grid - st.session_state.secilen_lat)**2 + (lon_grid - st.session_state.secilen_lon)**2)
-    temp_matrix = d['sicaklik'] - (np.abs(lat_grid) * 0.18) + (7 * np.exp(-dist**2 / 1200.0)) + np.sin(lat_grid * 0.04) * 3.0
+    temp_matrix = d['sicaklik'] - (np.abs(lat_grid) * 0.2) + (8 * np.exp(-dist**2 / 1000.0)) + np.sin(lat_grid * 0.05) * 3.5
     
     t_min, t_max = -30.0, 50.0
     norm_temp = np.clip((temp_matrix - t_min) / (t_max - t_min), 0, 1)
@@ -308,20 +308,23 @@ with tab1:
     height, width = norm_temp.shape
     rgba = np.zeros((height, width, 4), dtype=np.float32)
     
-    # Zoom Earth renk paleti emülasyonu (Mor -> Mavi -> Yeşil -> Sarı -> Turuncu -> Kırmızı)
-    rgba[..., 0] = np.clip(2.0 * norm_temp - 0.2, 0, 1) * 255
-    rgba[..., 1] = np.clip(1.5 * (1.0 - np.abs(norm_temp - 0.5) * 2.0), 0, 1) * 255
-    rgba[..., 2] = np.clip(2.0 * (0.75 - norm_temp), 0, 1) * 255
-    rgba[..., 3] = 160 # Akışkan pürüzsüz yarı saydamlık
+    # YÜKSEK KONTRASTLI VE KESKİN RENK GEÇİŞ MATRİSİ (Tonlar birbirinden uzakta ve net)
+    # Kırmızı Kanal (Yüksek sıcaklıklarda çok keskin artış)
+    rgba[..., 0] = np.clip(np.where(norm_temp < 0.5, norm_temp * 2.2, 1.2 * norm_temp), 0, 1) * 255
+    # Yeşil Kanal (Orta sıcaklıklarda dar bir bantta zirve yapar, böylece renkler çorba olmaz)
+    rgba[..., 1] = np.clip(1.3 * (1.0 - np.abs(norm_temp - 0.5) * 2.2), 0, 1) * 255
+    # Mavi Kanal (Düşük sıcaklıklarda çok baskın)
+    rgba[..., 2] = np.clip(np.where(norm_temp < 0.45, 1.1 - (norm_temp * 2.0), (0.5 - norm_temp) * 0.5), 0, 1) * 255
+    rgba[..., 3] = 185 # Net ve belirgin opaklık
     
     folium.raster_layers.ImageOverlay(
         image=rgba.astype(np.uint8),
         bounds=[[-90, -180], [90, 180]],
-        opacity=0.8,
+        opacity=0.82,
         interactive=True,
         cross_origin=False,
         zindex=2,
-        name="🌡️ Zoom Earth Sıcaklık Katmanı"
+        name="🌡️ Yüksek Kontrastlı Termal Katman"
     ).add_to(m)
 
     popup_html = f"""
