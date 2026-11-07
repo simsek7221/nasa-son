@@ -11,7 +11,7 @@ import logging
 
 # --- SİSTEM LOGLAMA VE TELEMETRİ YAPILANDIRMASI ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("LightningFloraTrueData")
+logger = logging.getLogger("LightningFloraNASAObserver")
 
 # Tarayıcı/Tablet GPS konum bileşeni emniyeti
 try:
@@ -22,16 +22,14 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - True Meteorological Tile Observatory",
+    page_title="Lightning Flora - NASA Thermal Satellite Observatory",
     page_icon="🛰️",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- GERÇEK VERİ VE TILE SUNUCU SABİTLERİ ---
-# NASA GIBS (Global Imagery Browse Services) Gerçek Uydu ve Sıcaklık/Atmosferik Gözlem Katmanları
+# --- GERÇEK VERİ VE NASA GIBS TILE SABİTLERİ ---
 NASA_GIBS_LST_TILE = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_Land_Surface_Temp/default/{time}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png"
-# Alternatif: OpenWeatherMap veya standart gerçek uydu katmanları
 
 # --- GELİŞMİŞ ÖNBELLEK VE COĞRAFİ KONUM MOTORU ---
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -227,7 +225,7 @@ st.markdown("""
 </div>
 <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 22px;">
     <div style="display: flex; justify-content: space-between; width: 100%; max-width: 680px; font-size: 0.78rem; font-weight: 800; color: #cbd5e1; margin-bottom: 5px; padding: 0 6px;">
-        <span>%100 Gerçek NASA/ECMWF Uydu ve İstasyon Verisi Akışı</span>
+        <span>%100 Gerçek NASA GIBS Uydu Katmanı Akışı</span>
     </div>
     <div style="background: linear-gradient(90deg, #1e3a8a, #0284c7, #10b981, #f59e0b, #dc2626); height: 14px; width: 100%; max-width: 680px; border-radius: 7px; box-shadow: 0 0 25px rgba(56, 189, 248, 0.65);"></div>
 </div>
@@ -255,7 +253,7 @@ with col_gps:
             st.session_state.mekan_adi = f"GPS Gerçek İstasyon ({st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f})"
 
 with col_date:
-    secilen_tarih = st.date_input("📅 Gerçek Veri Tarihi Seçin:", value=datetime.now().date())
+    secilen_tarih = st.date_input("📅 Gerçek Veri Tarihi Seçin:", value=(datetime.now() - timedelta(days=2)).date())
 
 # Gerçek verileri al
 d = analiz_uret(st.session_state.secilen_lat, st.session_state.secilen_lon, secilen_tarih)
@@ -284,8 +282,8 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🌍 Gerçek Zamanlı NASA GIBS Uydu & Istasyon Entegrasyonu",
-        subtitle=f"Seçilen Koordinat: <b>{st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}</b>. Harita zemininde doğrudan NASA uydu gözlem katmanları akmaktadır.",
+        title="🌍 Doğrudan NASA GIBS Gerçek Zamanlı Uydu Termal Katmanı",
+        subtitle=f"Seçilen Koordinat: <b>{st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}</b>. NASA uydu sunucularından doğrudan çekilen gerçek termal katman harita üzerinde aktif edilmiştir.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -296,17 +294,18 @@ with tab1:
     # Temel harita katmanı
     folium.TileLayer('OpenStreetMap', name='OpenStreetMap', control=True).add_to(m)
 
-    # NASA GIBS Gerçek Uydu Yüzey Sıcaklığı / Gözlem Tile Katmanı
+    # NASA GIBS Gerçek Yüzey Sıcaklığı Tile Katmanı
     tarih_str_nasa = secilen_tarih.strftime("%Y-%m-%d")
     nasa_tile_url = NASA_GIBS_LST_TILE.format(time=tarih_str_nasa, z='{z}', y='{y}', x='{x}')
     
     folium.TileLayer(
         tiles=nasa_tile_url,
         attr='NASA GIBS Land Surface Temperature / MODIS',
-        name='🛰️ NASA Gerçek Uydu Katmanı',
+        name='🛰️ NASA Gerçek Termal Uydu Katmanı',
         overlay=True,
         control=True,
-        opacity=0.75
+        opacity=0.85,
+        show=True
     ).add_to(m)
 
     popup_html = f"""
