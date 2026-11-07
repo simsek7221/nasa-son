@@ -1,17 +1,16 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import folium
-from streamlit_folium import st_folium
 import requests
 from datetime import datetime, timedelta
 import plotly.express as px
+import streamlit.components.v1 as components
 import json
 import logging
 
 # --- SİSTEM LOGLAMA VE TELEMETRİ YAPILANDIRMASI ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("LightningFloraLogger")
+logger = logging.getLogger("LightningFloraZoomEarth")
 
 # Tarayıcı/Tablet GPS konum bileşeni emniyeti
 try:
@@ -22,7 +21,7 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - Zoom Earth Pro Thermal Observatory",
+    page_title="Lightning Flora - Zoom Earth Pro Observatory",
     page_icon="🛰️",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -70,7 +69,7 @@ st.markdown("""
     }
     
     .block-container {
-        background: rgba(15, 23, 42, 0.82) !important;
+        background: rgba(15, 23, 42, 0.85) !important;
         backdrop-filter: blur(60px) !important;
         -webkit-backdrop-filter: blur(60px) !important;
         border-radius: 45px !important;
@@ -277,7 +276,7 @@ render_box(
 
 # --- SEKMELER (TABS) ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ Zoom Earth Stilinde Küresel Termal Harita", 
+    "🗺️ Zoom Earth Canlı Sıcaklık Haritası", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -285,75 +284,16 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🌍 Küresel Pürüzsüz Sıcaklık Raster Katmanı (Zoom Earth Model)",
-        subtitle="Harita zeminine kusursuz entegre edilmiş, mor/mavi soğuk bölgelerden yeşil ılıman ve kırmızı aşırı sıcak bölgelere kadar uzanan kesintisiz termal gradyan. Haritada dilediğiniz yere tıklayarak o bölgeyi seçebilir ve verileri anında güncelleyebilirsiniz.",
+        title="🌍 Resmi Zoom Earth Sıcaklık Entegrasyonu",
+        subtitle=f"Seçilen Koordinat Odaklı Canlı Görünüm: <b>{st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}</b>[span_1](start_span)[span_1](end_span)",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
-    m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=4, tiles="OpenStreetMap")
-
-    # Zoom Earth tarzı pürüzsüz küresel raster sıcaklık matrisi (ImageOverlay)
-    lats = np.linspace(-90, 90, 360)
-    lons = np.linspace(-180, 180, 360)
-    lon_grid, lat_grid = np.meshgrid(lons, lats)
-    
-    dist = np.sqrt((lat_grid - st.session_state.secilen_lat)**2 + (lon_grid - st.session_state.secilen_lon)**2)
-    temp_matrix = d['sicaklik'] - (np.abs(lat_grid) * 0.18) + (7 * np.exp(-dist**2 / 1200.0)) + np.sin(lat_grid * 0.04) * 3.0
-    
-    t_min, t_max = -30.0, 50.0
-    norm_temp = np.clip((temp_matrix - t_min) / (t_max - t_min), 0, 1)
-    
-    height, width = norm_temp.shape
-    rgba = np.zeros((height, width, 4), dtype=np.float32)
-    
-    # Zoom Earth renk paleti emülasyonu (Mor -> Mavi -> Yeşil -> Sarı -> Turuncu -> Kırmızı)
-    rgba[..., 0] = np.clip(2.0 * norm_temp - 0.2, 0, 1) * 255
-    rgba[..., 1] = np.clip(1.5 * (1.0 - np.abs(norm_temp - 0.5) * 2.0), 0, 1) * 255
-    rgba[..., 2] = np.clip(2.0 * (0.75 - norm_temp), 0, 1) * 255
-    rgba[..., 3] = 155 # Akışkan pürüzsüz yarı saydamlık
-    
-    folium.raster_layers.ImageOverlay(
-        image=rgba.astype(np.uint8),
-        bounds=[[-90, -180], [90, 180]],
-        opacity=0.78,
-        interactive=True,
-        cross_origin=False,
-        zindex=2,
-        name="🌡️ Zoom Earth Sıcaklık Katmanı"
-    ).add_to(m)
-
-    popup_html = f"""
-    <div style="width: 220px; font-family: 'Plus Jakarta Sans', sans-serif; background: #ffffff; padding: 12px; border-radius: 10px; border: 2px solid #0284c7; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
-        <h4 style="margin: 0 0 8px 0; color: #0f172a; font-size: 0.95rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;">📍 Konum Bilgisi</h4>
-        <b>Enlem/Boylam:</b> {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}<br>
-        <b>Sıcaklık:</b> {d['sicaklik']:.2f} °C<br>
-        <b>Bağıl Nem:</b> %{d['nem']:.2f}<br>
-        <b>Yağış:</b> {d['yagis']:.2f} mm<br>
-        <b>Basınç:</b> {d['basinc']:.2f} hPa
-    </div>
-    """
-    
-    folium.Marker(
-        [st.session_state.secilen_lat, st.session_state.secilen_lon], 
-        popup=folium.Popup(popup_html, max_width=250), 
-        tooltip="Detaylar için tıklayın",
-        icon=folium.Icon(color="red", icon="info-sign")
-    ).add_to(m)
-
-    folium.LayerControl(collapsed=False).add_to(m)
-    
-    map_data = st_folium(m, width=None, height=540, key="map_interactive_observatory")
-    
-    if map_data and map_data.get("last_clicked"):
-        clicked_lat = map_data["last_clicked"]["lat"]
-        clicked_lon = map_data["last_clicked"]["lng"]
-        if clicked_lat != st.session_state.secilen_lat or clicked_lon != st.session_state.secilen_lon:
-            st.session_state.secilen_lat = clicked_lat
-            st.session_state.secilen_lon = clicked_lon
-            st.session_state.mekan_adi = f"Özel Harita Konumu ({clicked_lat:.4f}, {clicked_lon:.4f})"
-            st.rerun()
+    # Zoom Earth resmi sıcaklık haritası doğrudan iframe ile gömülmektedir
+    zoom_earth_url = f"https://zoom.earth/maps/temperature/#view={st.session_state.secilen_lat},{st.session_state.secilen_lon},6z"
+    components.iframe(zoom_earth_url, height=580, scrolling=True)
 
 with tab2:
     render_box(
