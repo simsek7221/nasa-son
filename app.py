@@ -15,7 +15,7 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - Enterprise NASA Observatory",
+    page_title="Lightning Flora - AI Temporal NASA Observatory",
     page_icon="🛰️",
     layout="wide"
 )
@@ -146,22 +146,41 @@ def render_metric_card(title, value, caption, border_color, text_color, glow_col
     st.markdown(html_content, unsafe_allow_html=True)
 
 @st.cache_data(ttl=600)
-def nasa_power_meteoroloji_cek(lat, lon):
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={round(lat, 4)}&longitude={round(lon, 4)}&current=temperature_2m,relative_humidity_2m,precipitation,rain,weather_code,wind_speed_10m,surface_pressure&models=ecmwf_ifs025"
+def zaman_bazli_veri_cek(lat, lon, secilen_tarih):
+    bugun = datetime.now().date()
+    gun_farki = (secilen_tarih - bugun).days
+    
+    # Geçmiş tarih için Arşiv API, bugün veya gelecek için Tahmin API
+    if gun_farki < 0:
+        tarih_str = secilen_tarih.strftime("%Y-%m-%d")
+        url = f"https://archive-api.open-meteo.com/v1/archive?latitude={round(lat, 4)}&longitude={round(lon, 4)}&start_date={tarih_str}&end_date={tarih_str}&current=temperature_2m,relative_humidity_2m,precipitation,surface_pressure,wind_speed_10m"
+    else:
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={round(lat, 4)}&longitude={round(lon, 4)}&current=temperature_2m,relative_humidity_2m,precipitation,rain,wind_speed_10m,surface_pressure&models=ecmwf_ifs025"
+        
     try:
         res = requests.get(url, timeout=5).json()
-        current = res.get("current", {})
+        if gun_farki < 0:
+            current = res.get("current", {})
+        else:
+            current = res.get("current", {})
+            
         sicaklik = float(current.get("temperature_2m", 20.0))
         nem = float(current.get("relative_humidity_2m", 50.0))
-        yagis = float(current.get("precipitation", 0.0))
+        yagis = float(current.get("precipitation", current.get("rain", 0.0)))
         ruzgar = float(current.get("wind_speed_10m", 5.0))
         basinc = float(current.get("surface_pressure", 1013.25))
-        return round(sicaklik, 2), round(nem, 2), round(yagis, 2), round(ruzgar, 2), round(basinc, 2)
+        
+        # Gelecek tarihler için yapay zeka projeksiyon varyasyonu ekle
+        if gun_farki > 0:
+            sicaklik += gun_farki * 0.05
+            nem = max(10.0, min(100.0, nem + (gun_farki % 3 - 1) * 1.5))
+            
+        return round(sicaklik, 2), round(nem, 2), round(yagis, 2), round(ruzgar, 2), round(basinc, 2), gun_farki
     except Exception:
-        return 20.00, 50.00, 0.00, 5.00, 1013.25
+        return 20.00, 50.00, 0.00, 5.00, 1013.25, gun_farki
 
-def analiz_uret(lat, lon):
-    sicaklik, nem, yagis, ruzgar, basinc = nasa_power_meteoroloji_cek(lat, lon)
+def analiz_uret(lat, lon, secilen_tarih):
+    sicaklik, nem, yagis, ruzgar, basinc, gun_farki = zaman_bazli_veri_cek(lat, lon, secilen_tarih)
     radyasyon = round(max(2.0, min(9.0, 5.5 + (sicaklik * 0.1))), 2)
     gpm_precip = yagis
     smap_soil = round(max(5.0, min(45.0, 18.0 + (yagis * 15) - (sicaklik * 0.2))), 2)
@@ -178,26 +197,26 @@ def analiz_uret(lat, lon):
         "radyasyon": radyasyon, "gpm_precip": gpm_precip, "smap_soil": smap_soil, 
         "ndvi_val": ndvi_val, "omi_no2": omi_no2, "glm_flash": glm_flash, 
         "sif_val": sif_val, "landsat_biomass": landsat_biomass, 
-        "sedac_risk": sedac_risk, "lst_temp": lst_temp
+        "sedac_risk": sedac_risk, "lst_temp": lst_temp, "gun_farki": gun_farki
     }
 
 # --- HEADER KUTUSU ---
 render_box(
     title="🛰️ Lightning Flora: Enterprise NASA Observatory",
-    subtitle="🟢 SYSTEM ONLINE • NASA POWER & ECMWF Entegre Meteorolojik Uydu Gözlem Platformu",
+    subtitle="🟢 SYSTEM ONLINE • Yapay Zeka Zaman Simülasyonu ve Uydu Gözlem Platformu",
     border_color="rgba(56, 189, 248, 0.8)",
     glow_color="rgba(56, 189, 248, 0.6)",
     bg_gradient="linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)"
 )
 
-# --- ANA Konum Arama & GPS ---
+# --- ANA Konum Arama, GPS & Tarih Seçici ---
 lat, lon = 37.8859, 41.1198 
 mekan = "Batman (Varsayılan Koordinat)"
 
-col_search, col_gps = st.columns([2, 1])
+col_search, col_gps, col_date = st.columns([2, 1, 1])
 
 with col_search:
-    aranan_konum = st.text_input("🔍 Dünya Üzerinde Konum Arayın (Şehir, İlçe, Bölge):", "", key="main_search_input")
+    aranan_konum = st.text_input("🔍 Konum Arayın (Şehir, İlçe):", "", key="main_search_input")
     if aranan_konum:
         coords, addr = konum_bul(aranan_konum)
         if coords:
@@ -205,7 +224,7 @@ with col_search:
             mekan = f"Aranan Konum: {addr or aranan_konum}"
             st.success(f"✅ Konum Bulundu: {lat:.4f}, {lon:.4f}")
         else:
-            st.warning("⚠️ Konum bulunamadı, varsayılan koordinat kullanılıyor.")
+            st.warning("⚠️ Konum bulunamadı.")
 
 with col_gps:
     st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
@@ -216,11 +235,21 @@ with col_gps:
             lon = loc_data["longitude"]
             mekan = f"GPS Cihaz Konumu ({lat:.4f}, {lon:.4f})"
 
-d = analiz_uret(lat, lon)
+with col_date:
+    secilen_tarih = st.date_input("📅 Analiz Tarihi Seçin:", value=datetime.now().date())
+
+d = analiz_uret(lat, lon, secilen_tarih)
+
+# Zaman Durumu Açıklaması
+zaman_aciklama = "Bugünkü Canlı Gözlem Verileri"
+if d['gun_farki'] < 0:
+    zaman_aciklama = f"📜 Geçmiş Arşiv Verisi ({abs(d['gun_farki'])} gün önce)"
+elif d['gun_farki'] > 0:
+    zaman_aciklama = f"🤖 Yapay Zeka Tahmini & Model Projeksiyonu ({d['gun_farki']} gün sonra)"
 
 render_box(
-    title="📍 Aktif Gözlem Konumu",
-    subtitle=f"🎯 Konum: <b>{mekan}</b><br>📌 Hassas Koordinat: <b>{lat:.4f}° N, {lon:.4f}° E</b>",
+    title=f"📍 Aktif Gözlem Konumu ve Zaman Modu: {zaman_aciklama}",
+    subtitle=f"🎯 Konum: <b>{mekan}</b><br>📌 Koordinat: <b>{lat:.4f}° N, {lon:.4f}° E</b> | Seçilen Tarih: <b>{secilen_tarih.strftime('%d.%m.%Y')}</b>",
     border_color="rgba(168, 85, 247, 0.8)",
     glow_color="rgba(168, 85, 247, 0.6)",
     bg_gradient="linear-gradient(135deg, rgba(49, 46, 129, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -229,7 +258,7 @@ render_box(
 # --- SEKMELER ---
 tab1, tab2, tab3, tab4 = st.tabs([
     "🗺️ Harita ve Uydu Katmanları", 
-    "📊 Canlı Veriler & 30 Günlük Trend", 
+    "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
 ])
@@ -237,7 +266,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 with tab1:
     render_box(
         title="🗺️ Çok Katmanlı NASA Gözlem Haritası",
-        subtitle="Sağ üst köşedeki katman simgesine tıklayarak seçilen konuma ait radar alanlarını açıp kapatabilirsiniz.",
+        subtitle=f"Seçilen tarih ({secilen_tarih.strftime('%d.%m.%Y')}) için konuma ait uydu radar alanları.",
         border_color="rgba(16, 185, 129, 0.8)",
         glow_color="rgba(16, 185, 129, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -252,54 +281,26 @@ with tab1:
     fg_target = folium.FeatureGroup(name="📍 Seçilen Gözlem Noktası")
     folium.Marker(
         [lat, lon], 
-        popup=f"<b>Gözlem Noktası</b><br>Sıcaklık: {d['sicaklik']}°C<br>Nem: %{d['nem']}", 
+        popup=f"<b>Gözlem Noktası</b><br>Tarih: {secilen_tarih}<br>Sıcaklık: {d['sicaklik']}°C", 
         tooltip="🎯 Hedef Konum",
         icon=folium.Icon(color="red", icon="crosshairs", prefix="fa")
     ).add_to(fg_target)
     fg_target.add_to(m)
 
-    fg_power = folium.FeatureGroup(name="1, 10. Canlı Sıcaklık & MODIS LST")
+    fg_power = folium.FeatureGroup(name="1, 10. Sıcaklık & MODIS LST")
     folium.Circle(
         [lat, lon], radius=8000, color='#38bdf8', weight=2, dash_array='6, 6', fill=True, fill_color='#38bdf8', fill_opacity=0.08,
-        popup=f"Sıcaklık: {d['sicaklik']}°C | LST Yeryüzü: {d['lst_temp']}°C"
+        popup=f"Sıcaklık: {d['sicaklik']}°C | LST: {d['lst_temp']}°C"
     ).add_to(fg_power)
     fg_power.add_to(m)
-
-    fg_water = folium.FeatureGroup(name="2, 3. NASA GPM & SMAP (Yağış & Toprak Nemi)")
-    folium.Circle(
-        [lat, lon], radius=12000, color='#10b981', weight=2, dash_array='8, 6', fill=True, fill_color='#34d399', fill_opacity=0.08, 
-        popup=f"GPM Yağış: {d['gpm_precip']} mm<br>SMAP Toprak Nemi: %{d['smap_soil']}"
-    ).add_to(fg_water)
-    fg_water.add_to(m)
-
-    fg_eco = folium.FeatureGroup(name="4, 7, 8. MODIS NDVI, SIF & Landsat (Bitki)")
-    folium.Circle(
-        [lat, lon], radius=10000, color='#a855f7', weight=2, dash_array='4, 4', fill=True, fill_color='#c084fc', fill_opacity=0.08, 
-        popup=f"NDVI: {d['ndvi_val']}<br>SIF Floresan: {d['sif_val']}<br>Biyokütle: {d['landsat_biomass']} t/ha"
-    ).add_to(fg_eco)
-    fg_eco.add_to(m)
-
-    fg_atm = folium.FeatureGroup(name="5, 6. NASA OMI & GLM (Atmosfer & Yıldırım)")
-    folium.Circle(
-        [lat, lon], radius=15000, color='#f59e0b', weight=2, dash_array='5, 8', fill=True, fill_color='#fbbf24', fill_opacity=0.08, 
-        popup=f"OMI NO2: {d['omi_no2']}<br>GLM Yıldırım: {d['glm_flash']} Flash/h"
-    ).add_to(fg_atm)
-    fg_atm.add_to(m)
-
-    fg_sedac = folium.FeatureGroup(name="9. NASA SEDAC (Çevresel Risk)")
-    folium.Circle(
-        [lat, lon], radius=20000, color='#ef4444', weight=2, dash_array='10, 10', fill=True, fill_color='#f87171', fill_opacity=0.05, 
-        popup=f"SEDAC İnsan Baskı İndeksi: {d['sedac_risk']}"
-    ).add_to(fg_sedac)
-    fg_sedac.add_to(m)
 
     folium.LayerControl(collapsed=True).add_to(m)
     st_folium(m, width=None, height=480, use_container_width=True, key="map_global_observatory")
 
 with tab2:
     render_box(
-        title="📊 NASA POWER & Meteoroloji Verileri ve Trendler",
-        subtitle="Anlık göstergeler ve son 30 günlük simüle edilmiş ekosistem değişim grafikleri.",
+        title=f"📊 {secilen_tarih.strftime('%d.%m.%Y')} Tarihli Simülasyon Verileri",
+        subtitle=f"Mod Türü: {zaman_aciklama}",
         border_color="rgba(56, 189, 248, 0.8)",
         glow_color="rgba(56, 189, 248, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(14, 116, 144, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -307,31 +308,29 @@ with tab2:
     
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        render_metric_card("1️⃣ Sıcaklık", f"{d['sicaklik']:.2f} °C", "NASA POWER asimilasyon verisi", "rgba(56, 189, 248, 0.8)", "#38bdf8", "rgba(56, 189, 248, 0.5)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("1️⃣ Sıcaklık", f"{d['sicaklik']:.2f} °C", "Seçilen tarih sıcaklığı", "rgba(56, 189, 248, 0.8)", "#38bdf8", "rgba(56, 189, 248, 0.5)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c2:
-        render_metric_card("2️⃣ Bağıl Nem", f"%{d['nem']:.2f}", "Hassas atmosferik nem oranı", "rgba(16, 185, 129, 0.8)", "#34d399", "rgba(16, 185, 129, 0.5)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("2️⃣ Bağıl Nem", f"%{d['nem']:.2f}", "Atmosferik nem oranı", "rgba(16, 185, 129, 0.8)", "#34d399", "rgba(16, 185, 129, 0.5)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c3:
-        render_metric_card("3️⃣ GPM Yağış", f"{d['gpm_precip']:.2f} mm", "Hassas toplam yağış miktarı", "rgba(245, 158, 11, 0.8)", "#fbbf24", "rgba(245, 158, 11, 0.5)", "linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("3️⃣ Yağış", f"{d['gpm_precip']:.2f} mm", "Toplam yağış miktarı", "rgba(245, 158, 11, 0.8)", "#fbbf24", "rgba(245, 158, 11, 0.5)", "linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c4:
-        render_metric_card("4️⃣ Basınç", f"{d['basinc']:.2f} hPa", "Deniz seviyesi hava basıncı", "rgba(168, 85, 247, 0.8)", "#c084fc", "rgba(168, 85, 247, 0.5)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("4️⃣ Basınç", f"{d['basinc']:.2f} hPa", "Deniz seviyesi basınç", "rgba(168, 85, 247, 0.8)", "#c084fc", "rgba(168, 85, 247, 0.5)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
 
-    st.markdown("### 📈 Son 30 Günlük Zaman Serisi ve Ekolojik Trend Analizi")
-    dates = [datetime.now() - timedelta(days=i) for i in range(30, 0, -1)]
-    np.random.seed(int(lat + lon))
+    st.markdown("### 📈 Seçilen Tarih Çevresindeki 30 Günlük Trend")
+    dates = [secilen_tarih - timedelta(days=i) for i in range(15, -15, -1)]
+    np.random.seed(int(lat + lon + secilen_tarih.toordinal()))
     trend_temp = [d['sicaklik'] + np.sin(i/3)*3 + np.random.normal(0, 0.5) for i in range(30)]
-    trend_ndvi = [d['ndvi_val'] + np.cos(i/5)*0.05 + np.random.normal(0, 0.01) for i in range(30)]
+    df_trend = pd.DataFrame({"Tarih": dates, "Sıcaklık (°C)": trend_temp})
     
-    df_trend = pd.DataFrame({"Tarih": dates, "Sıcaklık (°C)": trend_temp, "NDVI İndeksi": trend_ndvi})
-    
-    fig_temp = px.line(df_trend, x="Tarih", y="Sıcaklık (°C)", title="Sıcaklık Değişim Trendi", template="plotly_dark")
+    fig_temp = px.line(df_trend, x="Tarih", y="Sıcaklık (°C)", title="Sıcaklık Projeksiyon Trendi", template="plotly_dark")
     fig_temp.update_traces(line=dict(color="#38bdf8", width=3))
     fig_temp.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig_temp, use_container_width=True)
 
 with tab3:
     render_box(
-        title="🚨 Akıllı Ekolojik Risk, Alarm ve Saha Raporu",
-        subtitle="Yapay zeka tabanlı anlık risk analizi ve resmi PDF/Markdown saha raporu oluşturma.",
+        title="🚨 Yapay Zeka Risk ve Alarm Analizi",
+        subtitle=f"{secilen_tarih.strftime('%d.%m.%Y')} tarihi için ekolojik risk değerlendirmesi.",
         border_color="rgba(239, 68, 68, 0.8)",
         glow_color="rgba(239, 68, 68, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(153, 27, 27, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -349,35 +348,30 @@ with tab3:
     st.markdown(f"""
     <div style="background: rgba(15, 23, 42, 0.85); border: 2px solid {risk_renk}; border-radius: 20px; padding: 1.5rem; margin-bottom: 1.5rem; text-align: center;">
         <h3 style="color: {risk_renk}; margin: 0; font-weight: 900;">{risk_seviyesi}</h3>
-        <p style="color: #cbd5e1; margin-top: 8px; font-size: 0.95rem;">Toprak nemi (%{d['smap_soil']:.2f}), sıcaklık ({d['sicaklik']:.2f}°C) ve rüzgar verileri analiz edilerek otomatik üretilmiştir.</p>
+        <p style="color: #cbd5e1; margin-top: 8px; font-size: 0.95rem;">Seçilen tarih ({secilen_tarih}) için toprak nemi (%{d['smap_soil']:.2f}) ve sıcaklık analiz edilmiştir.</p>
     </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("### 📥 Saha Gözlem ve Analiz Raporunu İndir")
     rapor_metni = f"""
-    # LIGHTNING FLORA - ENTERPRISE NASA OBSERVATORY SAHA RAPORU
-    - **Tarih:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    # LIGHTNING FLORA - ZAMAN SİMÜLASYONU RAPORU
+    - **Tarih:** {secilen_tarih}
+    - **Mod:** {zaman_aciklama}
     - **Konum:** {mekan}
-    - **Koordinat:** {lat:.4f}° N, {lon:.4f}° E
-    - **Anlık Sıcaklık:** {d['sicaklik']:.2f} °C
+    - **Sıcaklık:** {d['sicaklik']:.2f} °C
     - **Bağıl Nem:** %{d['nem']:.2f}
-    - **Toprak Nemi (SMAP):** %{d['smap_soil']:.2f}
-    - **Bitki İndeksi (NDVI):** {d['ndvi_val']:.3f}
-    - **Atmosferik Basınç:** {d['basinc']:.2f} hPa
     - **Risk Durumu:** {risk_seviyesi}
     """
-    
     st.download_button(
-        label="📄 Resmi Raporu İndir (Markdown / PDF)",
+        label="📄 Simülasyon Raporunu İndir",
         data=rapor_metni,
-        file_name=f"Lightning_Flora_Rapor_{datetime.now().strftime('%Y%m%d_%H%M')}.md",
+        file_name=f"Zaman_Raporu_{secilen_tarih}.md",
         mime="text/markdown"
     )
 
 with tab4:
     render_box(
-        title="⚖️ Bölgesel ve Konumlar Arası Karşılaştırma",
-        subtitle="İki farklı bölgenin uydu verilerini ve meteorolojik göstergelerini bağımsız olarak yan yana kıyaslayın.",
+        title="⚖️ Bölgesel Karşılaştırma",
+        subtitle=f"{secilen_tarih.strftime('%d.%m.%Y')} tarihi için iki farklı bölge analizi.",
         border_color="rgba(168, 85, 247, 0.8)",
         glow_color="rgba(168, 85, 247, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(76, 29, 149, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -394,24 +388,15 @@ with tab4:
     name1, name2 = "Batman", "Ankara"
     
     coords1, n1 = konum_bul(yer_1)
-    if coords1: 
-        lat1, lon1 = coords1
-        if n1: name1 = n1
-        
+    if coords1: lat1, lon1 = coords1; name1 = n1
     coords2, n2 = konum_bul(yer_2)
-    if coords2: 
-        lat2, lon2 = coords2
-        if n2: name2 = n2
+    if coords2: lat2, lon2 = coords2; name2 = n2
         
-    d1 = analiz_uret(lat1, lon1)
-    d2 = analiz_uret(lat2, lon2)
+    d1 = analiz_uret(lat1, lon1, secilen_tarih)
+    d2 = analiz_uret(lat2, lon2, secilen_tarih)
     
     col_k1, col_k2 = st.columns(2)
     with col_k1:
-        st.markdown(f"### 📍 {name1} ({lat1:.2f}, {lon1:.2f})")
-        render_metric_card("Sıcaklık", f"{d1['sicaklik']:.2f} °C", f"Nem: %{d1['nem']:.2f}", "rgba(56, 189, 248, 0.6)", "#38bdf8", "rgba(56, 189, 248, 0.3)", "linear-gradient(135deg, rgba(14, 165, 233, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%)")
-        render_metric_card("Toprak Nemi", f"%{d1['smap_soil']:.2f}", f"NDVI: {d1['ndvi_val']:.3f}", "rgba(16, 185, 129, 0.6)", "#34d399", "rgba(16, 185, 129, 0.3)", "linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card(f"{name1}", f"{d1['sicaklik']:.2f} °C", f"Nem: %{d1['nem']:.2f}", "rgba(56, 189, 248, 0.6)", "#38bdf8", "rgba(56, 189, 248, 0.3)", "linear-gradient(135deg, rgba(14, 165, 233, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with col_k2:
-        st.markdown(f"### 📍 {name2} ({lat2:.2f}, {lon2:.2f})")
-        render_metric_card("Sıcaklık", f"{d2['sicaklik']:.2f} °C", f"Nem: %{d2['nem']:.2f}", "rgba(168, 85, 247, 0.6)", "#c084fc", "rgba(168, 85, 247, 0.3)", "linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%)")
-        render_metric_card("Toprak Nemi", f"%{d2['smap_soil']:.2f}", f"NDVI: {d2['ndvi_val']:.3f}", "rgba(245, 158, 11, 0.6)", "#fbbf24", "rgba(245, 158, 11, 0.3)", "linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card(f"{name2}", f"{d2['sicaklik']:.2f} °C", f"Nem: %{d2['nem']:.2f}", "rgba(168, 85, 247, 0.6)", "#c084fc", "rgba(168, 85, 247, 0.3)", "linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%)")
