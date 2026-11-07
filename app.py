@@ -279,13 +279,12 @@ tab1, tab2, tab3, tab4 = st.tabs([
 with tab1:
     render_box(
         title="🌍 NASA Space Apps Challenge - Lightning Flora Küresel Gözlemevi",
-        subtitle=f"Seçilen noktanın anlık gerçek sıcaklığı: <b>{d['sicaklik']} °C</b> | Rüzgar: <b>{d['ruzgar']} km/s</b>. Harita kontrolleri, derece göstergesi ve zaman kaydırıcısı tamamen serbest bırakılmıştır.",
+        subtitle=f"Seçilen noktanın anlık gerçek sıcaklığı: <b>{d['sicaklik']} °C</b> | Rüzgar: <b>{d['ruzgar']} km/s</b>. Harita kontrolleri ve zaman kaydırıcısı tamamen serbesttir.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
-    # Harita katmanını değiştirmek için Streamlit içi profesyonel selectbox
     col_l1, col_l2 = st.columns([1, 2])
     with col_l1:
         secilen_katman_adi = st.selectbox(
@@ -307,11 +306,16 @@ with tab1:
     lon_val = st.session_state.secilen_lon
     windy_embed_url = f"https://embed.windy.com/embed2.html?lat={lat_val}&lon={lon_val}&zoom=6&level=surface&overlay={aktif_overlay}&menu=&message=&marker=&pressure=&calendar=now&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
     
-    # Üstü kapatmayan, NASA Space Apps telemetri kimliğini şık bir başlık olarak veren wrapper
+    # Telefon çentiği (notch) ve şık NASA telemetri üst barı (harita butonlarını ve zaman çubuğunu ASLA kapatmaz)
     st.markdown("""
-    <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(15, 23, 42, 0.95); padding: 12px 24px; border-radius: 20px 20px 0 0; border: 2px solid rgba(56, 189, 248, 0.4); border-bottom: none;">
-        <span style="color: #38bdf8; font-weight: 800; font-size: 0.95rem; text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);">🛰️ NASA Space Apps Challenge | Lightning Flora Telemetry Feed</span>
-        <span style="color: #4ade80; font-weight: 700; font-size: 0.85rem;">● Active Telemetry Stream</span>
+    <div style="background: rgba(15, 23, 42, 0.98); padding: 10px 20px; border-radius: 18px 18px 0 0; border: 2px solid rgba(56, 189, 248, 0.4); border-bottom: none; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 10px; height: 10px; background: #38bdf8; border-radius: 50%; box-shadow: 0 0 10px #38bdf8;"></div>
+            <span style="color: #38bdf8; font-weight: 800; font-size: 0.9rem; font-family: 'Plus Jakarta Sans', sans-serif;">NASA Space Apps Challenge | Lightning Flora Telemetry Feed</span>
+        </div>
+        <div style="background: rgba(56, 189, 248, 0.15); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(56, 189, 248, 0.3);">
+            <span style="color: #4ade80; font-weight: 700; font-size: 0.78rem;">● Live Feed Active</span>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     
