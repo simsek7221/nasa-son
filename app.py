@@ -1,8 +1,7 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
-import folium
-from streamlit_folium import st_folium
 import requests
 from datetime import datetime, timedelta
 import plotly.express as px
@@ -10,7 +9,7 @@ import logging
 
 # --- SİSTEM LOGLAMA ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("LightningFloraFinalPro")
+logger = logging.getLogger("LightningFloraWindyPro")
 
 try:
     from streamlit_geolocation import streamlit_geolocation
@@ -271,7 +270,7 @@ render_box(
 
 # --- SEKMELER (TABS) ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ Pro Küresel Uydu Gözlemevi", 
+    "🗺️ Profesyonel Windy Canlı Gözlemevi", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -279,54 +278,19 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🌍 Profesyonel Esri Uydu Görüntüsü ve İstasyon Haritası",
-        subtitle=f"Seçilen noktanın anlık gerçek sıcaklığı (<b>{d['sicaklik']} °C</b>) ve istasyon parametreleri. Harita üzerinde dilediğiniz noktaya tıklayarak verileri anında güncelleyebilirsiniz.",
+        title="🌍 Profesyonel Windy Küresel Canlı Gözlem ve Radar Haritası",
+        subtitle=f"Seçilen noktanın anlık gerçek sıcaklığı: <b>{d['sicaklik']} °C</b> | Rüzgar: <b>{d['ruzgar']} km/s</b>. Harita doğrudan resmi Windy embed altyapısıyla çalışmaktadır.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
-    # Kesinlikle kırılmayan, hiçbir API key istemeyen, profesyonel Esri World Imagery (Uydu) katmanı
-    m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=6, tiles=None)
+    # Windy resmi embed widget entegrasyonu (Seçilen koordinatlara dinamik olarak odaklanır)
+    lat_val = st.session_state.secilen_lat
+    lon_val = st.session_state.secilen_lon
+    windy_embed_url = f"https://embed.windy.com/embed2.html?lat={lat_val}&lon={lon_val}&zoom=6&level=surface&overlay=wind&menu=&message=&marker=&pressure=&calendar=now&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
     
-    folium.TileLayer(
-        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        attr='Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-eGIS, and the GIS User Community',
-        name='🛰️ Esri Küresel Uydu Görüntüsü',
-        overlay=False,
-        control=True
-    ).add_to(m)
-
-    popup_html = f"""
-    <div style="width: 220px; font-family: 'Plus Jakarta Sans', sans-serif; background: #ffffff; padding: 12px; border-radius: 10px; border: 2px solid #0284c7; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
-        <h4 style="margin: 0 0 8px 0; color: #0f172a; font-size: 0.95rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;">📍 %100 Gerçek İstasyon Verisi</h4>
-        <b>Enlem/Boylam:</b> {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}<br>
-        <b>Sıcaklık:</b> {d['sicaklik']:.2f} °C<br>
-        <b>Bağıl Nem:</b> %{d['nem']:.2f}<br>
-        <b>Yağış:</b> {d['yagis']} mm<br>
-        <b>Rüzgar:</b> {d['ruzgar']} km/s ({d['ruzgar_yon']}°)
-    </div>
-    """
-    
-    folium.Marker(
-        [st.session_state.secilen_lat, st.session_state.secilen_lon], 
-        popup=folium.Popup(popup_html, max_width=250), 
-        tooltip="Gerçek İstasyon Detayı için tıklayın",
-        icon=folium.Icon(color="red", icon="info-sign")
-    ).add_to(m)
-
-    folium.LayerControl(collapsed=False).add_to(m)
-
-    map_data = st_folium(m, width=None, height=540, key="map_interactive_observatory")
-    
-    if map_data and map_data.get("last_clicked"):
-        clicked_lat = map_data["last_clicked"]["lat"]
-        clicked_lon = map_data["last_clicked"]["lng"]
-        if clicked_lat != st.session_state.secilen_lat or clicked_lon != st.session_state.secilen_lon:
-            st.session_state.secilen_lat = clicked_lat
-            st.session_state.secilen_lon = clicked_lon
-            st.session_state.mekan_adi = f"Seçilen Gerçek Konum ({clicked_lat:.4f}, {clicked_lon:.4f})"
-            st.rerun()
+    components.iframe(windy_embed_url, height=560, scrolling=False)
 
 with tab2:
     render_box(
