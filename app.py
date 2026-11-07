@@ -321,13 +321,13 @@ with tab1:
     # Telefon ekranı çentiği (notch) tasarımı ve minimalist telemetri rozeti (Hiçbir harita butonunu veya zaman çubuğunu engellemez)
     components.html(f"""
     <div style="position: relative; width: 100%; height: 560px; border-radius: 24px; overflow: hidden; border: 3px solid rgba(56, 189, 248, 0.4); box-shadow: 0 0 40px rgba(56, 189, 248, 0.25);">
-        <div style="position: absolute; top: 18px; left: 50%; transform: translateX(-50%); width: 220px; height: 26px; background: #0f172a; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; z-index: 1000; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(56, 189, 248, 0.5); border-top: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
-            <div style="display: flex; align-items: center; gap: 6px;">
-                <div style="width: 6px; height: 6px; background: #38bdf8; border-radius: 50%; box-shadow: 0 0 8px #38bdf8;"></div>
-                <span style="color: #38bdf8; font-weight: 800; font-size: 0.72rem; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.5px;">NASA TELEMETRY</span>
-            </div>
-        </div>
-        <iframe src="{windy_embed_url}" width="100%" height="560px" style="border:none;"></iframe>
+        <div style="position: absolute; top: 18px; left: 50%; transform: translateX(-50%); width: 300px; height: 38px; background: #0f172a; border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; z-index: 1000; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(56, 189, 248, 0.5); border-top: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+    <div style="display: flex; align-items: center; gap: 9px;">
+        <div style="width: 8px; height: 8px; background: #38bdf8; border-radius: 50%; box-shadow: 0 0 8px #38bdf8;"></div>
+        <span style="color: #38bdf8; font-weight: 800; font-size: 0.85rem; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.7px;">NASA TELEMETRY</span>
+    </div>
+</div>        
+<iframe src="{windy_embed_url}" width="100%" height="560px" style="border:none;"></iframe>
     </div>
     """, height=575)
 
