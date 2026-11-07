@@ -11,7 +11,7 @@ import logging
 
 # --- SİSTEM LOGLAMA VE TELEMETRİ YAPILANDIRMASI ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("LightningFloraVariableMatrix")
+logger = logging.getLogger("LightningFloraHighContrastPro")
 
 # Tarayıcı/Tablet GPS konum bileşeni emniyeti
 try:
@@ -22,7 +22,7 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - Dynamic Baseline Thermal Observatory",
+    page_title="Lightning Flora - Sharp Contrast Thermal Observatory",
     page_icon="🛰️",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -231,10 +231,10 @@ st.markdown(f"""
 <div style="background: rgba(15, 23, 42, 0.95); padding: 12px 22px; border-radius: 20px; border: 2px solid rgba(56, 189, 248, 0.45); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 0.82rem; font-weight: 700; color: #38bdf8;">
     <span>HARITALAR</span><span>ŞİMDİ</span><span>SAAT BAŞI</span><span>GÜNLÜK</span><span>15 GÜNLÜK</span><span>HAVA KALİTESİ</span><span>YAŞAM İNDEKSİ</span><span>GÜN DOĞUMU VE GÜN BATIMI</span><span>HABERLER</span>
 </div>
-<!-- Küresel Ortalama Bazlı Renk Skalası (Merkez: {TEMPERATE_PIVOT_VAL}°C Ilıman Yeşil/Sarı) -->
+<!-- Keskin Kontrastlı Renk Skalası (Merkez: {TEMPERATE_PIVOT_VAL}°C Ilıman Yeşil/Sarı) -->
 <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 22px;">
     <div style="display: flex; justify-content: space-between; width: 100%; max-width: 680px; font-size: 0.78rem; font-weight: 800; color: #cbd5e1; margin-bottom: 5px; padding: 0 6px;">
-        <span>°C ({RASTER_MIN_TEMP})</span><span>Soğuk (Mor/Mavi)</span><span>Ilıman Merkez ({TEMPERATE_PIVOT_VAL}°C - Yeşil/Sarı)</span><span>Sıcak (Turuncu/Kırmızı)</span><span>({RASTER_MAX_TEMP})</span>
+        <span>°C ({RASTER_MIN_TEMP})</span><span>Çok Soğuk (Mor)</span><span>Ilıman Merkez ({TEMPERATE_PIVOT_VAL}°C - Yeşil/Sarı)</span><span>Aşırı Sıcak (Kırmızı)</span><span>({RASTER_MAX_TEMP})</span>
     </div>
     <div style="background: linear-gradient(90deg, #4c1d95, #2563eb, #06b6d4, #10b981, #facc15, #f97316, #dc2626, #7f1d1d); height: 14px; width: 100%; max-width: 680px; border-radius: 7px; box-shadow: 0 0 25px rgba(56, 189, 248, 0.65);"></div>
 </div>
@@ -283,7 +283,7 @@ render_box(
 
 # --- SEKMELER (TABS) ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ Küresel Termal Harita (Global Ortalama Merkezli)", 
+    "🗺️ Keskin Kontrastlı Küresel Termal Harita", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -291,8 +291,8 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🌍 Küresel Ortalama Tabanlı Termal Renk Katmanı",
-        subtitle=f"Dünya ortalama sıcaklığı olan <b>{TEMPERATE_PIVOT_VAL}°C</b> baz alınarak, bu değerin çevresi ılıman <b>yeşil/sarı</b> kuşak olarak merkezileştirilmiştir. Haritada dilediğiniz yere tıklayarak o bölgeyi seçebilir ve verileri güncelleyebilirsiniz.",
+        title="🌍 Keskin ve Uzaktan Seçilebilir Küresel Termal Katman",
+        subtitle=f"Dünya ortalaması olan <b>{TEMPERATE_PIVOT_VAL}°C</b> baz alınarak birbirinden keskin ve yüksek kontrastlı renklendirilen küresel matris. Haritada dilediğiniz yere tıklayarak o bölgeyi seçebilir ve verileri güncelleyebilirsiniz.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -300,38 +300,56 @@ with tab1:
     
     m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=4, tiles="OpenStreetMap")
 
-    # Küresel raster matrisi (Dünya ortalamasını referans alan dinamik enlem/sıcaklık dağılımı)
+    # Küresel raster matrisi
     lats = np.linspace(-90, 90, 400)
     lons = np.linspace(-180, 180, 400)
     lon_grid, lat_grid = np.meshgrid(lons, lats)
     
     lat_rad = np.radians(lat_grid)
-    # Küresel sıcaklık profili, global ortalama baz alınarak enleme göre hesaplanır
     base_global_temp = TEMPERATE_PIVOT_VAL + (25 * np.cos(lat_rad)) - (np.abs(lat_grid) * 0.3)
     
     dist = np.sqrt((lat_grid - st.session_state.secilen_lat)**2 + (lon_grid - st.session_state.secilen_lon)**2)
     temp_matrix = base_global_temp + (6 * np.exp(-dist**2 / 1200.0)) + np.sin(lat_grid * 0.07) * 2.5
     
-    # Normalizasyon ve Dinamik Merkezleme (Global Ortalama -> 0.5 -> Yeşil/Sarı)
     norm_temp = np.clip((temp_matrix - RASTER_MIN_TEMP) / (RASTER_MAX_TEMP - RASTER_MIN_TEMP), 0, 1)
     
     height, width = norm_temp.shape
     rgba = np.zeros((height, width, 4), dtype=np.float32)
     
-    # Değişken tabanlı renk matrisi kodlaması (Yeşil/Sarı bant tam olarak TEMPERATE_PIVOT_VAL çevresine sabitlendi)
-    rgba[..., 0] = np.clip(np.where(norm_temp < 0.5, norm_temp * 2.0, 1.4 * norm_temp), 0, 1) * 255
-    rgba[..., 1] = np.clip(1.5 * (1.0 - np.abs(norm_temp - 0.5) * 2.0), 0, 1) * 255  # Yeşil zirvesi
-    rgba[..., 2] = np.clip(np.where(norm_temp < 0.45, 1.3 - (norm_temp * 2.2), (0.5 - norm_temp) * 0.3), 0, 1) * 255
-    rgba[..., 3] = 190 # Yarı saydamlık
+    # YÜKSEK KONTRASTLI BANTLAMA (Bands logic for extreme visual distinction)
+    # Soğuk bölgeler (< 0.35): Koyu Mor / Mavi
+    # Ilıman Merkez (0.35 - 0.60): Canlı Yeşil / Sarı (Dünya ortalaması merkezi)
+    # Sıcak bölgeler (> 0.60): Turuncu / Kırmızı / Bordo
+    
+    mask_cold = norm_temp < 0.38
+    mask_temperate = (norm_temp >= 0.38) & (norm_temp <= 0.62)
+    mask_hot = norm_temp > 0.62
+    
+    # Kırmızı Kanal (R)
+    rgba[..., 0] = np.select(
+        [mask_cold, mask_temperate, mask_hot],
+        [norm_temp * 80, 220, 255]
+    )
+    # Yeşil Kanal (G)
+    rgba[..., 1] = np.select(
+        [mask_cold, mask_temperate, mask_hot],
+        [norm_temp * 120, 240, 60]
+    )
+    # Mavi Kanal (B)
+    rgba[..., 2] = np.select(
+        [mask_cold, mask_temperate, mask_hot],
+        [220, 80, 20]
+    )
+    rgba[..., 3] = 205 # Yüksek opaklık ve netlik
     
     folium.raster_layers.ImageOverlay(
         image=rgba.astype(np.uint8),
         bounds=[[-90, -180], [90, 180]],
-        opacity=0.85,
+        opacity=0.88,
         interactive=True,
         cross_origin=False,
         zindex=2,
-        name="🌡️ Dinamik Küresel Termal Katman"
+        name="🌡️ Keskin Kontrastlı Termal Katman"
     ).add_to(m)
 
     popup_html = f"""
