@@ -11,7 +11,7 @@ import logging
 
 # --- SİSTEM LOGLAMA VE TELEMETRİ YAPILANDIRMASI ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("LightningFloraOmniObservatory")
+logger = logging.getLogger("LightningFloraOmniObservatoryWind")
 
 # Tarayıcı/Tablet GPS konum bileşeni emniyeti
 try:
@@ -22,7 +22,7 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - Omni-Layer Global Observatory Pro",
+    page_title="Lightning Flora - Omni-Layer & Wind Observatory Pro",
     page_icon="🛰️",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -198,7 +198,7 @@ def gercek_veri_cek(lat, lon, secilen_tarih):
     return 22.50, 45.00, 0.00, 4.50, 180.0, 1013.00, gun_farki
 
 def analiz_uret(lat, lon, secilen_tarih):
-    sicaklik, nem, yagis, ruzgar, ruzgar_yon, basinc, gun_farki = gercek_veri_cek(lat, lon, secilen_tarih)
+    sicaklik, nem, yagis, ruzgar, rüzgar_yon, basinc, gun_farki = gercek_veri_cek(lat, lon, secilen_tarih)
     radyasyon = round(max(2.0, min(9.0, 5.0 + (sicaklik * 0.1))), 2)
     smap_soil = round(max(5.0, min(45.0, 20.0 + (yagis * 12) - (sicaklik * 0.15))), 2)
     ndvi_val = round(max(0.1, min(0.85, 0.4 + (smap_soil * 0.01))), 3)
@@ -206,7 +206,7 @@ def analiz_uret(lat, lon, secilen_tarih):
     glm_flash = int((abs(sicaklik * (yagis + 1)) * 1.1) % 25)
 
     return {
-        "sicaklik": sicaklik, "nem": nem, "yagis": yagis, "ruzgar": ruzgar, "ruzgar_yon": ruzgar_yon,
+        "sicaklik": sicaklik, "nem": nem, "yagis": yagis, "ruzgar": ruzgar, "ruzgar_yon": rüzgar_yon,
         "basinc": basinc, "radyasyon": radyasyon, "smap_soil": smap_soil, "ndvi_val": ndvi_val, 
         "omi_no2": omi_no2, "glm_flash": glm_flash, "gun_farki": gun_farki
     }
@@ -275,7 +275,7 @@ render_box(
 
 # --- SEKMELER (TABS) ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ Omni-Layer Küresel Gözlemevi", 
+    "🗺️ Omni-Layer & Rüzgar Vektör Gözlemevi", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -283,8 +283,8 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🌍 Tüm Küresel Katmanlar (Termal, Yangın, NDVI, Işık, Gerçek Renk & Aerosol)",
-        subtitle="Sağ üstteki katman kontrol panelinden dilediğiniz tüm uydu ve gözlem katmanlarını aynı anda açıp kapatabilirsiniz.",
+        title="🌍 Tüm Katmanlar + Gerçek Rüzgar Vektör Akış Haritası",
+        subtitle="Sağ üstteki katman kontrol panelinden Termal, Yangın, NDVI, Gece Işıkları, Gerçek Renk, Aerosol ve Rüzgar Vektörleri katmanlarını açıp kapatabilirsiniz.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -346,15 +346,15 @@ with tab1:
     folium.TileLayer(
         tiles=NASA_GIBS_LIGHT_TILE.format(time=tarih_str_nasa, z='{z}', y='{y}', x='{x}'),
         attr='NASA GIBS Black Marble',
-        name='💡 NASA Gece Işıkları (Light Map)',
+        name='💡 NASA Gece Işıkları',
         overlay=True, control=True, opacity=0.85, show=False
     ).add_to(m)
 
-    # 5. Katman: Gerçek Renk Uydu Görüntüsü (True Color)
+    # 5. Katman: Gerçek Renk Uydu Görüntüsü
     folium.TileLayer(
         tiles=NASA_GIBS_TRUECOLOR_TILE.format(time=tarih_str_nasa, z='{z}', y='{y}', x='{x}'),
         attr='NASA GIBS True Color',
-        name='🛰️ NASA Gerçek Renk Uydu Görüntüsü',
+        name='🛰️ NASA Gerçek Renk Uydu',
         overlay=True, control=True, opacity=0.9, show=False
     ).add_to(m)
 
@@ -365,6 +365,32 @@ with tab1:
         name='🌫️ NASA Aerosol / Hava Kalitesi',
         overlay=True, control=True, opacity=0.75, show=False
     ).add_to(m)
+
+    # 7. Katman: Rüzgar Vektörleri ve Akış Gridi (FeatureGroup ile açılıp kapanabilir)
+    wind_fg = folium.FeatureGroup(name="💨 Gerçek Rüzgar Vektörleri Katmanı", show=True)
+    
+    # Seçilen nokta çevresine rüzgar yönünü gösteren oklar ekleyelim
+    w_lat, w_lon = st.session_state.secilen_lat, st.session_state.secilen_lon
+    w_speed = d['ruzgar']
+    w_deg = d['ruzgar_yon']
+    
+    # Bölgesel rüzgar vektör okları (örnek ızgara noktaları)
+    grid_offsets = [(-2, -2), (-2, 2), (2, -2), (2, 2), (0, 0)]
+    for d_lat, d_lon in grid_offsets:
+        pt_lat = w_lat + d_lat
+        pt_lon = w_lon + d_lon
+        arrow_html = f"""
+        <div style="transform: rotate({w_deg}deg); font-size: 20px; color: #38bdf8; text-shadow: 0 0 5px #000; font-weight: 900;">
+            ➔
+        </div>
+        """
+        folium.Marker(
+            [pt_lat, pt_lon],
+            icon=folium.DivIcon(html=arrow_html),
+            tooltip=f"Rüzgar: {w_speed} km/s ({w_deg}°)"
+        ).add_to(wind_fg)
+    
+    wind_fg.add_to(m)
 
     popup_html = f"""
     <div style="width: 225px; font-family: 'Plus Jakarta Sans', sans-serif; background: #ffffff; padding: 12px; border-radius: 10px; border: 2px solid #0284c7; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
