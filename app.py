@@ -306,20 +306,18 @@ with tab1:
     lon_val = st.session_state.secilen_lon
     windy_embed_url = f"https://embed.windy.com/embed2.html?lat={lat_val}&lon={lon_val}&zoom=6&level=surface&overlay={aktif_overlay}&menu=&message=&marker=&pressure=&calendar=now&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
     
-    # Telefon çentiği (notch) ve şık NASA telemetri üst barı (harita butonlarını ve zaman çubuğunu ASLA kapatmaz)
-    st.markdown("""
-    <div style="background: rgba(15, 23, 42, 0.98); padding: 10px 20px; border-radius: 18px 18px 0 0; border: 2px solid rgba(56, 189, 248, 0.4); border-bottom: none; display: flex; align-items: center; justify-content: space-between;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="width: 10px; height: 10px; background: #38bdf8; border-radius: 50%; box-shadow: 0 0 10px #38bdf8;"></div>
-            <span style="color: #38bdf8; font-weight: 800; font-size: 0.9rem; font-family: 'Plus Jakarta Sans', sans-serif;">NASA Space Apps Challenge | Lightning Flora Telemetry Feed</span>
+    # Telefon ekranı çentiği (notch) tasarımı ve minimalist telemetri rozeti (Hiçbir harita butonunu veya zaman çubuğunu engellemez)
+    components.html(f"""
+    <div style="position: relative; width: 100%; height: 560px; border-radius: 24px; overflow: hidden; border: 2px solid rgba(56, 189, 248, 0.4); box-shadow: 0 0 40px rgba(56, 189, 248, 0.25);">
+        <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 220px; height: 26px; background: #0f172a; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; z-index: 1000; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(56, 189, 248, 0.5); border-top: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <div style="width: 6px; height: 6px; background: #38bdf8; border-radius: 50%; box-shadow: 0 0 8px #38bdf8;"></div>
+                <span style="color: #38bdf8; font-weight: 800; font-size: 0.72rem; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.5px;">NASA TELEMETRY</span>
+            </div>
         </div>
-        <div style="background: rgba(56, 189, 248, 0.15); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(56, 189, 248, 0.3);">
-            <span style="color: #4ade80; font-weight: 700; font-size: 0.78rem;">● Live Feed Active</span>
-        </div>
+        <iframe src="{windy_embed_url}" width="100%" height="560px" style="border:none;"></iframe>
     </div>
-    """, unsafe_allow_html=True)
-    
-    components.iframe(windy_embed_url, height=560, scrolling=False)
+    """, height=575)
 
 with tab2:
     render_box(
