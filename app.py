@@ -6,12 +6,11 @@ from streamlit_folium import st_folium
 import requests
 from datetime import datetime, timedelta
 import plotly.express as px
-import json
 import logging
 
 # --- SİSTEM LOGLAMA ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("LightningFloraProFixed")
+logger = logging.getLogger("LightningFloraProObservatory")
 
 try:
     from streamlit_geolocation import streamlit_geolocation
@@ -26,19 +25,18 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- KÜRESEL SABİTLER ---
-GLOBAL_AVG_BASELINE_TEMP = 14.85
-TEMPERATE_PIVOT_VAL = GLOBAL_AVG_BASELINE_TEMP
-RASTER_MIN_TEMP = -30.0
-RASTER_MAX_TEMP = 50.0
-
-# NASA GIBS Doğru WMTS Endpoint ve Matris Yapılandırması
+# --- KÜRESEL SABİTLER VE TILE SUNUCULARI ---
+OWM_API_KEY = "b6907d289e10d714a6e88b30761fae22"
 NASA_DATE_STR = (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
-NASA_GIBS_TRUECOLOR_TILE = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.jpg"
-NASA_GIBS_FIRE_TILE = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_Thermal_Anomalies_375m_Day/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level7/{{z}}/{{y}}/{{x}}.png"
-NASA_GIBS_NDVI_TILE = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI_8Day/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level8/{{z}}/{{y}}/{{x}}.png"
-NASA_GIBS_LIGHT_TILE = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level8/{{z}}/{{y}}/{{x}}.png"
-NASA_GIBS_AEROSOL_TILE = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_Aerosol/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level6/{{z}}/{{y}}/{{x}}.png"
+
+# Profesyonel WMTS ve Raster Tile Endpoints
+NASA_TRUECOLOR = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.jpg"
+NASA_FIRES = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_Thermal_Anomalies_375m_Day/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level7/{{z}}/{{y}}/{{x}}.png"
+NASA_NDVI = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI_8Day/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level8/{{z}}/{{y}}/{{x}}.png"
+NASA_LIGHTS = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level8/{{z}}/{{y}}/{{x}}.png"
+
+OWM_TEMP_TILE = f"https://tile.openweathermap.org/map/temp_new/{{z}}/{{x}}/{{y}}.png?appid={OWM_API_KEY}"
+OWM_WIND_TILE = f"https://tile.openweathermap.org/map/wind_new/{{z}}/{{x}}/{{y}}.png?appid={OWM_API_KEY}"
 
 # --- COĞRAFİ KONUM ÇÖZÜCÜ ---
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -191,7 +189,7 @@ def gercek_veri_cek(lat, lon, secilen_tarih):
         logger.error(f"Veri çekme hatası: {str(e)}")
     return 22.5, 45.0, 0.0, 4.5, 180.0, 1013.0, gun_farki
 
-# --- GERÇEK ZAMAN SERİSİ (30 GÜNLÜK TREND) ---
+# --- 30 GÜNLÜK DİNAMİK ZAMAN SERİSİ ---
 @st.cache_data(ttl=600, show_spinner=False)
 def zaman_serisi_cek(lat, lon, merkez_tarih):
     baslangic = merkez_tarih - timedelta(days=15)
@@ -285,7 +283,7 @@ render_box(
 
 # --- SEKMELER (TABS) ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ Omni-Layer & Rüzgar Vektör Gözlemevi", 
+    "🗺️ Küresel Uydu & Raster Gözlemevi", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -293,8 +291,8 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🌍 Çok Katmanlı Küresel Gözlemevi",
-        subtitle="Sağ üstteki katman kontrol panelinden Termal, Gerçek Renk Uydu, Yangın, NDVI, Gece Işıkları, Aerosol ve Rüzgar Vektörleri katmanlarını açıp kapatabilirsiniz.",
+        title="🌍 Profesyonel Küresel Katmanlar (OpenWeatherMap & NASA GIBS)",
+        subtitle="Sağ üstteki katman kontrol panelinden OpenWeatherMap Sıcaklık ve Rüzgar raster katmanları ile NASA Uydu, Yangın ve NDVI katmanlarını dilediğiniz gibi açıp kapatabilirsiniz.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -302,99 +300,55 @@ with tab1:
     
     m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=4, tiles="OpenStreetMap")
 
-    # 1. Katman: Termal Raster
-    lats = np.linspace(-90, 90, 450)
-    lons = np.linspace(-180, 180, 450)
-    lon_grid, lat_grid = np.meshgrid(lons, lats)
-    lat_rad = np.radians(lat_grid)
-    base_global_temp = d['sicaklik'] + (24 * np.cos(lat_rad)) - (np.abs(lat_grid - st.session_state.secilen_lat) * 0.22)
-    dist = np.sqrt((lat_grid - st.session_state.secilen_lat)**2 + (lon_grid - st.session_state.secilen_lon)**2)
-    temp_matrix = base_global_temp + (6.0 * np.exp(-dist**2 / 1100.0)) + np.sin(lat_grid * 0.08) * 2.5
-    norm_temp = np.clip((temp_matrix - RASTER_MIN_TEMP) / (RASTER_MAX_TEMP - RASTER_MIN_TEMP), 0, 1)
-    
-    xp = [0.0, 0.15, 0.30, 0.45, 0.55, 0.70, 0.85, 1.0]
-    fp_r = [76,   37,   6,    16,   250,  249,  220,  127]
-    fp_g = [29,   99,   182,  185,  204,  115,  38,   29 ]
-    fp_b = [149,  235,  212,  129,  21,   22,   38,   29 ]
-    
-    height, width = norm_temp.shape
-    rgba = np.zeros((height, width, 4), dtype=np.float32)
-    rgba[..., 0] = np.interp(norm_temp, xp, fp_r)
-    rgba[..., 1] = np.interp(norm_temp, xp, fp_g)
-    rgba[..., 2] = np.interp(norm_temp, xp, fp_b)
-    rgba[..., 3] = 190
-    
-    folium.raster_layers.ImageOverlay(
-        image=rgba.astype(np.uint8),
-        bounds=[[-90, -180], [90, 180]],
-        opacity=0.85,
-        interactive=True,
-        cross_origin=False,
-        zindex=2,
-        name="🌡️ Zoom Earth Termal Katmanı"
+    # 1. OpenWeatherMap Sıcaklık Tile Katmanı
+    folium.TileLayer(
+        tiles=OWM_TEMP_TILE,
+        attr='OpenWeatherMap Temperature',
+        name='🌡️ OWM Küresel Sıcaklık Katmanı',
+        overlay=True, control=True, opacity=0.8, show=True
     ).add_to(m)
 
-    # 2. Katman: Gerçek Renk Uydu Görüntüsü
+    # 2. OpenWeatherMap Rüzgar Tile Katmanı
     folium.TileLayer(
-        tiles=NASA_GIBS_TRUECOLOR_TILE,
+        tiles=OWM_WIND_TILE,
+        attr='OpenWeatherMap Wind',
+        name='💨 OWM Küresel Rüzgar Katmanı',
+        overlay=True, control=True, opacity=0.8, show=False
+    ).add_to(m)
+
+    # 3. NASA Gerçek Renk Uydu
+    folium.TileLayer(
+        tiles=NASA_TRUECOLOR,
         attr='NASA GIBS True Color',
         name='🛰️ NASA Gerçek Renk Uydu',
         overlay=True, control=True, opacity=0.9, show=False
     ).add_to(m)
 
-    # 3. Katman: NASA Aktif Yangınlar
+    # 4. NASA Aktif Yangınlar
     folium.TileLayer(
-        tiles=NASA_GIBS_FIRE_TILE,
-        attr='NASA GIBS VIIRS Active Fires',
+        tiles=NASA_FIRES,
+        attr='NASA GIBS Thermal Anomalies',
         name='🔥 NASA Aktif Yangınlar',
         overlay=True, control=True, opacity=0.9, show=False
     ).add_to(m)
 
-    # 4. Katman: NASA NDVI Bitki Örtüsü
+    # 5. NASA NDVI Bitki Örtüsü
     folium.TileLayer(
-        tiles=NASA_GIBS_NDVI_TILE,
-        attr='NASA GIBS MODIS NDVI',
+        tiles=NASA_NDVI,
+        attr='NASA GIBS NDVI',
         name='🌿 NASA NDVI Bitki Örtüsü',
         overlay=True, control=True, opacity=0.8, show=False
     ).add_to(m)
 
-    # 5. Katman: Gece Işıkları (Black Marble)
+    # 6. NASA Gece Işıkları
     folium.TileLayer(
-        tiles=NASA_GIBS_LIGHT_TILE,
+        tiles=NASA_LIGHTS,
         attr='NASA GIBS Black Marble',
         name='💡 NASA Gece Işıkları',
         overlay=True, control=True, opacity=0.85, show=False
     ).add_to(m)
 
-    # 6. Katman: Aerosol / Hava Kalitesi
-    folium.TileLayer(
-        tiles=NASA_GIBS_AEROSOL_TILE,
-        attr='NASA GIBS Aerosol',
-        name='🌫️ NASA Aerosol / Hava Kalitesi',
-        overlay=True, control=True, opacity=0.75, show=False
-    ).add_to(m)
-
-    # 7. Katman: Çeşitlendirilmiş Rüzgar Vektörleri (Gerçek Yön ve Konumsal Varyasyon ile)
-    wind_fg = folium.FeatureGroup(name="💨 Çeşitlendirilmiş Rüzgar Vektörleri", show=True)
-    w_speed = d['ruzgar']
-    
-    lat_steps = np.linspace(-60, 70, 7)
-    lon_steps = np.linspace(-140, 140, 9)
-    for idx, plat in enumerate(lat_steps):
-        for jdx, plon in enumerate(lon_steps):
-            dynamic_deg = (d['ruzgar_yon'] + (idx * 12) + (jdx * 18)) % 360
-            arrow_html = f"""
-            <div style="transform: rotate({dynamic_deg}deg); font-size: 16px; color: #38bdf8; text-shadow: 0 0 4px #000; font-weight: 900;">
-                ➔
-            </div>
-            """
-            folium.Marker(
-                [plat, plon],
-                icon=folium.DivIcon(html=arrow_html),
-                tooltip=f"Rüzgar: {w_speed} km/s ({dynamic_deg:.1f}°)"
-            ).add_to(wind_fg)
-    wind_fg.add_to(m)
-
+    # İstasyon İşaretçisi
     popup_html = f"""
     <div style="width: 225px; font-family: 'Plus Jakarta Sans', sans-serif; background: #ffffff; padding: 12px; border-radius: 10px; border: 2px solid #0284c7; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
         <h4 style="margin: 0 0 8px 0; color: #0f172a; font-size: 0.95rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;">📍 İstasyon Omni-Verisi</h4>
