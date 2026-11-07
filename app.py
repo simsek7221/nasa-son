@@ -11,7 +11,7 @@ import logging
 
 # --- SİSTEM LOGLAMA VE TELEMETRİ YAPILANDIRMASI ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("LightningFloraMaster")
+logger = logging.getLogger("LightningFloraMultiLayer")
 
 # Tarayıcı/Tablet GPS konum bileşeni emniyeti
 try:
@@ -22,25 +22,24 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - Zoom Earth Pro Thermal Observatory",
+    page_title="Lightning Flora - Multi-Layer Meteorological Observatory",
     page_icon="🛰️",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- DİNAMİK KÜRESEL SICAKLIK SABİTLERİ (DEĞİŞKENLER) ---
-GLOBAL_AVG_BASELINE_TEMP = 14.85  # Dünyanın yıllık ortalama yüzey sıcaklığı (°C)
-TEMPERATE_PIVOT_VAL = GLOBAL_AVG_BASELINE_TEMP  # Yeşil ve sarı ılıman kuşak merkezi
+# --- GERÇEK UYDU TILE VE VERİ SABİTLERİ ---
+GLOBAL_AVG_BASELINE_TEMP = 14.85
+TEMPERATE_PIVOT_VAL = GLOBAL_AVG_BASELINE_TEMP
 RASTER_MIN_TEMP = -30.0
 RASTER_MAX_TEMP = 50.0
+
+# NASA GIBS Gerçek Zamanlı Aktif Yangınlar / Termal Anomaliler Katmanı (VIIRS)
+NASA_GIBS_FIRE_TILE = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_Thermal_Anomalies_375m_Day/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png"
 
 # --- GELİŞMİŞ ÖNBELLEK VE COĞRAFİ KONUM MOTORU ---
 @st.cache_data(ttl=3600, show_spinner=False)
 def konum_bul(isim):
-    """
-    Open-Meteo Geocoding API kullanarak girilen metin sorgusunu 
-    coğrafi enlem ve boylam koordinatlarına dönüştürür.
-    """
     if not isim or not isinstance(isim, str) or not isim.strip():
         return None, None
     
@@ -64,7 +63,7 @@ def konum_bul(isim):
         
     return None, None
 
-# --- ZOOM EARTH STYLE ULTRA GLASSMORPHISM CSS ---
+# --- ULTRA GLASSMORPHISM CSS ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
@@ -130,7 +129,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def render_box(title, subtitle, border_color, glow_color, bg_gradient):
-    """UI bileşeni: Özel cam efekti (glassmorphism) içeren bilgi kutusu oluşturur."""
     html_content = f"""
     <div style="
         background: {bg_gradient};
@@ -149,7 +147,6 @@ def render_box(title, subtitle, border_color, glow_color, bg_gradient):
     st.markdown(html_content, unsafe_allow_html=True)
 
 def render_metric_card(title, value, caption, border_color, text_color, glow_color, bg_gradient):
-    """UI bileşeni: Önemli metrik verilerini gösteren şık kart yapısı."""
     html_content = f"""
     <div style="
         background: {bg_gradient};
@@ -170,17 +167,14 @@ def render_metric_card(title, value, caption, border_color, text_color, glow_col
 
 @st.cache_data(ttl=600, show_spinner=False)
 def gercek_veri_cek(lat, lon, secilen_tarih):
-    """
-    Open-Meteo ECMWF ve Arşiv API'sinden seçilen konumun %100 gerçek meteorolojik verilerini çeker.
-    """
     bugun = datetime.now().date()
     gun_farki = (secilen_tarih - bugun).days
     
     if gun_farki < 0:
         tarih_str = secilen_tarih.strftime("%Y-%m-%d")
-        url = f"https://archive-api.open-meteo.com/v1/archive?latitude={round(lat, 4)}&longitude={round(lon, 4)}&start_date={tarih_str}&end_date={tarih_str}&current=temperature_2m,relative_humidity_2m,precipitation,surface_pressure,wind_speed_10m"
+        url = f"https://archive-api.open-meteo.com/v1/archive?latitude={round(lat, 4)}&longitude={round(lon, 4)}&start_date={tarih_str}&end_date={tarih_str}&current=temperature_2m,relative_humidity_2m,precipitation,surface_pressure,wind_speed_10m,wind_direction_10m"
     else:
-        url = f"https://api.open-meteo.com/v1/forecast?latitude={round(lat, 4)}&longitude={round(lon, 4)}&current=temperature_2m,relative_humidity_2m,precipitation,rain,wind_speed_10m,surface_pressure&models=ecmwf_ifs025"
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={round(lat, 4)}&longitude={round(lon, 4)}&current=temperature_2m,relative_humidity_2m,precipitation,rain,wind_speed_10m,wind_direction_10m,surface_pressure&models=ecmwf_ifs025"
         
     try:
         response = requests.get(url, timeout=6)
@@ -191,16 +185,17 @@ def gercek_veri_cek(lat, lon, secilen_tarih):
             nem = float(current.get("relative_humidity_2m", 45.0))
             yagis = float(current.get("precipitation", current.get("rain", 0.0)))
             ruzgar = float(current.get("wind_speed_10m", 4.5))
+            ruzgar_ yon = float(current.get("wind_direction_10m", 180.0))
             basinc = float(current.get("surface_pressure", 1013.0))
             
-            return round(sicaklik, 2), round(nem, 2), round(yagis, 2), round(ruzgar, 2), round(basinc, 2), gun_farki
+            return round(sicaklik, 2), round(nem, 2), round(yagis, 2), round(ruzgar, 2), round(ruzgar_yon, 1), round(basinc, 2), gun_farki
     except Exception as e:
         logger.error(f"Gerçek veri çekme hatası: {str(e)}")
         
-    return 22.50, 45.00, 0.00, 4.50, 1013.00, gun_farki
+    return 22.50, 45.00, 0.00, 4.50, 180.0, 1013.00, gun_farki
 
 def analiz_uret(lat, lon, secilen_tarih):
-    sicaklik, nem, yagis, ruzgar, basinc, gun_farki = gercek_veri_cek(lat, lon, secilen_tarih)
+    sicaklik, nem, yagis, ruzgar, ruzgar_yon, basinc, gun_farki = gercek_veri_cek(lat, lon, secilen_tarih)
     radyasyon = round(max(2.0, min(9.0, 5.0 + (sicaklik * 0.1))), 2)
     smap_soil = round(max(5.0, min(45.0, 20.0 + (yagis * 12) - (sicaklik * 0.15))), 2)
     ndvi_val = round(max(0.1, min(0.85, 0.4 + (smap_soil * 0.01))), 3)
@@ -208,8 +203,8 @@ def analiz_uret(lat, lon, secilen_tarih):
     glm_flash = int((abs(sicaklik * (yagis + 1)) * 1.1) % 25)
 
     return {
-        "sicaklik": sicaklik, "nem": nem, "yagis": yagis, "ruzgar": ruzgar, "basinc": basinc,
-        "radyasyon": radyasyon, "smap_soil": smap_soil, "ndvi_val": ndvi_val, 
+        "sicaklik": sicaklik, "nem": nem, "yagis": yagis, "ruzgar": ruzgar, "ruzgar_yon": ruzgar_yon,
+        "basinc": basinc, "radyasyon": radyasyon, "smap_soil": smap_soil, "ndvi_val": ndvi_val, 
         "omi_no2": omi_no2, "glm_flash": glm_flash, "gun_farki": gun_farki
     }
 
@@ -221,12 +216,11 @@ if "secilen_lon" not in st.session_state:
 if "mekan_adi" not in st.session_state:
     st.session_state.mekan_adi = "Batman (Gerçek İstasyon)"
 
-# --- ZOOM EARTH STİLİ ÜST SKALA VE MENÜ ÇUBUĞU ---
+# --- ÜST SKALA VE MENÜ ÇUBUĞU ---
 st.markdown(f"""
 <div style="background: rgba(15, 23, 42, 0.95); padding: 12px 22px; border-radius: 20px; border: 2px solid rgba(56, 189, 248, 0.45); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 0.82rem; font-weight: 700; color: #38bdf8;">
     <span>HARITALAR</span><span>ŞİMDİ</span><span>SAAT BAŞI</span><span>GÜNLÜK</span><span>15 GÜNLÜK</span><span>HAVA KALİTESİ</span><span>YAŞAM İNDEKSİ</span><span>GÜN DOĞUMU VE GÜN BATIMI</span><span>HABERLER</span>
 </div>
-<!-- Zoom Earth Tarzı Mikro Tonlu Renk Skalası (Merkez: {TEMPERATE_PIVOT_VAL}°C) -->
 <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 22px;">
     <div style="display: flex; justify-content: space-between; width: 100%; max-width: 680px; font-size: 0.78rem; font-weight: 800; color: #cbd5e1; margin-bottom: 5px; padding: 0 6px;">
         <span>°C (-30)</span><span>Soğuk (Mor/Mavi)</span><span>Ilıman Merkez ({TEMPERATE_PIVOT_VAL}°C - Yeşil/Sarı)</span><span>Sıcak (Turuncu/Kırmızı)</span><span>(+50)</span>
@@ -278,7 +272,7 @@ render_box(
 
 # --- SEKMELER (TABS) ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ Zoom Earth Pro Termal Raster Katmanı", 
+    "🗺️ Çok Katmanlı Gözlemevi (Termal, Rüzgar & Yangın)", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -286,8 +280,8 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🌍 Gerçek İstasyon Verisi Destekli Küresel Termal Raster Katmanı",
-        subtitle=f"Seçilen noktanın gerçek anlık sıcaklığı (<b>{d['sicaklik']} °C</b>) merkeze alınarak oluşturulan, binlerce mikro renk tonuna sahip pürüzsüz uydu katmanı. Haritada dilediğiniz yere tıklayarak gerçek verileri anında güncelleyebilirsiniz.",
+        title="🌍 Çok Katmanlı Meteoroloji ve Afet Gözlem Haritası",
+        subtitle="Sağ üstteki katman menüsünden <b>Zoom Earth Termal Katmanı</b>, <b>NASA Aktif Yangınlar Katmanı</b> veya <b>Rüzgar Vektör Göstergesi</b> arasında geçiş yapabilirsiniz.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -295,21 +289,16 @@ with tab1:
     
     m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=4, tiles="OpenStreetMap")
 
-    # Küresel yüksek çözünürlüklü raster matrisi (Gerçek veri odaklı kalibrasyon)
-    lats = np.linspace(-90, 90, 500)
-    lons = np.linspace(-180, 180, 500)
+    # 1. Katman: Zoom Earth Tarzı Mikro Tonlu Termal Raster
+    lats = np.linspace(-90, 90, 450)
+    lons = np.linspace(-180, 180, 450)
     lon_grid, lat_grid = np.meshgrid(lons, lats)
-    
     lat_rad = np.radians(lat_grid)
-    # Seçilen noktanın gerçek sıcaklığı temel alınarak küresel enlem profili kalibre edilir
     base_global_temp = d['sicaklik'] + (24 * np.cos(lat_rad)) - (np.abs(lat_grid - st.session_state.secilen_lat) * 0.22)
-    
     dist = np.sqrt((lat_grid - st.session_state.secilen_lat)**2 + (lon_grid - st.session_state.secilen_lon)**2)
     temp_matrix = base_global_temp + (6.0 * np.exp(-dist**2 / 1100.0)) + np.sin(lat_grid * 0.08) * 2.5
-    
     norm_temp = np.clip((temp_matrix - RASTER_MIN_TEMP) / (RASTER_MAX_TEMP - RASTER_MIN_TEMP), 0, 1)
     
-    # Binlerce mikro ton geçişi sağlayan çoklu durak noktaları (Zoom Earth paleti emülasyonu)
     xp = [0.0, 0.15, 0.30, 0.45, 0.55, 0.70, 0.85, 1.0]
     fp_r = [76,   37,   6,    16,   250,  249,  220,  127]
     fp_g = [29,   99,   182,  185,  204,  115,  38,   29 ]
@@ -317,38 +306,51 @@ with tab1:
     
     height, width = norm_temp.shape
     rgba = np.zeros((height, width, 4), dtype=np.float32)
-    
     rgba[..., 0] = np.interp(norm_temp, xp, fp_r)
     rgba[..., 1] = np.interp(norm_temp, xp, fp_g)
     rgba[..., 2] = np.interp(norm_temp, xp, fp_b)
-    rgba[..., 3] = 190 # Akışkan pürüzsüz yarı saydamlık
+    rgba[..., 3] = 190
     
     folium.raster_layers.ImageOverlay(
         image=rgba.astype(np.uint8),
         bounds=[[-90, -180], [90, 180]],
-        opacity=0.88,
+        opacity=0.85,
         interactive=True,
         cross_origin=False,
         zindex=2,
-        name="🌡️ Zoom Earth Pro Termal Katman"
+        name="🌡️ Zoom Earth Termal Katmanı"
     ).add_to(m)
 
+    # 2. Katman: NASA Aktif Yangınlar (Thermal Anomalies) Tile Katmanı
+    tarih_str_nasa = (secilen_tarih if secilen_tarih <= datetime.now().date() else datetime.now().date()).strftime("%Y-%m-%d")
+    nasa_fire_url = NASA_GIBS_FIRE_TILE.format(time=tarih_str_nasa, z='{z}', y='{y}', x='{x}')
+    folium.TileLayer(
+        tiles=nasa_fire_url,
+        attr='NASA GIBS VIIRS Active Fires',
+        name='🔥 NASA Aktif Yangınlar Katmanı',
+        overlay=True,
+        control=True,
+        opacity=0.9,
+        show=False
+    ).add_to(m)
+
+    # 3. Katman: Gerçek Rüzgar İstasyonu ve Yön Göstergesi (Marker & Vector)
     popup_html = f"""
-    <div style="width: 220px; font-family: 'Plus Jakarta Sans', sans-serif; background: #ffffff; padding: 12px; border-radius: 10px; border: 2px solid #0284c7; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+    <div style="width: 225px; font-family: 'Plus Jakarta Sans', sans-serif; background: #ffffff; padding: 12px; border-radius: 10px; border: 2px solid #0284c7; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
         <h4 style="margin: 0 0 8px 0; color: #0f172a; font-size: 0.95rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;">📍 Gerçek İstasyon Verisi</h4>
-        <b>Enlem/Boylam:</b> {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}<br>
         <b>Sıcaklık:</b> {d['sicaklik']:.2f} °C<br>
+        <b>Rüzgar Hızı:</b> {d['ruzgar']} km/s<br>
+        <b>Rüzgar Yönü:</b> {d['ruzgar_yon']}°<br>
         <b>Bağıl Nem:</b> %{d['nem']:.2f}<br>
-        <b>Yağış:</b> {d['yagis']:.2f} mm<br>
-        <b>Basınç:</b> {d['basinc']:.2f} hPa
+        <b>Yağış:</b> {d['yagis']} mm
     </div>
     """
     
     folium.Marker(
         [st.session_state.secilen_lat, st.session_state.secilen_lon], 
         popup=folium.Popup(popup_html, max_width=250), 
-        tooltip="Gerçek Veri Detayı için tıklayın",
-        icon=folium.Icon(color="red", icon="info-sign")
+        tooltip=f"Rüzgar: {d['ruzgar']} km/s ({d['ruzgar_yon']}°)",
+        icon=folium.Icon(color="orange", icon="flash")
     ).add_to(m)
 
     folium.LayerControl(collapsed=False).add_to(m)
@@ -361,7 +363,7 @@ with tab1:
         if clicked_lat != st.session_state.secilen_lat or clicked_lon != st.session_state.secilen_lon:
             st.session_state.secilen_lat = clicked_lat
             st.session_state.secilen_lon = clicked_lon
-            st.session_state.mekan_adi = f"Seçilen Gerçek Konum ({clicked_lat:.4f}, {clicked_lon:.4f})"
+            st.session_state.mekan_adi = f"Seçilen Konum ({clicked_lat:.4f}, {clicked_lon:.4f})"
             st.rerun()
 
 with tab2:
@@ -376,7 +378,7 @@ with tab2:
     with c1:
         render_metric_card("1️⃣ Sıcaklık", f"{d['sicaklik']} °C", "Gerçek anlık sıcaklık", "rgba(56, 189, 248, 0.75)", "#38bdf8", "rgba(56, 189, 248, 0.45)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c2:
-        render_metric_card("2️⃣ Bağıl Nem", f"%{d['nem']}", "Atmosferik nem oranı", "rgba(16, 185, 129, 0.75)", "#34d399", "rgba(16, 185, 129, 0.45)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("2️⃣ Rüzgar", f"{d['ruzgar']} km/s", f"Yön: {d['ruzgar_yon']}°", "rgba(16, 185, 129, 0.75)", "#34d399", "rgba(16, 185, 129, 0.45)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c3:
         render_metric_card("3️⃣ Yağış", f"{d['yagis']} mm", "Toplam yağış miktarı", "rgba(245, 158, 11, 0.75)", "#fbbf24", "rgba(245, 158, 11, 0.45)", "linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c4:
