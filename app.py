@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import folium
-from folium.plugins import HeatMap
 from streamlit_folium import st_folium
 import requests
 from datetime import datetime, timedelta
@@ -33,6 +32,18 @@ def konum_bul(isim):
     except Exception:
         pass
     return None, None
+
+@st.cache_data(ttl=300)
+def rainviewer_radar_url_al():
+    try:
+        rv_res = requests.get("https://api.rainviewer.com/public/weather-maps.json", timeout=3).json()
+        past_list = rv_res.get("radar", {}).get("past", [])
+        if past_list:
+            latest_path = past_list[-1].get("path")
+            return f"https://tile.rainviewer.com/v2/radar/{latest_path}/256/{{z}}/{{x}}/{{y}}/2/1_1.png"
+    except Exception:
+        pass
+    return "https://tile.rainviewer.com/v2/radar/nowcast_1h/256/{z}/{x}/{y}/2/1_1.png"
 
 # --- 3X ULTRA INTENSIFIED NEON & GLASSMORPHISM CSS ---
 st.markdown("""
@@ -193,37 +204,30 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🗺️ Entegre Termal Renk Katmanı",
-        subtitle="Haritada nereye tıklarsanız tıklayın o bölge seçilir, kare bilgi kutusu açılır ve tüm sistem verileri o koordinata göre güncellenir.",
+        title="🗺️ Entegre Meteorolojik ve Termal Katman",
+        subtitle="Harita zeminine tam oturan, küresel ölçekte kesintisiz hava ve ısı katmanı. Haritada istediğiniz yere tıklayarak bölgeyi seçebilir ve verileri güncelleyebilirsiniz.",
         border_color="rgba(16, 185, 129, 0.8)",
         glow_color="rgba(16, 185, 129, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
-    m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=5, tiles="OpenStreetMap")
+    # Standart OpenStreetMap taban haritası
+    m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=6, tiles="OpenStreetMap")
 
-    # Haritanın her yerini kesintisiz kaplayan geniş kapsamlı termal ısı dağılım ağı (Leke görünümü engellendi, tüm haritaya yayıldı)
-    np.random.seed(42)
-    thermal_grid = []
-    for lat in np.linspace(-60, 70, 45):
-        for lon in np.linspace(-130, 140, 45):
-            # Enleme ve seçilen merkeze göre dinamik termal yoğunluk renkleri (Mavi, Yeşil, Sarı, Kırmızı geçişli)
-            dist_factor = max(0.1, 1.0 - (abs(lat - st.session_state.secilen_lat) + abs(lon - st.session_state.secilen_lon)) / 180.0)
-            intensity = max(0.15, min(1.0, (d['sicaklik'] / 35.0) * dist_factor + (np.sin(lat) * 0.2)))
-            thermal_grid.append([lat, lon, intensity])
-
-    HeatMap(
-        thermal_grid,
-        min_opacity=0.35,
-        max_zoom=18,
-        radius=45,
-        blur=35,
-        gradient={0.2: 'blue', 0.4: 'lime', 0.6: 'yellow', 0.8: 'orange', 1.0: 'red'}
+    # Küresel hava ve termal radar tile katmanı (Harita ile birebir bütünleşir, ayrı bir leke gibi durmaz)
+    radar_url = rainviewer_radar_url_al()
+    folium.TileLayer(
+        tiles=radar_url,
+        attr='Weather data by RainViewer',
+        name='🌧️ Küresel Hava & Yağış Radarı',
+        overlay=True,
+        control=True,
+        opacity=0.8
     ).add_to(m)
 
     popup_html = f"""
-    <div style="width: 220px; font-family: 'Plus Jakarta Sans', sans-serif; background: #ffffff; padding: 12px; border-radius: 10px; border: 2px solid #38bdf8; box-shadow: 0 4px 15px rgba(0,0,0,0.25);">
-        <h4 style="margin: 0 0 8px 0; color: #0f172a; font-size: 1rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;">📍 Bölge Bilgi Paneli</h4>
+    <div style="width: 210px; font-family: 'Plus Jakarta Sans', sans-serif; background: #ffffff; padding: 10px; border-radius: 8px; border: 2px solid #38bdf8; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+        <h4 style="margin: 0 0 6px 0; color: #0f172a; font-size: 0.95rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;">📍 Konum Bilgisi</h4>
         <b>Enlem/Boylam:</b> {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}<br>
         <b>Sıcaklık:</b> {d['sicaklik']:.2f} °C<br>
         <b>Bağıl Nem:</b> %{d['nem']:.2f}<br>
@@ -234,11 +238,13 @@ with tab1:
     
     folium.Marker(
         [st.session_state.secilen_lat, st.session_state.secilen_lon], 
-        popup=folium.Popup(popup_html, max_width=260), 
-        tooltip="🔍 Detaylar için tıklayın",
+        popup=folium.Popup(popup_html, max_width=250), 
+        tooltip="Detaylar için tıklayın",
         icon=folium.Icon(color="red", icon="info-sign")
     ).add_to(m)
 
+    folium.LayerControl(collapsed=False).add_to(m)
+    
     map_data = st_folium(m, width=None, height=540, key="map_interactive_observatory")
     
     if map_data and map_data.get("last_clicked"):
