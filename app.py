@@ -53,7 +53,7 @@ st.markdown("""
         color: #f8fafc !important;
         font-family: 'Plus Jakarta Sans', sans-serif !important;
     }
-    
+
     .block-container {
         background: rgba(15, 23, 42, 0.92) !important;
         backdrop-filter: blur(60px) !important;
@@ -150,13 +150,13 @@ def render_metric_card(title, value, caption, border_color, text_color, glow_col
 def gercek_veri_cek(lat, lon, secilen_tarih):
     bugun = datetime.now().date()
     gun_farki = (secilen_tarih - bugun).days
-    
+
     if gun_farki < 0:
         tarih_str = secilen_tarih.strftime("%Y-%m-%d")
         url = f"https://archive-api.open-meteo.com/v1/archive?latitude={round(lat, 4)}&longitude={round(lon, 4)}&start_date={tarih_str}&end_date={tarih_str}&current=temperature_2m,relative_humidity_2m,precipitation,surface_pressure,wind_speed_10m,wind_direction_10m"
     else:
         url = f"https://api.open-meteo.com/v1/forecast?latitude={round(lat, 4)}&longitude={round(lon, 4)}&current=temperature_2m,relative_humidity_2m,precipitation,rain,wind_speed_10m,wind_direction_10m,surface_pressure&models=ecmwf_ifs025"
-        
+
     try:
         response = requests.get(url, timeout=6)
         if response.status_code == 200:
@@ -195,7 +195,7 @@ def zaman_serisi_cek(lat, lon, merkez_tarih):
                 })
     except Exception as e:
         logger.error(f"Zaman serisi çekilemedi: {str(e)}")
-    
+
     dates = [merkez_tarih - timedelta(days=i) for i in range(15, -15, -1)]
     return pd.DataFrame({
         "Tarih": dates,
@@ -209,7 +209,7 @@ def analiz_uret(lat, lon, secilen_tarih):
     radyasyon = round(max(2.0, min(9.0, 5.0 + (sicaklik * 0.1))), 2)
     smap_soil = round(max(5.0, min(45.0, 20.0 + (yagis * 12) - (sicaklik * 0.15))), 2)
     ndvi_val = round(max(0.1, min(0.85, 0.4 + (smap_soil * 0.01))), 3)
-    
+
     return {
         "sicaklik": sicaklik, "nem": nem, "yagis": yagis, "ruzgar": ruzgar, "ruzgar_yon": ruzgar_yon,
         "basinc": basinc, "radyasyon": radyasyon, "smap_soil": smap_soil, "ndvi_val": ndvi_val, 
@@ -284,7 +284,7 @@ with tab1:
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
-    
+
     col_l1, col_l2 = st.columns([1, 2])
     with col_l1:
         secilen_katman_adi = st.selectbox(
@@ -292,7 +292,7 @@ with tab1:
             ["Rüzgar Akışı", "Sıcaklık Dağılımı", "Yağış & Radar", "Atmosferik Basınç", "Bulut Örtüsü"],
             key="map_layer_selector"
         )
-    
+
     katman_kodlari = {
         "Rüzgar Akışı": "wind",
         "Sıcaklık Dağılımı": "temp",
@@ -304,8 +304,8 @@ with tab1:
 
     lat_val = st.session_state.secilen_lat
     lon_val = st.session_state.secilen_lon
-    windy_embed_url = f"https://embed.windy.com/embed2.html?lat={lat_val}&lon={lon_val}&zoom=6&level=surface&overlay={aktif_overlay}&menu=&message=&marker=&pressure=&calendar=now&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
-    
+    windy_embed_url = f"https://embed.windy.com/embed2.html?lat={lat_val}&lon={lon_val}&zoom=6&level=surface&overlay={aktif_overlay}&message=&marker=&pressure=&calendar=now&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
+
     # Telefon ekranı çentiği (notch) tasarımı ve minimalist telemetri rozeti (Hiçbir harita butonunu veya zaman çubuğunu engellemez)
     components.html(f"""
     <div style="position: relative; width: 100%; height: 560px; border-radius: 24px; overflow: hidden; border: 3px solid rgba(56, 189, 248, 0.4); box-shadow: 0 0 40px rgba(56, 189, 248, 0.25);">
@@ -373,19 +373,19 @@ with tab4:
         yer_1 = st.text_input("1. Bölge:", "Batman", key="compare_loc_1")
     with c_b2:
         yer_2 = st.text_input("2. Bölge:", "Ankara", key="compare_loc_2")
-        
+
     lat1, lon1 = konum_bul(yer_1)[0] if konum_bul(yer_1) else (37.8859, 41.1198)
     lat2, lon2 = konum_bul(yer_2)[0] if konum_bul(yer_2) else (39.9334, 32.8597)
-    
+
     d1 = analiz_uret(lat1, lon1, secilen_tarih)
     d2 = analiz_uret(lat2, lon2, secilen_tarih)
-    
+
     c_res1, c_res2 = st.columns(2)
     with c_res1:
         render_metric_card(f"📍 {yer_1}", f"{d1['sicaklik']} °C", f"Nem: %{d1['nem']} | Rüzgar: {d1['ruzgar']} km/s | Yağış: {d1['yagis']} mm", "rgba(56, 189, 248, 0.75)", "#38bdf8", "rgba(56, 189, 248, 0.45)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c_res2:
         render_metric_card(f"📍 {yer_2}", f"{d2['sicaklik']} °C", f"Nem: %{d2['nem']} | Rüzgar: {d2['ruzgar']} km/s | Yağış: {d2['yagis']} mm", "rgba(168, 85, 247, 0.75)", "#c084fc", "rgba(168, 85, 247, 0.45)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
-        
+
     st.markdown(f"""
     <div style="background: rgba(30, 41, 59, 0.85); padding: 1.8rem; border-radius: 24px; border: 1px solid rgba(168, 85, 247, 0.4); margin-top: 1rem;">
         <h4 style="color: #e2e8f0; margin-top: 0;">Detaylı Karşılaştırmalı Uzman Raporu</h4>
