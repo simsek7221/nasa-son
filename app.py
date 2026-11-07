@@ -271,7 +271,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 with tab1:
     render_box(
         title="🗺️ Canlı Meteoroloji Radarı ve Uydu Katmanları",
-        subtitle="Harita katman yöneticisinden '🌧️ Canlı Yağış Radarı' seçeneğini açarak ısı haritasını görüntüleyebilirsiniz.",
+        subtitle="Harita sağ üst köşesindeki katman yöneticisinden '🌧️ Canlı Yağış Radarı' ısı haritasını aktif edebilirsiniz.",
         border_color="rgba(16, 185, 129, 0.8)",
         glow_color="rgba(16, 185, 129, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -283,7 +283,7 @@ with tab1:
         attr='Esri', name='Esri Canlı Uydu'
     ).add_to(m)
 
-    # Canlı Yağış Radarı Isı Haritası Katmanı (RainViewer API)
+    # Canlı Yağış Radarı Isı Haritası Katmanı
     radar_url = rainviewer_radar_url_al()
     folium.TileLayer(
         tiles=radar_url,
@@ -291,7 +291,7 @@ with tab1:
         name='🌧️ Canlı Yağış Radarı (Isı Haritası)',
         overlay=True,
         control=True,
-        opacity=0.75
+        opacity=0.8
     ).add_to(m)
 
     fg_target = folium.FeatureGroup(name="📍 Seçilen Gözlem Noktası")
@@ -380,7 +380,7 @@ with tab3:
 with tab4:
     render_box(
         title="⚖️ Bölgesel Karşılaştırma",
-        subtitle=f"{secilen_tarih.strftime('%d.%m.%Y')} tarihi için iki farklı bölge analizi.",
+        subtitle=f"{secilen_tarih.strftime('%d.%m.%Y')} tarihi için iki farklı bölgenin eş zamanlı analizi.",
         border_color="rgba(168, 85, 247, 0.8)",
         glow_color="rgba(168, 85, 247, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(76, 29, 149, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -406,6 +406,6 @@ with tab4:
     
     col_k1, col_k2 = st.columns(2)
     with col_k1:
-        render_metric_card(f"{name1}", f"{d1['sicaklik']:.2f} °C", f"Nem: %{d1['nem']:.2f}", "rgba(56, 189, 248, 0.6)", "#38bdf8", "rgba(56, 189, 248, 0.3)", "linear-gradient(135deg, rgba(14, 165, 233, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card(f"{name1}", f"{d1['sicaklik']:.2f} °C", f"Nem: %{d1['nem']:.2f} | Yağış: {d1['gpm_precip']:.2f} mm", "rgba(56, 189, 248, 0.6)", "#38bdf8", "rgba(56, 189, 248, 0.3)", "linear-gradient(135deg, rgba(14, 165, 233, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with col_k2:
-        render_metric_card(f"{name2}", f"{d2['sicaklik']:.2f} °C", f"Nem: %{d2['nem']:.2f}", "rgba(168, 85, 247, 0.6)", "#c084fc", "rgba(168, 85, 247, 0.3)", "linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card(f"{name2}", f"{d2['sicaklik']:.2f} °C", f"Nem: %{d2['nem']:.2f} | Yağış: {d2['gpm_precip']:.2f} mm", "rgba(168, 85, 247, 0.6)", "#c084fc", "rgba(168, 85, 247, 0.3)", "linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%)")
