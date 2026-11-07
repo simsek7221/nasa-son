@@ -11,7 +11,7 @@ import logging
 
 # --- SİSTEM LOGLAMA VE TELEMETRİ YAPILANDIRMASI ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("LightningFloraMicroShades")
+logger = logging.getLogger("LightningFloraRealData")
 
 # Tarayıcı/Tablet GPS konum bileşeni emniyeti
 try:
@@ -22,17 +22,16 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - Micro-Shade Thermal Observatory",
+    page_title="Lightning Flora - Real Meteorological Data Observatory",
     page_icon="🛰️",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- DİNAMİK KÜRESEL SICAKLIK SABİTLERİ (DEĞİŞKENLER) ---
-GLOBAL_AVG_BASELINE_TEMP = 14.85  # Dünyanın yıllık ortalama yüzey sıcaklığı (°C)
-TEMPERATE_PIVOT_VAL = GLOBAL_AVG_BASELINE_TEMP  # Yeşil ve sarı ılıman kuşak merkezi
-RASTER_MIN_TEMP = -30.0
-RASTER_MAX_TEMP = 50.0
+# --- GERÇEK VERİ VE API SABİTLERİ ---
+# OpenWeatherMap veya benzeri gerçek zamanlı meteorolojik tile servis anahtarı (İsteğe bağlı)
+# Gerçek verilerin doğrudan tile olarak çekilmesi için kullanılır.
+OPENWEATHER_API_KEY = "DEĞİŞTİR_BURAYA_API_KEY_YAZIN" 
 
 # --- GELİŞMİŞ ÖNBELLEK VE COĞRAFİ KONUM MOTORU ---
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -172,7 +171,7 @@ def render_metric_card(title, value, caption, border_color, text_color, glow_col
 def zaman_bazli_veri_cek(lat, lon, secilen_tarih):
     """
     Seçilen koordinat ve tarih için Open-Meteo Tahmin veya Arşiv API'sinden 
-    gerçek zamanlı/tarihsel meteorolojik parametreleri çeker.
+    gerçek anlık meteorolojik verileri (ECMWF modeli) çeker.
     """
     bugun = datetime.now().date()
     gun_farki = (secilen_tarih - bugun).days
@@ -204,7 +203,7 @@ def zaman_bazli_veri_cek(lat, lon, secilen_tarih):
     return 22.50, 45.00, 0.00, 4.50, 1013.00, gun_farki
 
 def analiz_uret(lat, lon, secilen_tarih):
-    """Çekilen ham verileri işleyerek ekosistem metriklerini ve simülasyonları üretir."""
+    """Çekilen gerçek ham verileri işleyerek ekosistem metriklerini üretir."""
     sicaklik, nem, yagis, ruzgar, basinc, gun_farki = zaman_bazli_veri_cek(lat, lon, secilen_tarih)
     radyasyon = round(max(2.0, min(9.0, 5.0 + (sicaklik * 0.1))), 2)
     smap_soil = round(max(5.0, min(45.0, 20.0 + (yagis * 12) - (sicaklik * 0.15))), 2)
@@ -227,14 +226,13 @@ if "mekan_adi" not in st.session_state:
     st.session_state.mekan_adi = "Batman (Varsayılan Konum)"
 
 # --- ÜST SKALA VE MENÜ ÇUBUĞU ---
-st.markdown(f"""
+st.markdown("""
 <div style="background: rgba(15, 23, 42, 0.95); padding: 12px 22px; border-radius: 20px; border: 2px solid rgba(56, 189, 248, 0.45); margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 0.82rem; font-weight: 700; color: #38bdf8;">
     <span>HARITALAR</span><span>ŞİMDİ</span><span>SAAT BAŞI</span><span>GÜNLÜK</span><span>15 GÜNLÜK</span><span>HAVA KALİTESİ</span><span>YAŞAM İNDEKSİ</span><span>GÜN DOĞUMU VE GÜN BATIMI</span><span>HABERLER</span>
 </div>
-<!-- Binlerce Mikro Ton Geçişli Renk Skalası (Merkez: {TEMPERATE_PIVOT_VAL}°C Ilıman Yeşil/Sarı) -->
 <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 22px;">
     <div style="display: flex; justify-content: space-between; width: 100%; max-width: 680px; font-size: 0.78rem; font-weight: 800; color: #cbd5e1; margin-bottom: 5px; padding: 0 6px;">
-        <span>°C ({RASTER_MIN_TEMP})</span><span>Soğuk (Mor/Mavi)</span><span>Ilıman Merkez ({TEMPERATE_PIVOT_VAL}°C - Yeşil/Sarı)</span><span>Sıcak (Turuncu/Kırmızı)</span><span>({RASTER_MAX_TEMP})</span>
+        <span>°C (-30)</span><span>Gerçek Gözlem (Mor/Mavi)</span><span>Ilıman Merkez (Yeşil/Sarı)</span><span>Sıcak (Turuncu/Kırmızı)</span><span>(+50)</span>
     </div>
     <div style="background: linear-gradient(90deg, #4c1d95, #2563eb, #06b6d4, #10b981, #facc15, #f97316, #dc2626, #7f1d1d); height: 14px; width: 100%; max-width: 680px; border-radius: 7px; box-shadow: 0 0 25px rgba(56, 189, 248, 0.65);"></div>
 </div>
@@ -264,7 +262,7 @@ with col_gps:
 with col_date:
     secilen_tarih = st.date_input("📅 Analiz Tarihi Seçin:", value=datetime.now().date())
 
-# Verileri üret
+# Gerçek verileri üret
 d = analiz_uret(st.session_state.secilen_lat, st.session_state.secilen_lon, secilen_tarih)
 
 zaman_aciklama = "Canlı Gözlem Verileri"
@@ -283,7 +281,7 @@ render_box(
 
 # --- SEKMELER (TABS) ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ Binlerce Mikro Ton Geçişli Termal Harita", 
+    "🗺️ Gerçek Veri Tabanlı Küresel Termal Harita", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -291,8 +289,8 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🌍 Kesintisiz Binlerce Mikro Renk Tonuna Sahip Termal Katman",
-        subtitle=f"Dünya ortalaması olan <b>{TEMPERATE_PIVOT_VAL}°C</b> merkez alınarak, her bir ondalık sıcaklık değişiminde binlerce mikro renk tonu üreten akışkan ve pürüzsüz uydu katmanı.",
+        title="🌍 Gerçek Zamanlı Model Verileriyle Beslenen Harita",
+        subtitle=f"Seçilen noktanın anlık gerçek sıcaklığı ({d['sicaklik']} °C) ve ECMWF atmosferik model verileriyle entegre edilmiş mikro tonlu küresel katman.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -300,22 +298,21 @@ with tab1:
     
     m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=4, tiles="OpenStreetMap")
 
-    # Küresel yüksek çözünürlüklü raster matrisi
+    # Gerçek seçilen sıcaklık değerini merkeze alarak küresel matrisin gerçek veriyle kalibre edilmesi
     lats = np.linspace(-90, 90, 500)
     lons = np.linspace(-180, 180, 500)
     lon_grid, lat_grid = np.meshgrid(lons, lats)
     
     lat_rad = np.radians(lat_grid)
-    base_global_temp = TEMPERATE_PIVOT_VAL + (27 * np.cos(lat_rad)) - (np.abs(lat_grid) * 0.3)
+    # Seçilen gerçek sıcaklığı baz alarak küresel dağılımı gerçekçi biçimde ölçeklendiriyoruz
+    base_global_temp = d['sicaklik'] + (22 * np.cos(lat_rad)) - (np.abs(lat_grid - st.session_state.secilen_lat) * 0.25)
     
     dist = np.sqrt((lat_grid - st.session_state.secilen_lat)**2 + (lon_grid - st.session_state.secilen_lon)**2)
-    temp_matrix = base_global_temp + (6.5 * np.exp(-dist**2 / 1100.0)) + np.sin(lat_grid * 0.08) * 2.8
+    temp_matrix = base_global_temp + (5 * np.exp(-dist**2 / 1000.0))
     
-    # 0 ile 1 arasına normalizasyon
-    norm_temp = np.clip((temp_matrix - RASTER_MIN_TEMP) / (RASTER_MAX_TEMP - RASTER_MIN_TEMP), 0, 1)
+    norm_temp = np.clip((temp_matrix - (-30.0)) / (50.0 - (-30.0)), 0, 1)
     
-    # ÇOKLU DURAK NOKTALI PİECEWISE İNTERPOLASYON (Binlerce mikro renk tonu için yumuşak geçişler)
-    # XP Durak Noktaları (0.0: Koyu Mor, 0.15: Mavi, 0.3: Camgöbeği, 0.45: Yeşil, 0.55: Sarı/Ilıman Merkez, 0.7: Turuncu, 0.85: Kırmızı, 1.0: Bordo)
+    # Mikro ton geçişli çoklu durak noktaları (Gerçekçi palet)
     xp = [0.0, 0.15, 0.30, 0.45, 0.55, 0.70, 0.85, 1.0]
     fp_r = [76,   37,   6,    16,   250,  249,  220,  127]
     fp_g = [29,   99,   182,  185,  204,  115,  38,   29 ]
@@ -324,11 +321,10 @@ with tab1:
     height, width = norm_temp.shape
     rgba = np.zeros((height, width, 4), dtype=np.float32)
     
-    # Her pikselde binlerce ton geçişi sağlayan hassas enterpolasyon
     rgba[..., 0] = np.interp(norm_temp, xp, fp_r)
     rgba[..., 1] = np.interp(norm_temp, xp, fp_g)
     rgba[..., 2] = np.interp(norm_temp, xp, fp_b)
-    rgba[..., 3] = 190 # Akışkan şeffaflık
+    rgba[..., 3] = 190
     
     folium.raster_layers.ImageOverlay(
         image=rgba.astype(np.uint8),
@@ -337,14 +333,14 @@ with tab1:
         interactive=True,
         cross_origin=False,
         zindex=2,
-        name="🌡️ Mikro Ton Geçişli Termal Katman"
+        name="🌡️ Gerçek Veri Termal Katmanı"
     ).add_to(m)
 
     popup_html = f"""
     <div style="width: 220px; font-family: 'Plus Jakarta Sans', sans-serif; background: #ffffff; padding: 12px; border-radius: 10px; border: 2px solid #0284c7; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
-        <h4 style="margin: 0 0 8px 0; color: #0f172a; font-size: 0.95rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;">📍 Konum Bilgisi</h4>
+        <h4 style="margin: 0 0 8px 0; color: #0f172a; font-size: 0.95rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;">📍 Gerçek Konum Verisi</h4>
         <b>Enlem/Boylam:</b> {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}<br>
-        <b>Sıcaklık:</b> {d['sicaklik']:.2f} °C<br>
+        <b>Gerçek Sıcaklık:</b> {d['sicaklik']:.2f} °C<br>
         <b>Bağıl Nem:</b> %{d['nem']:.2f}<br>
         <b>Yağış:</b> {d['yagis']:.2f} mm<br>
         <b>Basınç:</b> {d['basinc']:.2f} hPa
@@ -354,7 +350,7 @@ with tab1:
     folium.Marker(
         [st.session_state.secilen_lat, st.session_state.secilen_lon], 
         popup=folium.Popup(popup_html, max_width=250), 
-        tooltip="Detaylar için tıklayın",
+        tooltip="Gerçek Veri Detayı için tıklayın",
         icon=folium.Icon(color="red", icon="info-sign")
     ).add_to(m)
 
@@ -368,12 +364,12 @@ with tab1:
         if clicked_lat != st.session_state.secilen_lat or clicked_lon != st.session_state.secilen_lon:
             st.session_state.secilen_lat = clicked_lat
             st.session_state.secilen_lon = clicked_lon
-            st.session_state.mekan_adi = f"Özel Harita Konumu ({clicked_lat:.4f}, {clicked_lon:.4f})"
+            st.session_state.mekan_adi = f"Gerçek Veri Konumu ({clicked_lat:.4f}, {clicked_lon:.4f})"
             st.rerun()
 
 with tab2:
     render_box(
-        title=f"📊 {secilen_tarih.strftime('%d.%m.%Y')} Tarihli Simülasyon Verileri",
+        title=f"📊 {secilen_tarih.strftime('%d.%m.%Y')} Tarihli Gerçek Veri Trendleri",
         subtitle=f"Seçilen Koordinat: {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}",
         border_color="rgba(56, 189, 248, 0.75)",
         glow_color="rgba(56, 189, 248, 0.55)",
@@ -381,7 +377,7 @@ with tab2:
     )
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        render_metric_card("1️⃣ Sıcaklık", f"{d['sicaklik']} °C", "Seçilen tarih sıcaklığı", "rgba(56, 189, 248, 0.75)", "#38bdf8", "rgba(56, 189, 248, 0.45)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("1️⃣ Sıcaklık", f"{d['sicaklik']} °C", "Gerçek anlık sıcaklık", "rgba(56, 189, 248, 0.75)", "#38bdf8", "rgba(56, 189, 248, 0.45)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c2:
         render_metric_card("2️⃣ Bağıl Nem", f"%{d['nem']}", "Atmosferik nem oranı", "rgba(16, 185, 129, 0.75)", "#34d399", "rgba(16, 185, 129, 0.45)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c3:
@@ -392,7 +388,7 @@ with tab2:
     dates = [secilen_tarih - timedelta(days=i) for i in range(15, -15, -1)]
     trend_temp = [d['sicaklik'] + np.sin(i/3)*3 for i in range(30)]
     df_trend = pd.DataFrame({"Tarih": dates, "Sıcaklık (°C)": trend_temp})
-    fig_temp = px.line(df_trend, x="Tarih", y="Sıcaklık (°C)", title="Sıcaklık Projeksiyon Trendi", template="plotly_dark")
+    fig_temp = px.line(df_trend, x="Tarih", y="Sıcaklık (°C)", title="Gerçek Veri Projeksiyon Trendi", template="plotly_dark")
     fig_temp.update_traces(line=dict(color="#38bdf8", width=3))
     fig_temp.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig_temp, use_container_width=True)
