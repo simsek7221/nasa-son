@@ -429,8 +429,8 @@ with tab4:
     res1 = konum_bul(yer_1)
     res2 = konum_bul(yer_2)
 
-    lat1, lon1 = res1[0] if res1 and res1[0] else (37.8859, 41.1198)
-    lat2, lon2 = res2[0] if res2 and res2[0] else (39.9334, 32.8597)
+    lat1, lon1 = res1[0] if res1 and res1[0] is not None else (37.8859, 41.1198)
+    lat2, lon2 = res2[0] if res2 and res2[0] is not None else (39.9334, 32.8597)
 
     d1 = analiz_uret(lat1, lon1, secilen_tarih)
     d2 = analiz_uret(lat2, lon2, secilen_tarih)
