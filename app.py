@@ -11,7 +11,7 @@ import logging
 
 # --- SİSTEM LOGLAMA VE TELEMETRİ YAPILANDIRMASI ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("LightningFloraAdvancedObservatory")
+logger = logging.getLogger("LightningFloraOmniObservatory")
 
 # Tarayıcı/Tablet GPS konum bileşeni emniyeti
 try:
@@ -22,13 +22,13 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - Advanced Multi-Layer Observatory",
+    page_title="Lightning Flora - Omni-Layer Global Observatory Pro",
     page_icon="🛰️",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- KÜRESEL SABİTLER VE NASA GIBS TILE SERVİSLERİ ---
+# --- KÜRESEL SABİTLER VE TÜM NASA GIBS TILE SERVİSLERİ ---
 GLOBAL_AVG_BASELINE_TEMP = 14.85
 TEMPERATE_PIVOT_VAL = GLOBAL_AVG_BASELINE_TEMP
 RASTER_MIN_TEMP = -30.0
@@ -37,6 +37,8 @@ RASTER_MAX_TEMP = 50.0
 NASA_GIBS_FIRE_TILE = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_Thermal_Anomalies_375m_Day/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png"
 NASA_GIBS_NDVI_TILE = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI_8Day/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png"
 NASA_GIBS_LIGHT_TILE = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/{time}/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png"
+NASA_GIBS_TRUECOLOR_TILE = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg"
+NASA_GIBS_AEROSOL_TILE = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_Aerosol/default/{time}/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png"
 
 # --- GELİŞMİŞ ÖNBELLEK VE COĞRAFİ KONUM MOTORU ---
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -273,7 +275,7 @@ render_box(
 
 # --- SEKMELER (TABS) ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ Çok Katmanlı Küresel Gözlemevi", 
+    "🗺️ Omni-Layer Küresel Gözlemevi", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -281,8 +283,8 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🌍 Çok Katmanlı Meteoroloji, Yangın, NDVI ve Işık Gözlemevi",
-        subtitle="Sağ üstteki katman menüsünden <b>Termal Katman</b>, <b>Aktif Yangınlar</b>, <b>NDVI (Bitki Örtüsü)</b> ve <b>Gece Işıkları</b> katmanları arasında geçiş yapabilirsiniz.",
+        title="🌍 Tüm Küresel Katmanlar (Termal, Yangın, NDVI, Işık, Gerçek Renk & Aerosol)",
+        subtitle="Sağ üstteki katman kontrol panelinden dilediğiniz tüm uydu ve gözlem katmanlarını aynı anda açıp kapatabilirsiniz.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -322,42 +324,56 @@ with tab1:
         name="🌡️ Zoom Earth Termal Katmanı"
     ).add_to(m)
 
-    # Tarih string ayarı (NASA GIBS için)
     tarih_str_nasa = (secilen_tarih if secilen_tarih <= datetime.now().date() else datetime.now().date()).strftime("%Y-%m-%d")
 
-    # 2. Katman: NASA Aktif Yangınlar Katmanı
+    # 2. Katman: NASA Aktif Yangınlar
     folium.TileLayer(
         tiles=NASA_GIBS_FIRE_TILE.format(time=tarih_str_nasa, z='{z}', y='{y}', x='{x}'),
         attr='NASA GIBS VIIRS Active Fires',
-        name='🔥 Yangın Haritası (Aktif Anomaliler)',
+        name='🔥 NASA Aktif Yangınlar',
         overlay=True, control=True, opacity=0.9, show=False
     ).add_to(m)
 
-    # 3. Katman: NASA NDVI (Bitki Örtüsü) Katmanı
+    # 3. Katman: NASA NDVI Bitki Örtüsü
     folium.TileLayer(
         tiles=NASA_GIBS_NDVI_TILE.format(time=tarih_str_nasa, z='{z}', y='{y}', x='{x}'),
         attr='NASA GIBS MODIS NDVI',
-        name='🌿 NDVI Bitki Örtüsü Haritası',
+        name='🌿 NASA NDVI Bitki Örtüsü',
         overlay=True, control=True, opacity=0.8, show=False
     ).add_to(m)
 
-    # 4. Katman: Gece Işıkları (Işık Haritası) Katmanı
+    # 4. Katman: Gece Işıkları (Black Marble)
     folium.TileLayer(
         tiles=NASA_GIBS_LIGHT_TILE.format(time=tarih_str_nasa, z='{z}', y='{y}', x='{x}'),
         attr='NASA GIBS Black Marble',
-        name='💡 Işık Haritası (Gece Işıkları)',
+        name='💡 NASA Gece Işıkları (Light Map)',
         overlay=True, control=True, opacity=0.85, show=False
     ).add_to(m)
 
-    # Rüzgar ve İstasyon Bilgi Marker'ı
+    # 5. Katman: Gerçek Renk Uydu Görüntüsü (True Color)
+    folium.TileLayer(
+        tiles=NASA_GIBS_TRUECOLOR_TILE.format(time=tarih_str_nasa, z='{z}', y='{y}', x='{x}'),
+        attr='NASA GIBS True Color',
+        name='🛰️ NASA Gerçek Renk Uydu Görüntüsü',
+        overlay=True, control=True, opacity=0.9, show=False
+    ).add_to(m)
+
+    # 6. Katman: Aerosol / Hava Kalitesi
+    folium.TileLayer(
+        tiles=NASA_GIBS_AEROSOL_TILE.format(time=tarih_str_nasa, z='{z}', y='{y}', x='{x}'),
+        attr='NASA GIBS Aerosol',
+        name='🌫️ NASA Aerosol / Hava Kalitesi',
+        overlay=True, control=True, opacity=0.75, show=False
+    ).add_to(m)
+
     popup_html = f"""
     <div style="width: 225px; font-family: 'Plus Jakarta Sans', sans-serif; background: #ffffff; padding: 12px; border-radius: 10px; border: 2px solid #0284c7; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
-        <h4 style="margin: 0 0 8px 0; color: #0f172a; font-size: 0.95rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;">📍 İstasyon Rüzgar & Veri</h4>
+        <h4 style="margin: 0 0 8px 0; color: #0f172a; font-size: 0.95rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;">📍 İstasyon Omni-Verisi</h4>
         <b>Sıcaklık:</b> {d['sicaklik']:.2f} °C<br>
-        <b>Rüzgar Hızı:</b> {d['ruzgar']} km/s<br>
-        <b>Rüzgar Yönü:</b> {d['ruzgar_yon']}°<br>
+        <b>Rüzgar:</b> {d['ruzgar']} km/s ({d['ruzgar_yon']}°)<br>
         <b>NDVI İndeksi:</b> {d['ndvi_val']}<br>
-        <b>Bağıl Nem:</b> %{d['nem']:.2f}
+        <b>Bağıl Nem:</b> %{d['nem']:.2f}<br>
+        <b>Yağış:</b> {d['yagis']} mm
     </div>
     """
     
