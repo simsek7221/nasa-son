@@ -44,7 +44,21 @@ def konum_bul(isim):
         logger.error(f"Konum arama hatası: {str(e)}")
     return None, None
 
-# --- ULTRA GLASSMORPHISM CSS (RENK UYUMSUZLUKLARI GİDERİLDİ) ---
+# --- RAINVIEWER ÜCRETSİZ GÜNCEL RADAR ZAMAN DAMGASI ---
+@st.cache_data(ttl=300, show_spinner=False)
+def rainviewer_zaman_al():
+    try:
+        res = requests.get("https://api.rainviewer.com/public/weather-maps.json", timeout=5)
+        if res.status_code == 200:
+            data = res.json()
+            past = data.get("radar", {}).get("past", [])
+            if past:
+                return past[-1].get("time")
+    except Exception:
+        pass
+    return int(datetime.now().timestamp())
+
+# --- ULTRA GLASSMORPHISM CSS ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
@@ -278,15 +292,25 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🌍 Profesyonel Meteorolojik Gözlem Haritası",
-        subtitle=f"Seçilen noktanın anlık gerçek sıcaklığı (<b>{d['sicaklik']} °C</b>) ve istasyon parametreleri. Harita üzerinde dilediğiniz noktaya tıklayarak verileri anında güncelleyebilirsiniz.",
+        title="🌍 Profesyonel Meteorolojik Canlı Radar & Gözlem Haritası",
+        subtitle=f"Seçilen noktanın anlık gerçek sıcaklığı (<b>{d['sicaklik']} °C</b>). Katman kontrolünden %100 ücretsiz ve gerçek <b>Rainviewer Küresel Radar</b> yağış katmanını açabilirsiniz.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
-    # CartoDB Dark_Matter tabanı ile hiçbir kırık 404 / gri tile sorunu yaşanmaz.
     m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=5, tiles="CartoDB Dark_Matter")
+
+    # Rainviewer Ücretsiz Canlı Küresel Radar / Yağış Katmanı (API Key gerektirmez!)
+    rv_time = rainviewer_zaman_al()
+    radar_tile_url = f"https://tile.rainviewer.com/v2/radar/{rv_time}/256/{{z}}/{{x}}/{{y}}/2/1_1.png"
+    
+    folium.TileLayer(
+        tiles=radar_tile_url,
+        attr='Rainviewer Real-Time Radar',
+        name='🌧️ Canlı Küresel Yağış/Radar Katmanı',
+        overlay=True, control=True, opacity=0.8, show=True
+    ).add_to(m)
 
     popup_html = f"""
     <div style="width: 220px; font-family: 'Plus Jakarta Sans', sans-serif; background: #ffffff; padding: 12px; border-radius: 10px; border: 2px solid #0284c7; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
@@ -305,6 +329,8 @@ with tab1:
         tooltip="Gerçek İstasyon Detayı için tıklayın",
         icon=folium.Icon(color="red", icon="info-sign")
     ).add_to(m)
+
+    folium.LayerControl(collapsed=False).add_to(m)
 
     map_data = st_folium(m, width=None, height=540, key="map_interactive_observatory")
     
