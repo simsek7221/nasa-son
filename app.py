@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import folium
+from folium.plugins import HeatMap
 from streamlit_folium import st_folium
 import requests
 from datetime import datetime, timedelta
@@ -37,18 +38,6 @@ def konum_bul(isim):
     except Exception:
         pass
     return None, None
-
-@st.cache_data(ttl=300)
-def rainviewer_radar_url_al():
-    try:
-        rv_res = requests.get("https://api.rainviewer.com/public/weather-maps.json", timeout=3).json()
-        past_list = rv_res.get("radar", {}).get("past", [])
-        if past_list:
-            latest_path = past_list[-1].get("path")
-            return f"https://tile.rainviewer.com/v2/radar/{latest_path}/256/{{z}}/{{x}}/{{y}}/2/1_1.png"
-    except Exception:
-        pass
-    return "https://tile.rainviewer.com/v2/radar/nowcast_1h/256/{z}/{x}/{y}/2/1_1.png"
 
 # --- 3X ULTRA INTENSIFIED NEON & GLASSMORPHISM CSS ---
 st.markdown("""
@@ -206,7 +195,7 @@ def analiz_uret(lat, lon, secilen_tarih):
         "sedac_risk": sedac_risk, "lst_temp": lst_temp, "gun_farki": gun_farki
     }
 
-# --- Oturum Durumu (Session State) ile Harita Tıklama Koordinat Yönetimi ---
+# --- Oturum Durumu (Session State) ---
 if "secilen_lat" not in st.session_state:
     st.session_state.secilen_lat = 37.8859
 if "secilen_lon" not in st.session_state:
@@ -281,33 +270,49 @@ tab1, tab2, tab3, tab4 = st.tabs([
 with tab1:
     render_box(
         title="🗺️ Standart Harita ve Termal Isı Analizi",
-        subtitle="Harita üzerinde dilediğiniz noktaya tıklayarak o bölgenin verilerini sisteme işleyebilir ve detaylı bilgi kutusunu görebilirsiniz.",
+        subtitle="Harita üzerinde dilediğiniz noktaya tıklayarak o bölgenin verilerini sisteme işleyebilir, kare bilgi kutusunu görebilir ve analizleri güncelleyebilirsiniz.",
         border_color="rgba(16, 185, 129, 0.8)",
         glow_color="rgba(16, 185, 129, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
-    # Standart OpenStreetMap arka planı (Anahtar gerektirmez)
+    # Standart temiz OpenStreetMap haritası (Uydu yok, sade zemin)
     m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=6, tiles="OpenStreetMap")
 
-    # Küresel Hava Radarı Isı Haritası Katmanı
-    radar_url = rainviewer_radar_url_al()
-    folium.TileLayer(
-        tiles=radar_url,
-        attr='Weather data by RainViewer',
-        name='🌧️ Termal Isı & Yağış Radarı',
-        overlay=True,
-        control=True,
-        opacity=0.85
+    # Dünya ve bölge genelinde termal ısı dağılımı (Soğuk yerler şeffaf/mavi, sıcak yerler sarı/kırmızı)
+    np.base_seed = int(st.session_state.secilen_lat + st.session_state.secilen_lon + secilen_tarih.toordinal())
+    np.random.seed(np.base_seed)
+    
+    heat_points = []
+    # Çevresel grid noktaları ile termal ısı haritası oluşturma
+    center_lat, center_lon = st.session_state.secilen_lat, st.session_state.secilen_lon
+    for lat_offset in np.linspace(-3, 3, 25):
+        for lon_offset in np.linspace(-3, 3, 25):
+            sim_lat = center_lat + lat_offset
+            sim_lon = center_lon + lon_offset
+            # Sıcaklık değerine göre ısı yoğunluğu (0 ile 1 arası)
+            intensity = max(0.1, min(1.0, (d['sicaklik'] + np.sin(lat_offset)*5) / 40.0))
+            heat_points.append([sim_lat, sim_lon, intensity])
+
+    # Isı Haritası (HeatMap) Katmanı (Mavi -> Yeşil -> Sarı -> Kırmızı)
+    HeatMap(
+        heat_points,
+        min_opacity=0.2,
+        max_zoom=18,
+        radius=30,
+        blur=25,
+        gradient={0.2: 'blue', 0.4: 'lime', 0.6: 'yellow', 0.8: 'orange', 1.0: 'red'}
     ).add_to(m)
 
+    # Tıklanan veya aratılan konum için kare bilgi kutusu (Popup)
     popup_html = f"""
-    <div style="width: 200px; font-family: 'Plus Jakarta Sans', sans-serif;">
-        <h4 style="margin: 0 0 5px 0; color: #0f172a;">📍 Seçilen Bölge</h4>
+    <div style="width: 210px; font-family: 'Plus Jakarta Sans', sans-serif; background: #ffffff; padding: 10px; border-radius: 8px; border: 2px solid #38bdf8; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
+        <h4 style="margin: 0 0 8px 0; color: #0f172a; font-size: 1rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;">📍 Bölge Bilgi Paneli</h4>
         <b>Enlem/Boylam:</b> {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}<br>
         <b>Sıcaklık:</b> {d['sicaklik']:.2f} °C<br>
         <b>Bağıl Nem:</b> %{d['nem']:.2f}<br>
-        <b>Yağış:</b> {d['gpm_precip']:.2f} mm
+        <b>Yağış:</b> {d['gpm_precip']:.2f} mm<br>
+        <b>Atmosferik Basınç:</b> {d['basinc']:.2f} hPa
     </div>
     """
     
@@ -318,8 +323,7 @@ with tab1:
         icon=folium.Icon(color="red", icon="info-sign")
     ).add_to(m)
 
-    folium.LayerControl(collapsed=False).add_to(m)
-    
+    # Harita etkileşimi: Haritada herhangi bir yere tıklandığında koordinatı yakala ve güncelle
     map_data = st_folium(m, width=None, height=520, key="map_interactive_observatory")
     
     if map_data and map_data.get("last_clicked"):
