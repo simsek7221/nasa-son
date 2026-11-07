@@ -17,7 +17,7 @@ try:
 except ImportError:
     streamlit_geolocation = None
 
-# --- SERİ PORT (ARDUİNO) BAĞLANTI YÖNETİMİ ---
+# --- SERİ PORT (ARDUİNO) KONTROLÜ ---
 try:
     import serial
     import serial.tools.list_ports
@@ -258,14 +258,48 @@ if "mekan_adi" not in st.session_state:
 if "arduino_ser" not in st.session_state:
     st.session_state.arduino_ser = None
 
-# --- SIDEBAR (DONANIM & SERİ PORT AYARLARI) ---
+# --- SIDEBAR (DONANIM & WEB SERIAL API BAĞLANTISI) ---
 with st.sidebar:
-    st.markdown("### 🔌 Arduino Donanım Paneli")
+    st.markdown("### 🔌 Tablet / Web Serial Bağlantısı")
+    st.markdown("<p style='font-size:0.85rem; color:#94a3b8;'>Tabletten OTG ile bağlı Arduino'ya doğrudan tarayıcı üzerinden bağlanın:</p>", unsafe_allow_html=True)
+    
+    # Web Serial API Buton Entegrasyonu
+    components.html("""
+    <div style="padding: 5px;">
+        <button id="connectSerial" style="background: linear-gradient(135deg, #0284c7 0%, #7c3aed 100%); color: white; border: none; padding: 10px 15px; border-radius: 12px; font-weight: bold; cursor: pointer; width: 100%; font-family: sans-serif; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+            📱 USB / Arduino'ya Bağlan
+        </button>
+        <p id="status" style="color: #38bdf8; font-size: 0.8rem; margin-top: 8px; text-align: center; font-family: sans-serif;">Durum: Bağlı Değil</p>
+    </div>
+    <script>
+        let port;
+        let writer;
+        const button = document.getElementById('connectSerial');
+        const status = document.getElementById('status');
+
+        button.addEventListener('click', async () => {
+            try {
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 9600 });
+                const textEncoder = new TextEncoderStream();
+                const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
+                writer = textEncoder.writable.getWriter();
+                status.innerText = "Durum: Bağlandı! ✅";
+                status.style.color = "#4ade80";
+            } catch (err) {
+                status.innerText = "Bağlantı Hatası / İptal";
+                status.style.color = "#f87171";
+                console.error(err);
+            }
+        });
+    </script>
+    """, height=110)
+
+    st.markdown("---")
     if serial is not None:
         aktif_ports = [p.device for p in serial.tools.list_ports.comports()]
-        secilen_port = st.selectbox("Seri Port Seçin:", ["Seçiniz..."] + aktif_ports)
-        
-        if st.selectbox("Bağlantı Durumu", ["Bağlı Değil", "Bağlan"]) == "Bağlan" and secilen_port != "Seçiniz...":
+        secilen_port = st.selectbox("PC/Sunucu Seri Port Seçin:", ["Seçiniz..."] + aktif_ports)
+        if st.selectbox("PC Bağlantı Durumu", ["Bağlı Değil", "Bağlan"]) == "Bağlan" and secilen_port != "Seçiniz...":
             try:
                 if st.session_state.arduino_ser is None or not st.session_state.arduino_ser.is_open:
                     st.session_state.arduino_ser = serial.Serial(secilen_port, 9600, timeout=1)
@@ -273,8 +307,6 @@ with st.sidebar:
                 st.success(f"Bağlandı: {secilen_port}")
             except Exception as e:
                 st.error(f"Hata: {e}")
-    else:
-        st.warning("pyserial kütüphanesi yüklü değil (`pip install pyserial`).")
 
 # --- ÜST ARAMA, GPS & TARİH KONTROLLERİ ---
 col_search, col_gps, col_date = st.columns([2, 1, 1])
