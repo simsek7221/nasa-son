@@ -185,7 +185,7 @@ def gercek_veri_cek(lat, lon, secilen_tarih):
             nem = float(current.get("relative_humidity_2m", 45.0))
             yagis = float(current.get("precipitation", current.get("rain", 0.0)))
             ruzgar = float(current.get("wind_speed_10m", 4.5))
-            ruzgar_ yon = float(current.get("wind_direction_10m", 180.0))
+            ruzgar_yon = float(current.get("wind_direction_10m", 180.0))
             basinc = float(current.get("surface_pressure", 1013.0))
             
             return round(sicaklik, 2), round(nem, 2), round(yagis, 2), round(ruzgar, 2), round(ruzgar_yon, 1), round(basinc, 2), gun_farki
