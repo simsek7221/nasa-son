@@ -11,7 +11,7 @@ import logging
 
 # --- SİSTEM LOGLAMA VE TELEMETRİ YAPILANDIRMASI ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("LightningFloraZoomPro")
+logger = logging.getLogger("LightningFloraZoomMaster")
 
 # Tarayıcı/Tablet GPS konum bileşeni emniyeti
 try:
@@ -166,7 +166,7 @@ def render_metric_card(title, value, caption, border_color, text_color, glow_col
 def zaman_bazli_veri_cek(lat, lon, secilen_tarih):
     """
     Seçilen koordinat ve tarih için Open-Meteo Tahmin veya Arşiv API'sinden 
-    gerçek zamanlı/tarihsel meteorolojik parametreleri çeker.
+    gerçek zamanlı/tarihsel meteorolojik parametreleri (ECMWF modeli) çeker.
     """
     bugun = datetime.now().date()
     gun_farki = (secilen_tarih - bugun).days
@@ -285,8 +285,8 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🌍 Küresel Pürüzsüz Sıcaklık Raster Katmanı (Zoom Earth Model)[span_2](start_span)[span_2](end_span)",
-        subtitle="Harita zeminine kusursuz entegre edilmiş, mor/mavi soğuk bölgelerden yeşil ılıman ve kırmızı aşırı sıcak bölgelere kadar uzanan kesintisiz termal gradyan. Haritada dilediğiniz yere tıklayarak o bölgeyi seçebilir ve verileri anında güncelleyebilirsiniz.",
+        title="🌍 Zoom Earth Model Sıcaklık Raster Katmanı",
+        subtitle="Harita zeminine kusursuz entegre edilmiş, mor/mavi soğuk bölgelerden yeşil ılıman ve kırmızı aşırı sıcak bölgelere kadar uzanan kesintisiz termal gradyan[span_2](start_span)[span_2](end_span). Haritada dilediğiniz yere tıklayarak o bölgeyi seçebilir ve verileri anında güncelleyebilirsiniz.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
