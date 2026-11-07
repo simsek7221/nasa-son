@@ -279,23 +279,43 @@ tab1, tab2, tab3, tab4 = st.tabs([
 with tab1:
     render_box(
         title="🌍 NASA Space Apps Challenge - Lightning Flora Küresel Gözlemevi",
-        subtitle=f"Seçilen noktanın anlık gerçek sıcaklığı: <b>{d['sicaklik']} °C</b> | Rüzgar: <b>{d['ruzgar']} km/s</b>. Harita arayüzü NASA Space Apps standartlarına göre tamamen maskelenmiş ve optimize edilmiştir.",
+        subtitle=f"Seçilen noktanın anlık gerçek sıcaklığı: <b>{d['sicaklik']} °C</b> | Rüzgar: <b>{d['ruzgar']} km/s</b>. Harita katmanını dilediğiniz gibi aşağıdan değiştirebilirsiniz.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
+    # Kullanıcının harita katmanını seçebilmesi için dinamik selectbox
+    col_l1, col_l2 = st.columns([1, 2])
+    with col_l1:
+        secilen_katman_adi = st.selectbox(
+            "🗺️ Harita Katmanını Değiştir:",
+            ["Rüzgar Akışı", "Sıcaklık Dağılımı", "Yağış & Radar", "Atmosferik Basınç", "Bulut Örtüsü"],
+            key="map_layer_selector"
+        )
+    
+    katman_kodlari = {
+        "Rüzgar Akışı": "wind",
+        "Sıcaklık Dağılımı": "temp",
+        "Yağış & Radar": "rain",
+        "Atmosferik Basınç": "pressure",
+        "Bulut Örtüsü": "clouds"
+    }
+    aktif_overlay = katman_kodlari.get(secilen_katman_adi, "wind")
+
     lat_val = st.session_state.secilen_lat
     lon_val = st.session_state.secilen_lon
-    windy_embed_url = f"https://embed.windy.com/embed2.html?lat={lat_val}&lon={lon_val}&zoom=6&level=surface&overlay=wind&menu=&message=&marker=&pressure=&calendar=now&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
+    windy_embed_url = f"https://embed.windy.com/embed2.html?lat={lat_val}&lon={lon_val}&zoom=6&level=surface&overlay={aktif_overlay}&menu=&message=&marker=&pressure=&calendar=now&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
     
-    # Üst barı tamamen kapatan NASA Space Apps Maskeleme Container'ı
+    # NASA Space Apps Maskeleme ve Watermark Gizleme Bileşeni
     components.html(f"""
     <div style="position: relative; width: 100%; height: 560px; border-radius: 24px; overflow: hidden; border: 2px solid rgba(56, 189, 248, 0.5); box-shadow: 0 0 40px rgba(56, 189, 248, 0.3);">
         <div style="position: absolute; top: 0; left: 0; width: 100%; height: 50px; background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(15px); z-index: 999; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; border-bottom: 2px solid rgba(168, 85, 247, 0.6);">
             <span style="color: #38bdf8; font-weight: 800; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.95rem; text-shadow: 0 0 12px rgba(56, 189, 248, 0.6);">🛰️ NASA Space Apps Challenge | Lightning Flora Telemetry Feed</span>
             <span style="color: #4ade80; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.85rem;">● Active Telemetry Stream</span>
         </div>
+        <!-- Watermark Maskesi (Sağ alt köşe yazılarını tamamen kapatır) -->
+        <div style="position: absolute; bottom: 0; right: 0; width: 240px; height: 40px; background: #111827; z-index: 998; pointer-events: none;"></div>
         <iframe src="{windy_embed_url}" width="100%" height="560px" style="border:none; margin-top: 0px;"></iframe>
     </div>
     """, height=575)
