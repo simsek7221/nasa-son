@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import folium
-from folium.plugins import HeatMap
 from streamlit_folium import st_folium
 import requests
 from datetime import datetime, timedelta
@@ -14,7 +13,7 @@ except ImportError:
     streamlit_geolocation = None
 
 st.set_page_config(
-    page_title="Lightning Flora - Global Thermal Observatory",
+    page_title="Lightning Flora - Global Weather Observatory",
     page_icon="🛰️",
     layout="wide"
 )
@@ -33,6 +32,18 @@ def konum_bul(isim):
     except Exception:
         pass
     return None, None
+
+@st.cache_data(ttl=300)
+def rainviewer_radar_url_al():
+    try:
+        rv_res = requests.get("https://api.rainviewer.com/public/weather-maps.json", timeout=3).json()
+        past_list = rv_res.get("radar", {}).get("past", [])
+        if past_list:
+            latest_path = past_list[-1].get("path")
+            return f"https://tile.rainviewer.com/v2/radar/{latest_path}/256/{{z}}/{{x}}/{{y}}/2/1_1.png"
+    except Exception:
+        pass
+    return "https://tile.rainviewer.com/v2/radar/nowcast_1h/256/{z}/{x}/{y}/2/1_1.png"
 
 # --- 3X ULTRA INTENSIFIED NEON & GLASSMORPHISM CSS ---
 st.markdown("""
@@ -145,12 +156,12 @@ if "secilen_lon" not in st.session_state:
 if "mekan_adi" not in st.session_state:
     st.session_state.mekan_adi = "Batman (Varsayılan Konum)"
 
-# ÜST MENÜ VE SKALA ÇUBUĞU
+# ÜST MENÜ VE dBZ SKALA ÇUBUĞU (Gönderdiğin referans sitenin aynısı)
 st.markdown("""
 <div style="background: rgba(15, 23, 42, 0.9); padding: 12px 20px; border-radius: 20px; border: 2px solid rgba(56, 189, 248, 0.5); margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 15px; justify-content: space-between; align-items: center; font-size: 0.85rem; font-weight: 700; color: #38bdf8;">
     <span>HARITALAR</span><span>ŞİMDİ</span><span>SAAT BAŞI</span><span>GÜNLÜK</span><span>15 GÜNLÜK</span><span>HAVA KALİTESİ</span><span>YAŞAM İNDEKSİ</span><span>GÜN DOĞUMU VE GÜN BATIMI</span><span>HABERLER</span>
 </div>
-<div style="background: linear-gradient(90deg, #3b82f6, #10b981, #facc15, #f97316, #ef4444); height: 10px; border-radius: 5px; margin-bottom: 25px; box-shadow: 0 0 15px rgba(56, 189, 248, 0.5);"></div>
+<div style="background: linear-gradient(90deg, #10b981, #34d399, #fbbf24, #f87171, #dc2626); height: 10px; border-radius: 5px; margin-bottom: 25px; box-shadow: 0 0 15px rgba(56, 189, 248, 0.5);"></div>
 """, unsafe_allow_html=True)
 
 col_search, col_gps, col_date = st.columns([2, 1, 1])
@@ -186,7 +197,7 @@ render_box(
 )
 
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ Küresel Entegre Termal Harita", 
+    "🗺️ Küresel Entegre Radar Haritası", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -194,37 +205,25 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🗺️ Küresel Entegre Termal ve İklim Haritası",
-        subtitle="Harita zeminine tam oturan, tüm dünya üzerinde kesintisiz yayılan profesyonel termal katman. Haritada herhangi bir yere tıklayarak o bölgeyi seçebilir ve verileri güncelleyebilirsiniz.",
+        title="🗺️ Profesyonel Entegre Hava ve Radar Katmanı",
+        subtitle="Harita arka planıyla kusursuz bütünleşen, nokta lekelenmeleri içermeyen küresel tile radar katmanı. Haritada dilediğiniz yere tıklayarak o bölgeyi seçebilir ve tüm verileri anında güncelleyebilirsiniz.",
         border_color="rgba(16, 185, 129, 0.8)",
         glow_color="rgba(16, 185, 129, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
     # Standart temiz OpenStreetMap tabanı
-    m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=4, tiles="OpenStreetMap")
+    m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=5, tiles="OpenStreetMap")
 
-    # Tüm dünya haritasını uçtan uca kaplayan küresel termal/sıcaklık gradyan gridi (Leke görünümü ortadan kaldırıldı)
-    np.seed_val = int(secilen_tarih.toordinal())
-    np.random.seed(np.seed_val)
-    
-    global_thermal_points = []
-    # Dünyayı -60 ile 75 enlem, -170 ile 180 boylam arasında sık dokunmuş grid ağıyla kaplıyoruz
-    for lat in np.linspace(-60, 75, 55):
-        for lon in np.linspace(-170, 180, 70):
-            # Enleme bağlı doğal iklim sıcaklık dağılımı (ekvatorda sıcak, kutuplarda soğuk) + yerel sıcaklık ofseti
-            climate_factor = max(0.1, 1.0 - (abs(lat) / 90.0))
-            local_variation = np.sin(lat * 0.1) * np.cos(lon * 0.1) * 0.25
-            intensity = max(0.1, min(1.0, (d['sicaklik'] / 35.0) * climate_factor + local_variation))
-            global_thermal_points.append([float(lat), float(lon), float(intensity)])
-
-    HeatMap(
-        global_thermal_points,
-        min_opacity=0.3,
-        max_zoom=18,
-        radius=45,
-        blur=30,
-        gradient={0.2: 'blue', 0.4: 'cyan', 0.6: 'lime', 0.8: 'yellow', 1.0: 'red'}
+    # Küresel kesintisiz karo radar katmanı (Leke ve grid hatalarını tamamen ortadan kaldıran profesyonel yaklaşım)
+    radar_url = rainviewer_radar_url_al()
+    folium.TileLayer(
+        tiles=radar_url,
+        attr='Weather data by RainViewer',
+        name='🌧️ Küresel Hava & Yağış Radarı',
+        overlay=True,
+        control=True,
+        opacity=0.85
     ).add_to(m)
 
     popup_html = f"""
