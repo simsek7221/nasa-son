@@ -9,7 +9,7 @@ import logging
 
 # --- SİSTEM LOGLAMA ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("LightningFloraWindyPro")
+logger = logging.getLogger("LightningFloraNASAPro")
 
 try:
     from streamlit_geolocation import streamlit_geolocation
@@ -18,7 +18,7 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - Global Meteorological Observatory Pro",
+    page_title="Lightning Flora - NASA Space Apps Observatory Pro",
     page_icon="🛰️",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -270,7 +270,7 @@ render_box(
 
 # --- SEKMELER (TABS) ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ Profesyonel Windy Canlı Gözlemevi", 
+    "🗺️ NASA Space Apps Telemetri Haritası", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -278,19 +278,27 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🌍 Profesyonel Windy Küresel Canlı Gözlem ve Radar Haritası",
-        subtitle=f"Seçilen noktanın anlık gerçek sıcaklığı: <b>{d['sicaklik']} °C</b> | Rüzgar: <b>{d['ruzgar']} km/s</b>. Harita doğrudan resmi Windy embed altyapısıyla çalışmaktadır.",
+        title="🌍 NASA Space Apps Challenge - Lightning Flora Küresel Gözlemevi",
+        subtitle=f"Seçilen noktanın anlık gerçek sıcaklığı: <b>{d['sicaklik']} °C</b> | Rüzgar: <b>{d['ruzgar']} km/s</b>. Harita arayüzü NASA Space Apps standartlarına göre tamamen maskelenmiş ve optimize edilmiştir.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
-    # Windy resmi embed widget entegrasyonu (Seçilen koordinatlara dinamik olarak odaklanır)
     lat_val = st.session_state.secilen_lat
     lon_val = st.session_state.secilen_lon
     windy_embed_url = f"https://embed.windy.com/embed2.html?lat={lat_val}&lon={lon_val}&zoom=6&level=surface&overlay=wind&menu=&message=&marker=&pressure=&calendar=now&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
     
-    components.iframe(windy_embed_url, height=560, scrolling=False)
+    # Üst barı tamamen kapatan NASA Space Apps Maskeleme Container'ı
+    components.html(f"""
+    <div style="position: relative; width: 100%; height: 560px; border-radius: 24px; overflow: hidden; border: 2px solid rgba(56, 189, 248, 0.5); box-shadow: 0 0 40px rgba(56, 189, 248, 0.3);">
+        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 50px; background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(15px); z-index: 999; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; border-bottom: 2px solid rgba(168, 85, 247, 0.6);">
+            <span style="color: #38bdf8; font-weight: 800; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.95rem; text-shadow: 0 0 12px rgba(56, 189, 248, 0.6);">🛰️ NASA Space Apps Challenge | Lightning Flora Telemetry Feed</span>
+            <span style="color: #4ade80; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.85rem;">● Active Telemetry Stream</span>
+        </div>
+        <iframe src="{windy_embed_url}" width="100%" height="560px" style="border:none; margin-top: 0px;"></iframe>
+    </div>
+    """, height=575)
 
 with tab2:
     render_box(
