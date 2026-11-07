@@ -6,6 +6,7 @@ import requests
 from datetime import datetime, timedelta
 import plotly.express as px
 import logging
+import time
 
 # --- SİSTEM LOGLAMA ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -16,6 +17,13 @@ try:
 except ImportError:
     streamlit_geolocation = None
 
+# --- SERİ PORT (ARDUİNO) BAĞLANTI YÖNETİMİ ---
+try:
+    import serial
+    import serial.tools.list_ports
+except ImportError:
+    serial = None
+
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
     page_title="Lightning Flora - NASA Space Apps Observatory Pro",
@@ -23,6 +31,19 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# --- ARDUİNO SERİ PORT GÖNDERİM FONKSİYONU ---
+def arduino_veri_gonder(temp, hum, pres, wind, ndvi, soil):
+    if serial is None:
+        return
+    # Oturumda aktif seri bağlantı var mı kontrol et
+    if "arduino_ser" in st.session_state and st.session_state.arduino_ser:
+        try:
+            veri_paketi = f"T:{temp:.1f},H:{hum},P:{pres},W:{wind:.1f},N:{ndvi:.2f},S:{soil:.1f}\n"
+            st.session_state.arduino_ser.write(veri_paketi.encode('utf-8'))
+        except Exception as e:
+            logger.error(f"Arduino veri gönderim hatası: {e}")
+            st.session_state.arduino_ser = None
 
 # --- COĞRAFİ KONUM ÇÖZÜCÜ (GEOCODING API) ---
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -53,7 +74,7 @@ st.markdown("""
         color: #f8fafc !important;
         font-family: 'Plus Jakarta Sans', sans-serif !important;
     }
-
+    
     .block-container {
         background: rgba(15, 23, 42, 0.92) !important;
         backdrop-filter: blur(60px) !important;
@@ -220,7 +241,7 @@ def analiz_uret(lat, lon, secilen_tarih):
     sicaklik, nem, yagis, ruzgar, ruzgar_yon, basinc, gun_farki = gercek_veri_cek(lat, lon, secilen_tarih)
     radyasyon = round(max(2.0, min(9.0, 5.0 + (sicaklik * 0.1))), 2)
     smap_soil = round(max(5.0, min(45.0, 20.0 + (yagis * 12) - (sicaklik * 0.15))), 2)
-    ndvi_val = round(max(0.1, min(0.85, 0.4 + (smap_soil * 0.01)), 3))
+    ndvi_val = round(max(0.1, min(0.85, 0.4 + (smap_soil * 0.01))), 3)
 
     return {
         "sicaklik": sicaklik, "nem": nem, "yagis": yagis, "ruzgar": ruzgar, "ruzgar_yon": ruzgar_yon,
@@ -235,6 +256,26 @@ if "secilen_lon" not in st.session_state:
     st.session_state.secilen_lon = 41.1198
 if "mekan_adi" not in st.session_state:
     st.session_state.mekan_adi = "Batman (Gerçek İstasyon)"
+if "arduino_ser" not in st.session_state:
+    st.session_state.arduino_ser = None
+
+# --- SIDEBAR (DONANIM & SERİ PORT AYARLARI) ---
+with st.sidebar:
+    st.markdown("### 🔌 Arduino Donanım Paneli")
+    if serial is not None:
+        aktif_ports = [p.device for p in serial.tools.list_ports.comports()]
+        secilen_port = st.selectbox("Seri Port Seçin:", ["Seçiniz..."] + aktif_ports)
+        
+        if st.selectbox("Bağlantı Durumu", ["Bağlı Değil", "Bağlan"]) == "Bağlan" and secilen_port != "Seçiniz...":
+            try:
+                if st.session_state.arduino_ser is None or not st.session_state.arduino_ser.is_open:
+                    st.session_state.arduino_ser = serial.Serial(secilen_port, 9600, timeout=1)
+                    time.sleep(2)
+                st.success(f"Bağlandı: {secilen_port}")
+            except Exception as e:
+                st.error(f"Hata: {e}")
+    else:
+        st.warning("pyserial kütüphanesi yüklü değil (`pip install pyserial`).")
 
 # --- ÜST ARAMA, GPS & TARİH KONTROLLERİ ---
 col_search, col_gps, col_date = st.columns([2, 1, 1])
@@ -263,8 +304,9 @@ with col_gps:
 with col_date:
     secilen_tarih = st.date_input("📅 Gerçek Veri Tarihi Seçin:", value=datetime.now().date())
 
-# Verileri al
+# Verileri al ve Arduino'ya gönder
 d = analiz_uret(st.session_state.secilen_lat, st.session_state.secilen_lon, secilen_tarih)
+arduino_veri_gonder(d['sicaklik'], int(d['nem']), int(d['basinc']), d['ruzgar'], d['ndvi_val'], d['smap_soil'])
 
 zaman_aciklama = "Canlı Gözlem Verileri"
 if d['gun_farki'] < 0:
@@ -318,16 +360,15 @@ with tab1:
     lon_val = st.session_state.secilen_lon
     windy_embed_url = f"https://embed.windy.com/embed2.html?lat={lat_val}&lon={lon_val}&zoom=6&level=surface&overlay={aktif_overlay}&menu=&message=&marker=&pressure=&calendar=now&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
 
-    # Telefon ekranı çentiği (notch) tasarımı ve minimalist telemetri rozeti (Hiçbir harita butonunu veya zaman çubuğunu engellemez)
     components.html(f"""
     <div style="position: relative; width: 100%; height: 560px; border-radius: 24px; overflow: hidden; border: 3px solid rgba(56, 189, 248, 0.4); box-shadow: 0 0 40px rgba(56, 189, 248, 0.25);">
         <div style="position: absolute; top: -1px; left: 50%; transform: translateX(-50%); width: 300px; height: 48px; background: #0f172a; border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; z-index: 1000; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(56, 189, 248, 0.5); border-top: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
-    <div style="display: flex; align-items: center; gap: 9px;">
-        <div style="width: 8px; height: 8px; background: #38bdf8; border-radius: 50%; box-shadow: 0 0 8px #38bdf8;"></div>
-        <span style="color: #38bdf8; font-weight: 800; font-size: 0.85rem; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.7px;">NASA TELEMETRY</span>
-    </div>
-</div>        
-<iframe src="{windy_embed_url}" width="100%" height="560px" style="border:none;"></iframe>
+            <div style="display: flex; align-items: center; gap: 9px;">
+                <div style="width: 8px; height: 8px; background: #38bdf8; border-radius: 50%; box-shadow: 0 0 8px #38bdf8;"></div>
+                <span style="color: #38bdf8; font-weight: 800; font-size: 0.85rem; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.7px;">NASA TELEMETRY</span>
+            </div>
+        </div>        
+        <iframe src="{windy_embed_url}" width="100%" height="560px" style="border:none;"></iframe>
     </div>
     """, height=575)
 
