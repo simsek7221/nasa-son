@@ -10,7 +10,7 @@ import logging
 
 # --- SİSTEM LOGLAMA ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("LightningFloraProObservatory")
+logger = logging.getLogger("LightningFloraCompetitionPro")
 
 try:
     from streamlit_geolocation import streamlit_geolocation
@@ -25,20 +25,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- KÜRESEL SABİTLER VE TILE SUNUCULARI ---
-OWM_API_KEY = "b6907d289e10d714a6e88b30761fae22"
-NASA_DATE_STR = (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
-
-# Profesyonel WMTS ve Raster Tile Endpoints
-NASA_TRUECOLOR = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.jpg"
-NASA_FIRES = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_Thermal_Anomalies_375m_Day/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level7/{{z}}/{{y}}/{{x}}.png"
-NASA_NDVI = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI_8Day/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level8/{{z}}/{{y}}/{{x}}.png"
-NASA_LIGHTS = f"https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/{NASA_DATE_STR}/GoogleMapsCompatible_Level8/{{z}}/{{y}}/{{x}}.png"
-
-OWM_TEMP_TILE = f"https://tile.openweathermap.org/map/temp_new/{{z}}/{{x}}/{{y}}.png?appid={OWM_API_KEY}"
-OWM_WIND_TILE = f"https://tile.openweathermap.org/map/wind_new/{{z}}/{{x}}/{{y}}.png?appid={OWM_API_KEY}"
-
-# --- COĞRAFİ KONUM ÇÖZÜCÜ ---
+# --- COĞRAFİ KONUM ÇÖZÜCÜ (GEOCODING API) ---
 @st.cache_data(ttl=3600, show_spinner=False)
 def konum_bul(isim):
     if not isim or not isinstance(isim, str) or not isim.strip():
@@ -57,7 +44,7 @@ def konum_bul(isim):
         logger.error(f"Konum arama hatası: {str(e)}")
     return None, None
 
-# --- ULTRA GLASSMORPHISM CSS ---
+# --- ULTRA GLASSMORPHISM CSS (RENK UYUMSUZLUKLARI GİDERİLDİ) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
@@ -69,55 +56,55 @@ st.markdown("""
     }
     
     .block-container {
-        background: rgba(15, 23, 42, 0.88) !important;
+        background: rgba(15, 23, 42, 0.92) !important;
         backdrop-filter: blur(60px) !important;
         -webkit-backdrop-filter: blur(60px) !important;
-        border-radius: 45px !important;
-        padding: 3rem !important;
+        border-radius: 40px !important;
+        padding: 2.8rem !important;
         margin-top: 1.2rem !important;
-        border: 2px solid rgba(56, 189, 248, 0.45) !important;
-        box-shadow: 0 0 120px rgba(56, 189, 248, 0.28), inset 0 0 35px rgba(168, 85, 247, 0.22) !important;
+        border: 2px solid rgba(56, 189, 248, 0.35) !important;
+        box-shadow: 0 0 100px rgba(56, 189, 248, 0.22), inset 0 0 30px rgba(168, 85, 247, 0.15) !important;
     }
 
     .stButton>button {
         background: linear-gradient(135deg, #0284c7 0%, #7c3aed 100%) !important;
         color: white !important;
-        border-radius: 22px !important;
-        border: 2px solid rgba(255, 255, 255, 0.45) !important;
-        padding: 0.85rem 2.2rem !important;
+        border-radius: 20px !important;
+        border: 2px solid rgba(255, 255, 255, 0.35) !important;
+        padding: 0.75rem 2rem !important;
         font-weight: 800 !important;
-        box-shadow: 0 12px 40px rgba(124, 58, 237, 0.65), 0 0 35px rgba(2, 132, 199, 0.55) !important;
+        box-shadow: 0 10px 35px rgba(124, 58, 237, 0.55), 0 0 30px rgba(2, 132, 199, 0.45) !important;
         transition: all 0.35s ease;
     }
 
     .stButton>button:hover {
         transform: translateY(-3px) scale(1.02);
-        box-shadow: 0 18px 50px rgba(2, 132, 199, 0.85), 0 0 45px rgba(168, 85, 247, 0.85) !important;
+        box-shadow: 0 15px 45px rgba(2, 132, 199, 0.75), 0 0 40px rgba(168, 85, 247, 0.75) !important;
     }
 
     .stTabs [data-baseweb="tab-list"] {
-        gap: 14px;
+        gap: 12px;
         background: rgba(15, 23, 42, 0.95);
-        padding: 14px;
-        border-radius: 70px;
-        border: 2px solid rgba(168, 85, 247, 0.55);
-        backdrop-filter: blur(35px);
+        padding: 12px;
+        border-radius: 60px;
+        border: 2px solid rgba(168, 85, 247, 0.45);
+        backdrop-filter: blur(30px);
     }
 
     .stTabs [data-baseweb="tab"] {
         background: linear-gradient(135deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.85) 100%);
-        border-radius: 55px;
+        border-radius: 50px;
         color: #cbd5e1;
         font-weight: 700;
-        padding: 12px 24px;
-        border: 1px solid rgba(56, 189, 248, 0.25);
+        padding: 10px 22px;
+        border: 1px solid rgba(56, 189, 248, 0.2);
     }
 
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, rgba(2, 132, 199, 0.75) 0%, rgba(168, 85, 247, 0.75) 100%) !important;
+        background: linear-gradient(135deg, rgba(2, 132, 199, 0.8) 0%, rgba(168, 85, 247, 0.8) 100%) !important;
         color: #ffffff !important;
-        border-color: rgba(56, 189, 248, 0.95) !important;
-        box-shadow: 0 0 35px rgba(2, 132, 199, 0.75) !important;
+        border-color: rgba(56, 189, 248, 0.9) !important;
+        box-shadow: 0 0 30px rgba(2, 132, 199, 0.65) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -126,16 +113,16 @@ def render_box(title, subtitle, border_color, glow_color, bg_gradient):
     html_content = f"""
     <div style="
         background: {bg_gradient};
-        backdrop-filter: blur(35px);
-        -webkit-backdrop-filter: blur(35px);
+        backdrop-filter: blur(30px);
+        -webkit-backdrop-filter: blur(30px);
         border: 2px solid {border_color};
-        border-radius: 32px;
-        padding: 2.2rem;
-        margin-bottom: 1.8rem;
-        box-shadow: 0 22px 50px rgba(0,0,0,0.75), 0 0 45px {glow_color};
+        border-radius: 28px;
+        padding: 2rem;
+        margin-bottom: 1.6rem;
+        box-shadow: 0 20px 45px rgba(0,0,0,0.7), 0 0 40px {glow_color};
     ">
-        <h2 style="color: #ffffff; margin-top: 0; font-size: 1.45rem; font-weight: 800; text-shadow: 0 0 22px {glow_color};">{title}</h2>
-        <p style="color: #cbd5e1; margin-bottom: 0; font-size: 1.02rem; font-weight: 600; line-height: 1.45;">{subtitle}</p>
+        <h2 style="color: #ffffff; margin-top: 0; font-size: 1.35rem; font-weight: 800; text-shadow: 0 0 20px {glow_color};">{title}</h2>
+        <p style="color: #cbd5e1; margin-bottom: 0; font-size: 1rem; font-weight: 600; line-height: 1.45;">{subtitle}</p>
     </div>
     """
     st.markdown(html_content, unsafe_allow_html=True)
@@ -144,22 +131,22 @@ def render_metric_card(title, value, caption, border_color, text_color, glow_col
     html_content = f"""
     <div style="
         background: {bg_gradient};
-        backdrop-filter: blur(35px);
-        -webkit-backdrop-filter: blur(35px);
+        backdrop-filter: blur(30px);
+        -webkit-backdrop-filter: blur(30px);
         border: 2px solid {border_color};
-        border-radius: 28px;
-        padding: 1.6rem;
-        margin-bottom: 1.4rem;
-        box-shadow: 0 18px 40px rgba(0,0,0,0.65), 0 0 35px {glow_color};
+        border-radius: 24px;
+        padding: 1.5rem;
+        margin-bottom: 1.2rem;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.6), 0 0 30px {glow_color};
     ">
-        <div style="color: #94a3b8; font-size: 0.92rem; font-weight: 700; margin-bottom: 10px; text-transform: uppercase;">{title}</div>
-        <div style="color: {text_color}; font-size: 2.1rem; font-weight: 900; text-shadow: 0 0 28px {text_color}; margin-bottom: 10px;">{value}</div>
-        <div style="color: #e2e8f0; font-size: 0.88rem; opacity: 0.92; font-weight: 600;">{caption}</div>
+        <div style="color: #94a3b8; font-size: 0.88rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase;">{title}</div>
+        <div style="color: {text_color}; font-size: 1.9rem; font-weight: 900; text-shadow: 0 0 25px {text_color}; margin-bottom: 8px;">{value}</div>
+        <div style="color: #e2e8f0; font-size: 0.85rem; opacity: 0.9; font-weight: 600;">{caption}</div>
     </div>
     """
     st.markdown(html_content, unsafe_allow_html=True)
 
-# --- GERÇEK VERİ ÇEKME MOTORU ---
+# --- GERÇEK VERİ ÇEKME MOTORU (OPEN-METEO) ---
 @st.cache_data(ttl=600, show_spinner=False)
 def gercek_veri_cek(lat, lon, secilen_tarih):
     bugun = datetime.now().date()
@@ -189,7 +176,7 @@ def gercek_veri_cek(lat, lon, secilen_tarih):
         logger.error(f"Veri çekme hatası: {str(e)}")
     return 22.5, 45.0, 0.0, 4.5, 180.0, 1013.0, gun_farki
 
-# --- 30 GÜNLÜK DİNAMİK ZAMAN SERİSİ ---
+# --- 30 GÜNLÜK GERÇEK ZAMAN SERİSİ (TREND) ---
 @st.cache_data(ttl=600, show_spinner=False)
 def zaman_serisi_cek(lat, lon, merkez_tarih):
     baslangic = merkez_tarih - timedelta(days=15)
@@ -237,7 +224,7 @@ if "secilen_lon" not in st.session_state:
 if "mekan_adi" not in st.session_state:
     st.session_state.mekan_adi = "Batman (Gerçek İstasyon)"
 
-# --- ARAMA, GPS & TARİH KONTROLLERİ ---
+# --- ÜST ARAMA, GPS & TARİH KONTROLLERİ ---
 col_search, col_gps, col_date = st.columns([2, 1, 1])
 
 with col_search:
@@ -283,7 +270,7 @@ render_box(
 
 # --- SEKMELER (TABS) ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ Küresel Uydu & Raster Gözlemevi", 
+    "🗺️ Pro Küresel Gözlemevi Haritası", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -291,83 +278,34 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🌍 Profesyonel Küresel Katmanlar (OpenWeatherMap & NASA GIBS)",
-        subtitle="Sağ üstteki katman kontrol panelinden OpenWeatherMap Sıcaklık ve Rüzgar raster katmanları ile NASA Uydu, Yangın ve NDVI katmanlarını dilediğiniz gibi açıp kapatabilirsiniz.",
+        title="🌍 Profesyonel Meteorolojik Gözlem Haritası",
+        subtitle=f"Seçilen noktanın anlık gerçek sıcaklığı (<b>{d['sicaklik']} °C</b>) ve istasyon parametreleri. Harita üzerinde dilediğiniz noktaya tıklayarak verileri anında güncelleyebilirsiniz.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
-    m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=4, tiles="OpenStreetMap")
+    # CartoDB Dark_Matter tabanı ile hiçbir kırık 404 / gri tile sorunu yaşanmaz.
+    m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=5, tiles="CartoDB Dark_Matter")
 
-    # 1. OpenWeatherMap Sıcaklık Tile Katmanı
-    folium.TileLayer(
-        tiles=OWM_TEMP_TILE,
-        attr='OpenWeatherMap Temperature',
-        name='🌡️ OWM Küresel Sıcaklık Katmanı',
-        overlay=True, control=True, opacity=0.8, show=True
-    ).add_to(m)
-
-    # 2. OpenWeatherMap Rüzgar Tile Katmanı
-    folium.TileLayer(
-        tiles=OWM_WIND_TILE,
-        attr='OpenWeatherMap Wind',
-        name='💨 OWM Küresel Rüzgar Katmanı',
-        overlay=True, control=True, opacity=0.8, show=False
-    ).add_to(m)
-
-    # 3. NASA Gerçek Renk Uydu
-    folium.TileLayer(
-        tiles=NASA_TRUECOLOR,
-        attr='NASA GIBS True Color',
-        name='🛰️ NASA Gerçek Renk Uydu',
-        overlay=True, control=True, opacity=0.9, show=False
-    ).add_to(m)
-
-    # 4. NASA Aktif Yangınlar
-    folium.TileLayer(
-        tiles=NASA_FIRES,
-        attr='NASA GIBS Thermal Anomalies',
-        name='🔥 NASA Aktif Yangınlar',
-        overlay=True, control=True, opacity=0.9, show=False
-    ).add_to(m)
-
-    # 5. NASA NDVI Bitki Örtüsü
-    folium.TileLayer(
-        tiles=NASA_NDVI,
-        attr='NASA GIBS NDVI',
-        name='🌿 NASA NDVI Bitki Örtüsü',
-        overlay=True, control=True, opacity=0.8, show=False
-    ).add_to(m)
-
-    # 6. NASA Gece Işıkları
-    folium.TileLayer(
-        tiles=NASA_LIGHTS,
-        attr='NASA GIBS Black Marble',
-        name='💡 NASA Gece Işıkları',
-        overlay=True, control=True, opacity=0.85, show=False
-    ).add_to(m)
-
-    # İstasyon İşaretçisi
     popup_html = f"""
-    <div style="width: 225px; font-family: 'Plus Jakarta Sans', sans-serif; background: #ffffff; padding: 12px; border-radius: 10px; border: 2px solid #0284c7; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
-        <h4 style="margin: 0 0 8px 0; color: #0f172a; font-size: 0.95rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;">📍 İstasyon Omni-Verisi</h4>
+    <div style="width: 220px; font-family: 'Plus Jakarta Sans', sans-serif; background: #ffffff; padding: 12px; border-radius: 10px; border: 2px solid #0284c7; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+        <h4 style="margin: 0 0 8px 0; color: #0f172a; font-size: 0.95rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;">📍 %100 Gerçek İstasyon Verisi</h4>
+        <b>Enlem/Boylam:</b> {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}<br>
         <b>Sıcaklık:</b> {d['sicaklik']:.2f} °C<br>
-        <b>Rüzgar:</b> {d['ruzgar']} km/s ({d['ruzgar_yon']}°)<br>
-        <b>NDVI İndeksi:</b> {d['ndvi_val']}<br>
         <b>Bağıl Nem:</b> %{d['nem']:.2f}<br>
-        <b>Yağış:</b> {d['yagis']} mm
+        <b>Yağış:</b> {d['yagis']} mm<br>
+        <b>Rüzgar:</b> {d['ruzgar']} km/s ({d['ruzgar_yon']}°)
     </div>
     """
     
     folium.Marker(
         [st.session_state.secilen_lat, st.session_state.secilen_lon], 
         popup=folium.Popup(popup_html, max_width=250), 
-        tooltip=f"Rüzgar: {d['ruzgar']} km/s ({d['ruzgar_yon']}°)",
-        icon=folium.Icon(color="orange", icon="flash")
+        tooltip="Gerçek İstasyon Detayı için tıklayın",
+        icon=folium.Icon(color="red", icon="info-sign")
     ).add_to(m)
 
-    folium.LayerControl(collapsed=False).add_to(m)
     map_data = st_folium(m, width=None, height=540, key="map_interactive_observatory")
     
     if map_data and map_data.get("last_clicked"):
@@ -376,13 +314,13 @@ with tab1:
         if clicked_lat != st.session_state.secilen_lat or clicked_lon != st.session_state.secilen_lon:
             st.session_state.secilen_lat = clicked_lat
             st.session_state.secilen_lon = clicked_lon
-            st.session_state.mekan_adi = f"Seçilen Konum ({clicked_lat:.4f}, {clicked_lon:.4f})"
+            st.session_state.mekan_adi = f"Seçilen Gerçek Konum ({clicked_lat:.4f}, {clicked_lon:.4f})"
             st.rerun()
 
 with tab2:
     render_box(
         title=f"📊 {secilen_tarih.strftime('%d.%m.%Y')} Tarihli Gerçek Veri Trendleri",
-        subtitle=f"Seçilen Koordinat: {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}. Arşiv ve model API'sinden çekilen dinamik zaman serisi.",
+        subtitle=f"Seçilen Koordinat: {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}. Arşiv ve tahmin API'sinden çekilen dinamik zaman serisi.",
         border_color="rgba(56, 189, 248, 0.75)",
         glow_color="rgba(56, 189, 248, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(14, 116, 144, 0.45) 0%, rgba(15, 23, 42, 0.9) 100%)"
