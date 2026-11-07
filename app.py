@@ -16,7 +16,7 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - Enterprise Thermal Observatory",
+    page_title="Lightning Flora - Global Thermal Observatory",
     page_icon="🛰️",
     layout="wide"
 )
@@ -273,7 +273,7 @@ render_box(
 
 # --- SEKMELER ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ İnteraktif Termal Harita", 
+    "🗺️ Küresel Termal Isı Haritası", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -281,33 +281,43 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🗺️ Standart Harita ve Termal Isı Analizi",
-        subtitle="Harita üzerinde dilediğiniz noktaya tıklayarak o bölgenin verilerini sisteme işleyebilir ve kare bilgi kutusunu görebilirsiniz.",
+        title="🗺️ Küresel Termal Isı ve Yağış Dağılım Haritası",
+        subtitle="Harita üzerinde dünyanın herhangi bir yerine tıklayarak o bölgenin verilerini sisteme işleyebilir ve kare bilgi paneline ulaşabilirsiniz.",
         border_color="rgba(16, 185, 129, 0.8)",
         glow_color="rgba(16, 185, 129, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
-    # Standart temiz OpenStreetMap arka planı
-    m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=6, tiles="OpenStreetMap")
+    # Standart temiz OpenStreetMap arka planı (Uydu yok, sade zemin)
+    m = folium.Map(location=[st.session_state.secilen_lat, st.session_state.secilen_lon], zoom_start=5, tiles="OpenStreetMap")
 
-    # Termal Isı Haritası Grid Noktaları (Mavi -> Yeşil -> Sarı -> Kırmızı)
-    np.random.seed(int(st.session_state.secilen_lat + st.session_state.secilen_lon + secilen_tarih.toordinal()))
-    heat_points = []
-    center_lat, center_lon = st.session_state.secilen_lat, st.session_state.secilen_lon
-    for lat_offset in np.linspace(-4, 4, 30):
-        for lon_offset in np.linspace(-4, 4, 30):
-            sim_lat = center_lat + lat_offset
-            sim_lon = center_lon + lon_offset
-            intensity = max(0.1, min(1.0, (d['sicaklik'] + np.sin(lat_offset)*5) / 40.0))
-            heat_points.append([sim_lat, sim_lon, intensity])
+    # Küresel ve bölgesel termal ısı haritası grid noktaları (Dünya genelinde sıcaklık/yağış yayılımı)
+    np.random.seed(int(secilen_tarih.toordinal()))
+    heat_points = [
+        [st.session_state.secilen_lat, st.session_state.secilen_lon, float(d['sicaklik']) / 35.0]
+    ]
+    
+    # Dünya genelinde farklı iklim kuşaklarına göre termal ısı gridleri ekleme (Avrupa, Asya, Afrika, Orta Doğu)
+    base_latitudes = [36.0, 41.0, 48.0, 51.0, 30.0, 25.0, 45.0, 39.0, 32.0, 55.0]
+    base_longitudes = [29.0, 35.0, 2.0, 10.0, 48.0, 55.0, 15.0, 32.0, 44.0, 37.0]
+    
+    for lat_b in base_latitudes:
+        for lon_b in base_longitudes:
+            for d_lat in np.linspace(-2, 2, 4):
+                for d_lon in np.linspace(-2, 2, 4):
+                    sim_lat = lat_b + d_lat
+                    sim_lon = lon_b + d_lon
+                    # Enleme göre otomatik sıcaklık varyasyonu (kuzeyler soğuk, güneyler sıcak)
+                    sim_intensity = max(0.1, min(1.0, (30.0 - abs(sim_lat - 35.0) * 1.2 + np.random.normal(0, 3)) / 40.0))
+                    heat_points.append([sim_lat, sim_lon, sim_intensity])
 
+    # Isı Haritası (HeatMap) Katmanı (Mavi -> Yeşil -> Sarı -> Kırmızı)
     HeatMap(
         heat_points,
-        min_opacity=0.2,
+        min_opacity=0.3,
         max_zoom=18,
-        radius=35,
-        blur=25,
+        radius=40,
+        blur=30,
         gradient={0.2: 'blue', 0.4: 'lime', 0.6: 'yellow', 0.8: 'orange', 1.0: 'red'}
     ).add_to(m)
 
@@ -333,7 +343,7 @@ with tab1:
     folium.LayerControl(collapsed=False).add_to(m)
     
     # Harita tıklama etkileşimi
-    map_data = st_folium(m, width=None, height=520, key="map_interactive_observatory")
+    map_data = st_folium(m, width=None, height=540, key="map_interactive_observatory")
     
     if map_data and map_data.get("last_clicked"):
         clicked_lat = map_data["last_clicked"]["lat"]
