@@ -104,6 +104,18 @@ st.markdown("""
         color: #ffffff !important;
         border-color: rgba(56, 189, 248, 0.9) !important;
         box-shadow: 0 0 30px rgba(2, 132, 199, 0.65) !important;
+        position: relative;
+    }
+
+    .stTabs [aria-selected="true"]::after {
+        content: "";
+        position: absolute;
+        left: 18px;
+        right: 18px;
+        bottom: 3px;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.85);
+        border-radius: 2px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -208,7 +220,7 @@ def analiz_uret(lat, lon, secilen_tarih):
     sicaklik, nem, yagis, ruzgar, ruzgar_yon, basinc, gun_farki = gercek_veri_cek(lat, lon, secilen_tarih)
     radyasyon = round(max(2.0, min(9.0, 5.0 + (sicaklik * 0.1))), 2)
     smap_soil = round(max(5.0, min(45.0, 20.0 + (yagis * 12) - (sicaklik * 0.15))), 2)
-    ndvi_val = round(max(0.1, min(0.85, 0.4 + (smap_soil * 0.01))), 3)
+    ndvi_val = round(max(0.1, min(0.85, 0.4 + (smap_soil * 0.01)), 3)
 
     return {
         "sicaklik": sicaklik, "nem": nem, "yagis": yagis, "ruzgar": ruzgar, "ruzgar_yon": ruzgar_yon,
@@ -304,12 +316,12 @@ with tab1:
 
     lat_val = st.session_state.secilen_lat
     lon_val = st.session_state.secilen_lon
-    windy_embed_url = f"https://embed.windy.com/embed2.html?lat={lat_val}&lon={lon_val}&zoom=6&level=surface&overlay={aktif_overlay}&message=&marker=&pressure=&calendar=now&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
+    windy_embed_url = f"https://embed.windy.com/embed2.html?lat={lat_val}&lon={lon_val}&zoom=6&level=surface&overlay={aktif_overlay}&menu=&message=&marker=&pressure=&calendar=now&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
 
     # Telefon ekranı çentiği (notch) tasarımı ve minimalist telemetri rozeti (Hiçbir harita butonunu veya zaman çubuğunu engellemez)
     components.html(f"""
     <div style="position: relative; width: 100%; height: 560px; border-radius: 24px; overflow: hidden; border: 3px solid rgba(56, 189, 248, 0.4); box-shadow: 0 0 40px rgba(56, 189, 248, 0.25);">
-        <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 220px; height: 26px; background: #0f172a; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; z-index: 1000; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(56, 189, 248, 0.5); border-top: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+        <div style="position: absolute; top: 18px; left: 50%; transform: translateX(-50%); width: 220px; height: 26px; background: #0f172a; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; z-index: 1000; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(56, 189, 248, 0.5); border-top: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
             <div style="display: flex; align-items: center; gap: 6px;">
                 <div style="width: 6px; height: 6px; background: #38bdf8; border-radius: 50%; box-shadow: 0 0 8px #38bdf8;"></div>
                 <span style="color: #38bdf8; font-weight: 800; font-size: 0.72rem; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.5px;">NASA TELEMETRY</span>
