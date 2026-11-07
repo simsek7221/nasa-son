@@ -5,7 +5,6 @@ import folium
 from streamlit_folium import st_folium
 import requests
 from datetime import datetime, timedelta
-from geopy.geocoders import Nominatim
 import plotly.express as px
 
 # Tarayıcı/Tablet GPS konum bileşeni
@@ -21,31 +20,20 @@ st.set_page_config(
     layout="wide"
 )
 
-geolocator = Nominatim(user_agent="lightning_flora_global_observatory_v3")
-
 @st.cache_data(ttl=3600)
 def konum_bul(isim):
-    # Popüler şehirler için anında yanıt veren yedek sözlük (API sınırlarına takılmamak için)
-    yedek_konumlar = {
-        "batman": (37.8859, 41.1198),
-        "ankara": (39.9334, 32.8597),
-        "istanbul": (41.0082, 28.9784),
-        "izmir": (38.4192, 27.1287),
-        "antalya": (36.8841, 30.7056),
-        "adana": (37.0000, 35.3213),
-        "bursa": (40.1828, 29.0665),
-        "trabzon": (41.0015, 39.7178),
-        "van": (38.4891, 43.4089),
-        "Diyarbakır": (37.9144, 40.2306)
-    }
-    isim_lower = isim.strip().lower()
-    if isim_lower in yedek_konumlar:
-        return yedek_konumlar[isim_lower], isim.capitalize()
-    
+    if not isim or not isim.strip():
+        return None, None
+    url = f"https://geocoding-api.open-meteo.com/v1/search?name={isim.strip()}&count=1&language=tr&format=json"
     try:
-        loc = geolocator.geocode(isim, timeout=5)
-        if loc:
-            return (loc.latitude, loc.longitude), loc.address
+        res = requests.get(url, timeout=5).json()
+        results = res.get("results", [])
+        if results:
+            r = results[0]
+            lat = float(r.get("latitude"))
+            lon = float(r.get("longitude"))
+            name = f"{r.get('name')}, {r.get('country', '')}"
+            return (lat, lon), name
     except Exception:
         pass
     return None, None
@@ -403,22 +391,27 @@ with tab4:
         
     lat1, lon1 = (37.8859, 41.1198)
     lat2, lon2 = (39.9334, 32.8597)
+    name1, name2 = "Batman", "Ankara"
     
-    coords1, _ = konum_bul(yer_1)
-    if coords1: lat1, lon1 = coords1
-    
-    coords2, _ = konum_bul(yer_2)
-    if coords2: lat2, lon2 = coords2
+    coords1, n1 = konum_bul(yer_1)
+    if coords1: 
+        lat1, lon1 = coords1
+        if n1: name1 = n1
+        
+    coords2, n2 = konum_bul(yer_2)
+    if coords2: 
+        lat2, lon2 = coords2
+        if n2: name2 = n2
         
     d1 = analiz_uret(lat1, lon1)
     d2 = analiz_uret(lat2, lon2)
     
     col_k1, col_k2 = st.columns(2)
     with col_k1:
-        st.markdown(f"### 📍 {yer_1.capitalize()} ({lat1:.2f}, {lon1:.2f})")
+        st.markdown(f"### 📍 {name1} ({lat1:.2f}, {lon1:.2f})")
         render_metric_card("Sıcaklık", f"{d1['sicaklik']:.2f} °C", f"Nem: %{d1['nem']:.2f}", "rgba(56, 189, 248, 0.6)", "#38bdf8", "rgba(56, 189, 248, 0.3)", "linear-gradient(135deg, rgba(14, 165, 233, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%)")
         render_metric_card("Toprak Nemi", f"%{d1['smap_soil']:.2f}", f"NDVI: {d1['ndvi_val']:.3f}", "rgba(16, 185, 129, 0.6)", "#34d399", "rgba(16, 185, 129, 0.3)", "linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with col_k2:
-        st.markdown(f"### 📍 {yer_2.capitalize()} ({lat2:.2f}, {lon2:.2f})")
+        st.markdown(f"### 📍 {name2} ({lat2:.2f}, {lon2:.2f})")
         render_metric_card("Sıcaklık", f"{d2['sicaklik']:.2f} °C", f"Nem: %{d2['nem']:.2f}", "rgba(168, 85, 247, 0.6)", "#c084fc", "rgba(168, 85, 247, 0.3)", "linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%)")
         render_metric_card("Toprak Nemi", f"%{d2['smap_soil']:.2f}", f"NDVI: {d2['ndvi_val']:.3f}", "rgba(245, 158, 11, 0.6)", "#fbbf24", "rgba(245, 158, 11, 0.3)", "linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%)")
