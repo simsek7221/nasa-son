@@ -15,7 +15,7 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - AI Temporal NASA Observatory",
+    page_title="Lightning Flora - Global Weather Observatory",
     page_icon="🛰️",
     layout="wide"
 )
@@ -206,14 +206,22 @@ def analiz_uret(lat, lon, secilen_tarih):
         "sedac_risk": sedac_risk, "lst_temp": lst_temp, "gun_farki": gun_farki
     }
 
-# --- HEADER KUTUSU ---
-render_box(
-    title="🛰️ Lightning Flora: Enterprise NASA Observatory",
-    subtitle="🟢 SYSTEM ONLINE • Küresel Hava Radarı, Yapay Zeka Simülasyonu ve Uydu Gözlem Platformu",
-    border_color="rgba(56, 189, 248, 0.8)",
-    glow_color="rgba(56, 189, 248, 0.6)",
-    bg_gradient="linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)"
-)
+# --- HEADER KUTUSU & GÖRSELDEKİ MENÜ ÇUBUĞU BENZERİ ---
+st.markdown("""
+<div style="background: rgba(15, 23, 42, 0.9); padding: 12px 20px; border-radius: 20px; border: 2px solid rgba(56, 189, 248, 0.5); margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 15px; justify-content: space-between; align-items: center; font-size: 0.85rem; font-weight: 700; color: #38bdf8;">
+    <span>HARITALAR</span>
+    <span>ŞİMDİ</span>
+    <span>SAAT BAŞI</span>
+    <span>GÜNLÜK</span>
+    <span>15 GÜNLÜK</span>
+    <span>HAVA KALİTESİ</span>
+    <span>YAŞAM İNDEKSİ</span>
+    <span>GÜN DOĞUMU VE GÜN BATIMI</span>
+    <span>HABERLER</span>
+</div>
+<!-- Görseldeki dBZ Yağış Skalası Çubuğu -->
+<div style="background: linear-gradient(90deg, #10b981, #34d399, #fbbf24, #f87171, #dc2626); height: 10px; border-radius: 5px; margin-bottom: 25px; box-shadow: 0 0 15px rgba(56, 189, 248, 0.5);"></div>
+""", unsafe_allow_html=True)
 
 # --- ANA Konum Arama, GPS & Tarih Seçici ---
 lat, lon = 37.8859, 41.1198 
@@ -262,7 +270,7 @@ render_box(
 
 # --- SEKMELER ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ Harita ve Küresel Radar Katmanı", 
+    "🗺️ Küresel Hava Radarı", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -270,20 +278,20 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🗺️ Küresel Hava Radarı ve Uydu Katmanları",
-        subtitle=f"Seçilen konum ({mekan}) ve dünya genelindeki aktif hava/yağış hareketleri ısı haritası katmanı.",
+        title="🗺️ Canlı Küresel Yağış Radarı ve Isı Haritası",
+        subtitle=f"Seçilen konum ({mekan}) merkezli, dünya genelindeki aktif hava ve yağış hareketleri.",
         border_color="rgba(16, 185, 129, 0.8)",
         glow_color="rgba(16, 185, 129, 0.6)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
-    m = folium.Map(location=[lat, lon], zoom_start=6, tiles=None)
+    m = folium.Map(location=[39.1667, 35.6667], zoom_start=5, tiles=None)
     folium.TileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        attr='Esri', name='Esri Canlı Uydu'
+        attr='Esri', name='Esri Uydu Arka Planı'
     ).add_to(m)
 
-    # Küresel Yağış / Hava Radarı Isı Haritası Katmanı (RainViewer API - Gönderdiğiniz görseldeki sistem)
+    # Gönderdiğiniz görseldeki gibi küresel radar ısı haritası katmanı
     radar_url = rainviewer_radar_url_al()
     folium.TileLayer(
         tiles=radar_url,
@@ -297,7 +305,7 @@ with tab1:
     fg_target = folium.FeatureGroup(name="📍 Seçilen Gözlem Noktası")
     folium.Marker(
         [lat, lon], 
-        popup=f"<b>Gözlem Noktası</b><br>Sıcaklık: {d['sicaklik']}°C<br>Nem: %{d['nem']}", 
+        popup=f"<b>{mekan}</b><br>Sıcaklık: {d['sicaklik']}°C<br>Nem: %{d['nem']}", 
         tooltip="🎯 Hedef Konum",
         icon=folium.Icon(color="red", icon="crosshairs", prefix="fa")
     ).add_to(fg_target)
