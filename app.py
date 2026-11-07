@@ -11,7 +11,7 @@ import logging
 
 # --- SİSTEM LOGLAMA VE TELEMETRİ YAPILANDIRMASI ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("LightningFloraMultiLayer")
+logger = logging.getLogger("LightningFloraAdvancedObservatory")
 
 # Tarayıcı/Tablet GPS konum bileşeni emniyeti
 try:
@@ -22,20 +22,21 @@ except ImportError:
 
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
-    page_title="Lightning Flora - Multi-Layer Meteorological Observatory",
+    page_title="Lightning Flora - Advanced Multi-Layer Observatory",
     page_icon="🛰️",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- GERÇEK UYDU TILE VE VERİ SABİTLERİ ---
+# --- KÜRESEL SABİTLER VE NASA GIBS TILE SERVİSLERİ ---
 GLOBAL_AVG_BASELINE_TEMP = 14.85
 TEMPERATE_PIVOT_VAL = GLOBAL_AVG_BASELINE_TEMP
 RASTER_MIN_TEMP = -30.0
 RASTER_MAX_TEMP = 50.0
 
-# NASA GIBS Gerçek Zamanlı Aktif Yangınlar / Termal Anomaliler Katmanı (VIIRS)
 NASA_GIBS_FIRE_TILE = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_Thermal_Anomalies_375m_Day/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png"
+NASA_GIBS_NDVI_TILE = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI_8Day/default/{time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png"
+NASA_GIBS_LIGHT_TILE = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/{time}/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png"
 
 # --- GELİŞMİŞ ÖNBELLEK VE COĞRAFİ KONUM MOTORU ---
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -272,7 +273,7 @@ render_box(
 
 # --- SEKMELER (TABS) ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🗺️ Çok Katmanlı Gözlemevi (Termal, Rüzgar & Yangın)", 
+    "🗺️ Çok Katmanlı Küresel Gözlemevi", 
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma"
@@ -280,8 +281,8 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     render_box(
-        title="🌍 Çok Katmanlı Meteoroloji ve Afet Gözlem Haritası",
-        subtitle="Sağ üstteki katman menüsünden <b>Zoom Earth Termal Katmanı</b>, <b>NASA Aktif Yangınlar Katmanı</b> veya <b>Rüzgar Vektör Göstergesi</b> arasında geçiş yapabilirsiniz.",
+        title="🌍 Çok Katmanlı Meteoroloji, Yangın, NDVI ve Işık Gözlemevi",
+        subtitle="Sağ üstteki katman menüsünden <b>Termal Katman</b>, <b>Aktif Yangınlar</b>, <b>NDVI (Bitki Örtüsü)</b> ve <b>Gece Işıkları</b> katmanları arasında geçiş yapabilirsiniz.",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
@@ -321,28 +322,42 @@ with tab1:
         name="🌡️ Zoom Earth Termal Katmanı"
     ).add_to(m)
 
-    # 2. Katman: NASA Aktif Yangınlar (Thermal Anomalies) Tile Katmanı
+    # Tarih string ayarı (NASA GIBS için)
     tarih_str_nasa = (secilen_tarih if secilen_tarih <= datetime.now().date() else datetime.now().date()).strftime("%Y-%m-%d")
-    nasa_fire_url = NASA_GIBS_FIRE_TILE.format(time=tarih_str_nasa, z='{z}', y='{y}', x='{x}')
+
+    # 2. Katman: NASA Aktif Yangınlar Katmanı
     folium.TileLayer(
-        tiles=nasa_fire_url,
+        tiles=NASA_GIBS_FIRE_TILE.format(time=tarih_str_nasa, z='{z}', y='{y}', x='{x}'),
         attr='NASA GIBS VIIRS Active Fires',
-        name='🔥 NASA Aktif Yangınlar Katmanı',
-        overlay=True,
-        control=True,
-        opacity=0.9,
-        show=False
+        name='🔥 Yangın Haritası (Aktif Anomaliler)',
+        overlay=True, control=True, opacity=0.9, show=False
     ).add_to(m)
 
-    # 3. Katman: Gerçek Rüzgar İstasyonu ve Yön Göstergesi (Marker & Vector)
+    # 3. Katman: NASA NDVI (Bitki Örtüsü) Katmanı
+    folium.TileLayer(
+        tiles=NASA_GIBS_NDVI_TILE.format(time=tarih_str_nasa, z='{z}', y='{y}', x='{x}'),
+        attr='NASA GIBS MODIS NDVI',
+        name='🌿 NDVI Bitki Örtüsü Haritası',
+        overlay=True, control=True, opacity=0.8, show=False
+    ).add_to(m)
+
+    # 4. Katman: Gece Işıkları (Işık Haritası) Katmanı
+    folium.TileLayer(
+        tiles=NASA_GIBS_LIGHT_TILE.format(time=tarih_str_nasa, z='{z}', y='{y}', x='{x}'),
+        attr='NASA GIBS Black Marble',
+        name='💡 Işık Haritası (Gece Işıkları)',
+        overlay=True, control=True, opacity=0.85, show=False
+    ).add_to(m)
+
+    # Rüzgar ve İstasyon Bilgi Marker'ı
     popup_html = f"""
     <div style="width: 225px; font-family: 'Plus Jakarta Sans', sans-serif; background: #ffffff; padding: 12px; border-radius: 10px; border: 2px solid #0284c7; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
-        <h4 style="margin: 0 0 8px 0; color: #0f172a; font-size: 0.95rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;">📍 Gerçek İstasyon Verisi</h4>
+        <h4 style="margin: 0 0 8px 0; color: #0f172a; font-size: 0.95rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;">📍 İstasyon Rüzgar & Veri</h4>
         <b>Sıcaklık:</b> {d['sicaklik']:.2f} °C<br>
         <b>Rüzgar Hızı:</b> {d['ruzgar']} km/s<br>
         <b>Rüzgar Yönü:</b> {d['ruzgar_yon']}°<br>
-        <b>Bağıl Nem:</b> %{d['nem']:.2f}<br>
-        <b>Yağış:</b> {d['yagis']} mm
+        <b>NDVI İndeksi:</b> {d['ndvi_val']}<br>
+        <b>Bağıl Nem:</b> %{d['nem']:.2f}
     </div>
     """
     
@@ -380,7 +395,7 @@ with tab2:
     with c2:
         render_metric_card("2️⃣ Rüzgar", f"{d['ruzgar']} km/s", f"Yön: {d['ruzgar_yon']}°", "rgba(16, 185, 129, 0.75)", "#34d399", "rgba(16, 185, 129, 0.45)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c3:
-        render_metric_card("3️⃣ Yağış", f"{d['yagis']} mm", "Toplam yağış miktarı", "rgba(245, 158, 11, 0.75)", "#fbbf24", "rgba(245, 158, 11, 0.45)", "linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("3️⃣ NDVI", f"{d['ndvi_val']}", "Bitki Örtüsü İndeksi", "rgba(245, 158, 11, 0.75)", "#fbbf24", "rgba(245, 158, 11, 0.45)", "linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c4:
         render_metric_card("4️⃣ Basınç", f"{d['basinc']} hPa", "Deniz seviyesi basınç", "rgba(168, 85, 247, 0.75)", "#c084fc", "rgba(168, 85, 247, 0.45)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
 
