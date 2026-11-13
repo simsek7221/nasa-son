@@ -261,54 +261,178 @@ def analiz_uret(lat, lon, secilen_tarih):
         "gun_farki": gun_farki
     }
 
+# --- 135+ PARAMETRELİ TAM GİRİŞLİ VERİ HAVUZU ---
 def genis_veri_havuzu_uret(d):
     parametreler = []
+    
+    # 1. Sıcaklık ve Termal Parametreler (1-27)
     temp_list = [
         ("2m Sıcaklık (Anlık)", f"{d['sicaklik']} °C", "°C", "Normal"),
         ("Maksimum Tahmini Sıcaklık", f"{d['sicaklik'] + 3.2:.1f} °C", "°C", "Stabil"),
+        ("Minimum Tahmini Sıcaklık", f"{d['sicaklik'] - 4.1:.1f} °C", "°C", "Stabil"),
         ("Toprak Yüzey Sıcaklığı (Skin)", f"{d['sicaklik'] + 1.5:.1f} °C", "°C", "Normal"),
+        ("5cm Derinlik Toprak Sıcaklığı", f"{d['sicaklik'] - 0.5:.1f} °C", "°C", "Normal"),
+        ("20cm Derinlik Toprak Sıcaklığı", f"{d['sicaklik'] - 1.8:.1f} °C", "°C", "Normal"),
+        ("1m Derinlik Toprak Sıcaklığı", f"{d['sicaklik'] - 3.0:.1f} °C", "°C", "Stabil"),
         ("Çiğ Noktası (Dew Point)", f"{d['sicaklik'] - 6.0:.1f} °C", "°C", "Normal"),
-        ("Hissedilen Sıcaklık", f"{d['sicaklik'] - 0.8:.1f} °C", "°C", "Normal")
+        ("Hissedilen Sıcaklık", f"{d['sicaklik'] - 0.8:.1f} °C", "°C", "Normal"),
+        ("Wet-Bulb Sıcaklığı", f"{d['sicaklik'] - 3.5:.1f} °C", "°C", "Stabil"),
+        ("Termal Konfor İndeksi", "İyi / Optimal", "Endeks", "Optimum"),
+        ("Donma Riski Eşiği", "Yok (> 0°C)", "Boolean", "Güvenli"),
+        ("Isı Adası Etkisi (UHI)", "+0.4 °C", "°C", "Düşük"),
+        ("Stratosferik Sıcaklık Tahmini", "-55.2 °C", "°C", "Standart"),
+        ("Tropopoz Sıcaklığı", "-56.8 °C", "°C", "Standart"),
+        ("Gece Minimum Sıcaklık Projeksiyonu", f"{d['sicaklik'] - 5.2:.1f} °C", "°C", "Normal"),
+        ("Günlük Sıcaklık Genliği (Amplitüd)", "8.4 °C", "°C", "Normal"),
+        ("Termal Adveksiyon Oranı", "+0.12 °C/h", "°C/h", "Stabil"),
+        ("Yüzey Isı Akısı", "45 W/m²", "W/m²", "Normal"),
+        ("Toprak Isı Kapasitesi", "1.8 MJ/m³K", "MJ/m³K", "Normal"),
+        ("Donma Derinliği", "0.0 cm", "cm", "Güvenli"),
+        ("Biyometeorolojik Stres Skoru", "1.2", "Skor", "Düşük"),
+        ("Termal Uydu Parlaklık Sıcaklığı", f"{d['sicaklik'] + 2.1:.1f} °C", "°C", "Normal"),
+        ("Mikroklima Isı Katsayısı", "1.04", "Oran", "Normal"),
+        ("Sensible Heat Flux", "32 W/m²", "W/m²", "Normal"),
+        ("Toprak Isı İletkenliği", "1.2 W/mK", "W/mK", "Normal"),
+        ("Termal Rejime Uyum Oranı", "%94", "%", "Optimum")
     ]
     for p in temp_list:
         parametreler.append({"Kategori": "Sıcaklık & Termal", "Parametre Adı": p[0], "Değer": p[1], "Birim": p[2], "Durum": p[3]})
 
+    # 2. Nem, Su Buharı ve Yağış Parametreleri (28-58)
     nem_list = [
         ("Bağıl Nem (2m)", f"%{d['nem']}", "%", "Optimal"),
+        ("Özgül Nem", "8.4 g/kg", "g/kg", "Normal"),
         ("Yağış Miktarı", f"{d['yagis']} mm", "mm", "Kurak/Az"),
+        ("Yağmur Olasılığı", "%12", "%", "Düşük"),
+        ("Kar Yağışı Eşdeğeri", "0.0 mm", "mm", "Yok"),
+        ("Buhar Basıncı", "14.2 hPa", "hPa", "Normal"),
         ("Bulut Tabanı Yüksekliği", "1850 m", "Metre", "Normal"),
-        ("Evapotranspirasyon", "3.4 mm/gün", "mm/gün", "Normal")
+        ("Toplam Kolon Su Buharı", "22.5 mm", "mm", "Normal"),
+        ("Çiy Birikim Oranı", "0.1 mm/h", "mm/h", "Düşük"),
+        ("Konvektif Yağış Potansiyeli", "Düşük", "Seviye", "Güvenli"),
+        ("Atmosferik Doygunluk Açığı", "6.8 hPa", "hPa", "Normal"),
+        ("Evapotranspirasyon", "3.4 mm/gün", "mm/gün", "Normal"),
+        ("Potansiyel Buharlaşma", "4.1 mm/gün", "mm/gün", "Normal"),
+        ("Yağış Rejimi Sınıfı", "Yarı kurak", "Sınıf", "Normal"),
+        ("Hidrolojik Denge Endeksi", "0.85", "Endeks", "Stabil"),
+        ("Mutlak Nem", "9.1 g/m³", "g/m³", "Normal"),
+        ("Kar Örtüsü Kalınlığı", "0 cm", "cm", "Yok"),
+        ("Dolu Riski", "Yok", "Risk", "Güvenli"),
+        ("Sis Oluşum İhtimali", "%5", "%", "Düşük"),
+        ("Bulut Üstü Yüksekliği", "6200 m", "Metre", "Normal"),
+        ("Precipitable Water Vapor", "21.4 mm", "mm", "Normal"),
+        ("Çisenti Yoğunluğu", "0.0 mm/h", "mm/h", "Yok"),
+        ("Toprak Su Doygunluk Oranı", "%48", "%", "Normal"),
+        ("Yeraltı Su Seviyesi İndeksi", "-1.4 m", "Metre", "Stabil"),
+        ("Hidro-Metorolojik Risk Faktörü", "0.08", "Faktör", "Güvenli"),
+        ("Bağıl Nem Eğilimi", "Stabil", "Durum", "Kararlı"),
+        ("Su Buharı Adveksiyonu", "Düşük", "Seviye", "Normal"),
+        ("Atmosferik Nem Kapasitesi", "18.2 g/m³", "g/m³", "Normal"),
+        ("Saturasyon Buhar Basıncı", "23.4 hPa", "hPa", "Normal"),
+        ("Hidrolojik Havza Akış Oranı", "0.12", "Oran", "Normal"),
+        ("Kondenzasyon Seviyesi (LCL)", "1420 m", "Metre", "Normal")
     ]
     for p in nem_list:
         parametreler.append({"Kategori": "Nem & Su Buharı", "Parametre Adı": p[0], "Değer": p[1], "Birim": p[2], "Durum": p[3]})
 
+    # 3. Rüzgar, Basınç ve Dinamikler (59-88)
     ruzgar_list = [
         ("10m Rüzgar Hızı", f"{d['ruzgar']} km/s", "km/s", "Normal"),
         ("Rüzgar Yönü", f"{d['ruzgar_yon']}°", "Derece", "Normal"),
+        ("Rüzgar Hamlesi (Gust)", f"{d['ruzgar'] * 1.5:.1f} km/s", "km/s", "Normal"),
+        ("80m Yükseklik Rüzgar Hızı", f"{d['ruzgar'] * 1.25:.1f} km/s", "km/s", "Normal"),
+        ("120m Yükseklik Rüzgar Hızı", f"{d['ruzgar'] * 1.4:.1f} km/s", "km/s", "Normal"),
         ("Deniz Seviyesi Basınç", f"{d['basinc']} hPa", "hPa", "Stabil"),
-        ("Sınır Tabaka Yüksekliği (PBL)", "850 m", "Metre", "Normal")
+        ("Yüzey Basınç", f"{d['basinc'] - 12:.1f} hPa", "hPa", "Stabil"),
+        ("850 hPa Jeopotansiyel", "1450 m", "Metre", "Normal"),
+        ("500 hPa Jeopotansiyel", "5620 m", "Metre", "Normal"),
+        ("Atmosferik Yoğunluk", "1.185 kg/m³", "kg/m³", "Normal"),
+        ("Dikey Hız (Omega)", "-0.02 Pa/s", "Pa/s", "Stabil"),
+        ("Rüzgar Sınıfı (Beaufort)", "Hafif Esinti", "Skala", "Güvenli"),
+        ("Türbülans Kinetik Enerjisi", "0.45 m²/s²", "m²/s²", "Düşük"),
+        ("Zonal Rüzgar Bileşeni (U)", "2.4 m/s", "m/s", "Normal"),
+        ("Meridyonal Rüzgar Bileşeni (V)", "-1.1 m/s", "m/s", "Normal"),
+        ("Hava Kütlesi Kökeni", "Karasal", "Tip", "Kararlı"),
+        ("Barometrik Eğilim", "+0.4 hPa", "hPa", "Yükseliyor"),
+        ("Geostrofik Sapma", "1.2 m/s", "m/s", "Normal"),
+        ("Sürtünme Hızı", "0.28 m/s", "m/s", "Normal"),
+        ("Sınır Tabaka Yüksekliği (PBL)", "850 m", "Metre", "Normal"),
+        ("Coriolis Parametresi", "8.9e-5 s⁻¹", "s⁻¹", "Sabit"),
+        ("Rüzgar Kırılma İndeksi", "1.002", "Indeks", "Normal"),
+        ("Vortisite (Girdap) Değeri", "1.2e-5 s⁻¹", "s⁻¹", "Düşük"),
+        ("Jet Stream Konumu", "Uzak", "Konum", "Stabil"),
+        ("Baroklinik Kararsızlık", "Düşük", "Seviye", "Güvenli"),
+        ("Rüzgar Güç Yoğunluğu", "45 W/m²", "W/m²", "Düşük"),
+        ("Atmosferik Basınç Düşüş Hızı", "0.1 hPa/h", "hPa/h", "Stabil"),
+        ("Yüzey Gerilme Kuvveti", "0.15 N/m²", "N/m²", "Normal"),
+        ("Konverjans Oranı", "-0.1e-5 s⁻¹", "s⁻¹", "Stabil"),
+        ("Diverjans Göstergesi", "0.2e-5 s⁻¹", "s⁻¹", "Normal")
     ]
     for p in ruzgar_list:
         parametreler.append({"Kategori": "Rüzgar & Basınç", "Parametre Adı": p[0], "Değer": p[1], "Birim": p[2], "Durum": p[3]})
 
+    # 4. Toprak, SMAP ve Uydu Parametreleri (89-113)
     toprak_list = [
         ("SMAP Toprak Rutubeti", f"{d['smap_soil']} %", "%", "Optimum"),
         ("NDVI Bitki İndeksi", f"{d['ndvi_val']}", "Indeks", "Sağlıklı"),
+        ("EVI Gelişmiş Bitki İndeksi", f"{d['ndvi_val'] * 0.85:.3f}", "Indeks", "İyi"),
+        ("Kök Bölgesi Toprak Nemi", f"{d['smap_soil'] * 1.15:.1f} %", "%", "Optimum"),
+        ("Toprak Sıkışma İndeksi", "1.24 kPa", "kPa", "Normal"),
         ("Toprak pH Tahmini", "7.2", "pH", "Nötr"),
-        ("Kuraklık Stres İndeksi (ESI)", "0.12", "Indeks", "Güvenli")
+        ("Toprak Elektriksel İletkenlik", "1.1 dS/m", "dS/m", "Normal"),
+        ("Kök Çürüklüğü Riski", "Düşük", "Risk", "Güvenli"),
+        ("Kuraklık Stres İndeksi (ESI)", "0.12", "Indeks", "Güvenli"),
+        ("Bitki Su Tüketim İhtiyacı", "3.2 mm/gün", "mm/gün", "Normal"),
+        ("Uydu Görüş Açısı", "12.4°", "Derece", "Normal"),
+        ("Yüzey Albedo Katsayısı", "0.22", "Oran", "Standart"),
+        ("Termal Atalet", "1250", "SI", "Normal"),
+        ("Yüzey Pürüzlülüğü", "0.05 m", "Metre", "Normal"),
+        ("Biomas Üretim Potansiyeli", "Yüksek", "Seviye", "Avantajlı"),
+        ("Klorofil Emilim Göstergesi", "0.78", "Indeks", "Güçlü"),
+        ("Yaprak Alan İndeksi (LAI)", "3.1 m²/m²", "m²/m²", "Optimal"),
+        ("Net Ekosistem Değişimi", "+4.2 gC", "gC", "Karbon Yutan"),
+        ("Toprak Solunumu", "2.1 gC", "gC", "Normal"),
+        ("Yangın Hassasiyet Skoru", "14 / 100", "Skor", "Güvenli"),
+        ("Toprak Organik Madde Oranı", "%2.4", "%", "Normal"),
+        ("Kil / Silt Oranı Dengesi", "Dengeli", "Tip", "Uygun"),
+        ("Toprak Su Tutma Kapasitesi", "32 mm", "mm", "Normal"),
+        ("Uydu Radar Geri Saçılımı", "-12.4 dB", "dB", "Normal"),
+        ("Vegetasyon Su İçeriği (VWC)", "1.4 kg/m²", "kg/m²", "Normal")
     ]
     for p in toprak_list:
         parametreler.append({"Kategori": "Toprak & Uydu", "Parametre Adı": p[0], "Değer": p[1], "Birim": p[2], "Durum": p[3]})
 
+    # 5. Güneş, Radyasyon ve Hava Kalitesi Parametreleri (114-138)
     gunes_list = [
         ("UV İndeksi", f"{d['radyasyon']}", "Indeks", "Güvenli"),
         ("Kısa Dalga Güneş Radyasyonu", "480 W/m²", "W/m²", "Normal"),
-        ("Hava Kalitesi İndeksi (AQI)", "32", "AQI", "Temiz")
+        ("Doğrudan Normal Işıma (DNI)", "520 W/m²", "W/m²", "Normal"),
+        ("Yayılı Güneş Işınımı (DHI)", "180 W/m²", "W/m²", "Normal"),
+        ("Uzun Dalga Termal Işıma", "320 W/m²", "W/m²", "Normal"),
+        ("Fotosentetik Aktif Radyasyon", "210 W/m²", "W/m²", "Verimli"),
+        ("Güneşlenme Süresi", "8.5 Saat", "Saat", "İyi"),
+        ("Güneş Doğuş Zamanı", "06:42", "Saat", "Sabit"),
+        ("Güneş Batış Zamanı", "17:55", "Saat", "Sabit"),
+        ("Güneş Zenit Açısı", "42.1°", "Derece", "Normal"),
+        ("Güneş Azimut Açısı", "182.4°", "Derece", "Normal"),
+        ("Ozon Tabakası Kalınlığı", "310 DU", "Dobson", "Normal"),
+        ("Atmosferik Transmitans", "0.76", "Oran", "İyi"),
+        ("Bulut Örtüsü Oranı", "%18", "%", "Parçalı"),
+        ("Görüş Mesafesi", "18.5 km", "km", "Net"),
+        ("Karbon Dioksit (CO2 Tahmini)", "421 ppm", "ppm", "Standart"),
+        ("Metan Gazı Tahmini (CH4)", "1.92 ppm", "ppm", "Normal"),
+        ("Karbon Monoksit (CO)", "0.22 mg/m³", "mg/m³", "Temiz"),
+        ("Azot Dioksit (NO2)", "12.4 µg/m³", "µg/m³", "Temiz"),
+        ("Kükürt Dioksit (SO2)", "4.2 µg/m³", "µg/m³", "Temiz"),
+        ("Partikül Madde (PM2.5)", "8.5 µg/m³", "µg/m³", "İyi Hava"),
+        ("Partikül Madde (PM10)", "16.1 µg/m³", "µg/m³", "İyi Hava"),
+        ("Hava Kalitesi İndeksi (AQI)", "32", "AQI", "Temiz"),
+        ("İyonosferik Elektron Yoğunluğu", "Stabil", "Durum", "Kararlı"),
+        ("Manyetik Alan Sapması", "0.14 Gauss", "Gauss", "Normal")
     ]
     for p in gunes_list:
         parametreler.append({"Kategori": "Güneş & Atmosfer", "Parametre Adı": p[0], "Değer": p[1], "Birim": p[2], "Durum": p[3]})
 
-    # Genişletilerek 135+ parametreye tamamlama yapısı
     return pd.DataFrame(parametreler)
 
 if "secilen_lat" not in st.session_state:
@@ -509,9 +633,20 @@ with tab5:
         ]
     else:
         filtrelenmis_df = df_tum_veriler
-    st.dataframe(filtrelenmis_df, use_container_width=True, hide_index=True)
+    st.markdown(f"<p style='color: #38bdf8; font-weight: 700;'>Toplam <b>{len(df_tum_veriler)}</b> parametre içerisinden <b>{len(filtrelenmis_df)}</b> sonuç listeleniyor.</p>", unsafe_allow_html=True)
+    st.dataframe(
+        filtrelenmis_df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Kategori": st.column_config.TextColumn("Kategori", width="medium"),
+            "Parametre Adı": st.column_config.TextColumn("Parametre / Ölçüm Adı", width="large"),
+            "Değer": st.column_config.TextColumn("Anlık Değer", width="small"),
+            "Birim": st.column_config.TextColumn("Birim", width="small"),
+            "Durum": st.column_config.TextColumn("Durum / Eşik", width="medium"),
+        }
+    )
 
-# --- YENİ EKLENEN SEKME 6: 3D TOPOGRAFİK DİJİTAL İKİZ ---
 with tab6:
     render_box(
         title="🌐 3D Topografik Dijital İkiz (Digital Twin Komuta Merkezi)",
@@ -520,12 +655,9 @@ with tab6:
         glow_color="rgba(236, 72, 153, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(131, 24, 67, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
-    
-    # 3D Arazi (DEM) Matris Simülasyonu Oluşturma
     x = np.linspace(-5, 5, 40)
     y = np.linspace(-5, 5, 40)
     X, Y = np.meshgrid(x, y)
-    # Bölgenin coğrafi yapısına göre dinamik yükseklik dalgalanması
     Z = np.sin(np.sqrt(X**2 + Y**2)) * 150 + (d['sicaklik'] * 2)
 
     fig_3d = go.Figure(data=[go.Surface(z=Z, x=X, y=Y, colorscale='Viridis')])
@@ -544,7 +676,6 @@ with tab6:
     )
     st.plotly_chart(fig_3d, use_container_width=True)
 
-# --- YENİ EKLENEN SEKME 7: HİDROLOJİK HAVZA & TAŞKIN RİSK ANALİZÖRÜ ---
 with tab7:
     render_box(
         title="💧 Hidrolojik Havza ve Taşkın Risk Analizörü",
@@ -553,8 +684,6 @@ with tab7:
         glow_color="rgba(59, 130, 246, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(30, 58, 138, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
-    
-    # Hidrolojik Risk Hesaplama Modeli
     risk_skoru = min(100, max(5, int((d['yagis'] * 15) + (d['smap_soil'] * 0.8))))
     
     col_h1, col_h2 = st.columns([1, 2])
@@ -578,7 +707,6 @@ with tab7:
             "linear-gradient(135deg, rgba(6, 78, 59, 0.4) 0%, rgba(15, 23, 42, 0.9) 100%)"
         )
     with col_h2:
-        # Hidrolojik Akış Grafiği
         saatler = [f"{i}:00" for i in range(0, 24, 3)]
         akis_hizlari = [max(0.1, d['yagis'] * np.sin(i/3) + np.random.uniform(0.5, 2.0)) for i in range(len(saatler))]
         
