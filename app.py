@@ -62,92 +62,93 @@ def konum_bul(isim):
         logger.error(f"Konum arama hatası: {str(e)}")
     return None, None
 
-# --- DİNAMİK RENK DEĞİŞTİREN ULTRA GLASSMORPHISM CSS ---
+# --- DİNAMİK RENDER EDEN RGB ANİMASYONLU GLASSMORPHISM CSS ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
 
-    @keyframes neonCycle {
-        0% { border-color: rgba(243, 139, 168, 0.45); box-shadow: 0 0 100px rgba(243, 139, 168, 0.22), inset 0 0 30px rgba(203, 166, 247, 0.15); }
-        33% { border-color: rgba(137, 180, 250, 0.45); box-shadow: 0 0 100px rgba(137, 180, 250, 0.22), inset 0 0 30px rgba(166, 227, 161, 0.15); }
-        66% { border-color: rgba(249, 226, 175, 0.45); box-shadow: 0 0 100px rgba(249, 226, 175, 0.22), inset 0 0 30px rgba(243, 139, 168, 0.15); }
-        100% { border-color: rgba(243, 139, 168, 0.45); box-shadow: 0 0 100px rgba(243, 139, 168, 0.22), inset 0 0 30px rgba(203, 166, 247, 0.15); }
+    @keyframes rgbGlow {
+        0% { 
+            border-color: rgba(255, 0, 128, 0.9) !important; 
+            box-shadow: 0 0 60px rgba(255, 0, 128, 0.5), inset 0 0 25px rgba(255, 0, 128, 0.3) !important; 
+        }
+        33% { 
+            border-color: rgba(0, 255, 255, 0.9) !important; 
+            box-shadow: 0 0 60px rgba(0, 255, 255, 0.5), inset 0 0 25px rgba(0, 255, 255, 0.3) !important; 
+        }
+        66% { 
+            border-color: rgba(168, 85, 247, 0.9) !important; 
+            box-shadow: 0 0 60px rgba(168, 85, 247, 0.5), inset 0 0 25px rgba(168, 85, 247, 0.3) !important; 
+        }
+        100% { 
+            border-color: rgba(255, 0, 128, 0.9) !important; 
+            box-shadow: 0 0 60px rgba(255, 0, 128, 0.5), inset 0 0 25px rgba(255, 0, 128, 0.3) !important; 
+        }
     }
 
-    @keyframes bgGlow {
-        0% { background: radial-gradient(circle at 50% 0%, #181825 0%, #11111b 50%, #050508 100%); }
-        50% { background: radial-gradient(circle at 50% 0%, #1e1e2e 0%, #11111b 50%, #080510 100%); }
-        100% { background: radial-gradient(circle at 50% 0%, #181825 0%, #11111b 50%, #050508 100%); }
+    @keyframes bgCycle {
+        0% { background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0f172a 50%, #000000 100%); }
+        50% { background: radial-gradient(circle at 50% 0%, #0f172a 0%, #181825 50%, #030712 100%); }
+        100% { background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0f172a 50%, #000000 100%); }
     }
 
     .stApp {
-        animation: bgGlow 15s infinite ease-in-out !important;
-        color: #cdd6f4 !important;
+        animation: bgCycle 12s infinite ease-in-out !important;
+        color: #f8fafc !important;
         font-family: 'Plus Jakarta Sans', sans-serif !important;
     }
     
     .block-container {
-        background: rgba(17, 17, 27, 0.92) !important;
+        background: rgba(15, 23, 42, 0.94) !important;
         backdrop-filter: blur(60px) !important;
         -webkit-backdrop-filter: blur(60px) !important;
         border-radius: 40px !important;
         padding: 2.8rem !important;
         margin-top: 1.2rem !important;
-        border: 2px solid rgba(243, 139, 168, 0.4) !important;
-        animation: neonCycle 12s infinite ease-in-out !important;
+        border: 3px solid rgba(255, 0, 128, 0.9) !important;
+        animation: rgbGlow 6s infinite linear !important;
     }
 
     .stButton>button {
-        background: linear-gradient(135deg, #f38ba8 0%, #cba6f7 100%) !important;
-        color: #11111b !important;
+        background: linear-gradient(135deg, #0284c7 0%, #7c3aed 100%) !important;
+        color: white !important;
         border-radius: 20px !important;
         border: 2px solid rgba(255, 255, 255, 0.35) !important;
         padding: 0.75rem 2rem !important;
         font-weight: 800 !important;
-        box-shadow: 0 10px 35px rgba(243, 139, 168, 0.45), 0 0 30px rgba(203, 166, 247, 0.35) !important;
+        box-shadow: 0 10px 35px rgba(124, 58, 237, 0.55), 0 0 30px rgba(2, 132, 199, 0.45) !important;
         transition: all 0.35s ease;
     }
 
     .stButton>button:hover {
         transform: translateY(-3px) scale(1.02);
-        box-shadow: 0 15px 45px rgba(243, 139, 168, 0.7), 0 0 40px rgba(203, 166, 247, 0.7) !important;
+        box-shadow: 0 15px 45px rgba(2, 132, 199, 0.75), 0 0 40px rgba(168, 85, 247, 0.75) !important;
     }
 
     .stTabs [data-baseweb="tab-list"] {
         gap: 12px;
-        background: rgba(17, 17, 27, 0.95);
+        background: rgba(15, 23, 42, 0.95);
         padding: 12px;
         border-radius: 60px;
-        border: 2px solid rgba(203, 166, 247, 0.4);
+        border: 2px solid rgba(168, 85, 247, 0.45);
         backdrop-filter: blur(30px);
     }
 
     .stTabs [data-baseweb="tab"] {
-        background: linear-gradient(135deg, rgba(30, 30, 46, 0.75) 0%, rgba(17, 17, 27, 0.85) 100%);
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.85) 100%);
         border-radius: 50px;
-        color: #bac2de;
+        color: #cbd5e1;
         font-weight: 700;
         padding: 10px 22px;
-        border: 1px solid rgba(243, 139, 168, 0.2);
+        border: 1px solid rgba(56, 189, 248, 0.2);
     }
 
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, rgba(243, 139, 168, 0.85) 0%, rgba(203, 166, 247, 0.85) 100%) !important;
-        color: #11111b !important;
-        border-color: rgba(243, 139, 168, 0.9) !important;
-        box-shadow: 0 0 30px rgba(243, 139, 168, 0.6) !important;
+        background: linear-gradient(135deg, rgba(2, 132, 199, 0.8) 0%, rgba(168, 85, 247, 0.8) 100%) !important;
+        color: #ffffff !important;
+        border-color: rgba(56, 189, 248, 0.9) !important;
+        box-shadow: 0 0 30px rgba(2, 132, 199, 0.65) !important;
         position: relative;
-    }
-
-    .stTabs [aria-selected="true"]::after {
-        content: "";
-        position: absolute;
-        left: 18px;
-        right: 18px;
-        bottom: 3px;
-        height: 2px;
-        background: rgba(17, 17, 27, 0.85);
-        border-radius: 2px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -165,7 +166,7 @@ def render_box(title, subtitle, border_color, glow_color, bg_gradient):
         box-shadow: 0 20px 45px rgba(0,0,0,0.7), 0 0 40px {glow_color};
     ">
         <h2 style="color: #ffffff; margin-top: 0; font-size: 1.35rem; font-weight: 800; text-shadow: 0 0 20px {glow_color};">{title}</h2>
-        <p style="color: #bac2de; margin-bottom: 0; font-size: 1rem; font-weight: 600; line-height: 1.45;">{subtitle}</p>
+        <p style="color: #cbd5e1; margin-bottom: 0; font-size: 1rem; font-weight: 600; line-height: 1.45;">{subtitle}</p>
     </div>
     """
     st.markdown(html_content, unsafe_allow_html=True)
@@ -182,9 +183,9 @@ def render_metric_card(title, value, caption, border_color, text_color, glow_col
         margin-bottom: 1.2rem;
         box-shadow: 0 15px 35px rgba(0,0,0,0.6), 0 0 30px {glow_color};
     ">
-        <div style="color: #a6adc8; font-size: 0.88rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase;">{title}</div>
+        <div style="color: #94a3b8; font-size: 0.88rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase;">{title}</div>
         <div style="color: {text_color}; font-size: 1.9rem; font-weight: 900; text-shadow: 0 0 25px {text_color}; margin-bottom: 8px;">{value}</div>
-        <div style="color: #cdd6f4; font-size: 0.85rem; opacity: 0.9; font-weight: 600;">{caption}</div>
+        <div style="color: #e2e8f0; font-size: 0.85rem; opacity: 0.9; font-weight: 600;">{caption}</div>
     </div>
     """
     st.markdown(html_content, unsafe_allow_html=True)
@@ -196,7 +197,6 @@ def gercek_veri_cek(lat, lon, secilen_tarih):
     gun_farki = (secilen_tarih - bugun).days
 
     if gun_farki < 0:
-        # Geçmiş tarih için Open-Meteo Archive API (hourly veriler üzerinden gün ortası / ortalama değer çekilir)
         tarih_str = secilen_tarih.strftime("%Y-%m-%d")
         url = f"https://archive-api.open-meteo.com/v1/archive?latitude={round(lat, 4)}&longitude={round(lon, 4)}&start_date={tarih_str}&end_date={tarih_str}&hourly=temperature_2m,relative_humidity_2m,precipitation,surface_pressure,wind_speed_10m,wind_direction_10m"
         try:
@@ -224,7 +224,6 @@ def gercek_veri_cek(lat, lon, secilen_tarih):
         except Exception as e:
             logger.error(f"Arşiv veri çekme hatası: {str(e)}")
     else:
-        # Bugün veya gelecek tahmin API'si
         url = f"https://api.open-meteo.com/v1/forecast?latitude={round(lat, 4)}&longitude={round(lon, 4)}&current=temperature_2m,relative_humidity_2m,precipitation,rain,wind_speed_10m,wind_direction_10m,surface_pressure&models=ecmwf_ifs025"
         try:
             response = requests.get(url, timeout=6)
@@ -465,14 +464,14 @@ if "arduino_ser" not in st.session_state:
 # --- SIDEBAR ---
 with st.sidebar:
     st.markdown("### 🔌 Tablet / Web Serial Bağlantısı")
-    st.markdown("<p style='font-size:0.85rem; color:#a6adc8;'>Tabletten OTG ile bağlı Arduino'ya doğrudan tarayıcı üzerinden bağlanın:</p>", unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.85rem; color:#94a3b8;'>Tabletten OTG ile bağlı Arduino'ya doğrudan tarayıcı üzerinden bağlanın:</p>", unsafe_allow_html=True)
     
     components.html("""
     <div style="padding: 5px;">
-        <button id="connectSerial" style="background: linear-gradient(135deg, #f38ba8 0%, #cba6f7 100%); color: #11111b; border: none; padding: 10px 15px; border-radius: 12px; font-weight: bold; cursor: pointer; width: 100%; font-family: sans-serif; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+        <button id="connectSerial" style="background: linear-gradient(135deg, #0284c7 0%, #7c3aed 100%); color: white; border: none; padding: 10px 15px; border-radius: 12px; font-weight: bold; cursor: pointer; width: 100%; font-family: sans-serif; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
             📱 USB / Arduino'ya Bağlan
         </button>
-        <p id="status" style="color: #f38ba8; font-size: 0.8rem; margin-top: 8px; text-align: center; font-family: sans-serif;">Durum: Bağlı Değil</p>
+        <p id="status" style="color: #38bdf8; font-size: 0.8rem; margin-top: 8px; text-align: center; font-family: sans-serif;">Durum: Bağlı Değil</p>
     </div>
     <script>
         let port;
@@ -488,10 +487,10 @@ with st.sidebar:
                 const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
                 writer = textEncoder.writable.getWriter();
                 status.innerText = "Durum: Bağlandı! ✅";
-                status.style.color = "#a6e3a1";
+                status.style.color = "#4ade80";
             } catch (err) {
                 status.innerText = "Bağlantı Hatası / İptal";
-                status.style.color = "#f38ba8";
+                status.style.color = "#f87171";
                 console.error(err);
             }
         });
@@ -551,9 +550,9 @@ elif d['gun_farki'] > 0:
 render_box(
     title=f"📍 Aktif Gözlem Noktası ve Zaman Modu: {zaman_aciklama}",
     subtitle=f"🎯 Konum: <b>{st.session_state.mekan_adi}</b><br>📌 Koordinat: <b>{st.session_state.secilen_lat:.4f}° N, {st.session_state.secilen_lon:.4f}° E</b> | Seçilen Tarih: <b>{secilen_tarih.strftime('%d.%m.%Y')}</b>",
-    border_color="rgba(203, 166, 247, 0.75)",
-    glow_color="rgba(203, 166, 247, 0.55)",
-    bg_gradient="linear-gradient(135deg, rgba(88, 91, 112, 0.45) 0%, rgba(17, 17, 27, 0.9) 100%)"
+    border_color="rgba(168, 85, 247, 0.75)",
+    glow_color="rgba(168, 85, 247, 0.55)",
+    bg_gradient="linear-gradient(135deg, rgba(49, 46, 129, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
 )
 
 # --- 5 SEKME (TABS) ---
@@ -569,9 +568,9 @@ with tab1:
     render_box(
         title="🌍 NASA Space Apps Challenge - Lightning Flora Küresel Gözlemevi",
         subtitle=f"Seçilen tarih ({secilen_tarih.strftime('%d.%m.%Y')}) anlık gerçek sıcaklığı: <b>{d['sicaklik']} °C</b> | Rüzgar: <b>{d['ruzgar']} km/s</b>.",
-        border_color="rgba(166, 227, 161, 0.75)",
-        glow_color="rgba(166, 227, 161, 0.55)",
-        bg_gradient="linear-gradient(135deg, rgba(64, 160, 112, 0.45) 0%, rgba(17, 17, 27, 0.9) 100%)"
+        border_color="rgba(16, 185, 129, 0.75)",
+        glow_color="rgba(16, 185, 129, 0.55)",
+        bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
 
     col_l1, col_l2 = st.columns([1, 2])
@@ -596,11 +595,11 @@ with tab1:
     windy_embed_url = f"https://embed.windy.com/embed2.html?lat={lat_val}&lon={lon_val}&zoom=6&level=surface&overlay={aktif_overlay}&menu=&message=&marker=&pressure=&calendar=now&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
 
     components.html(f"""
-    <div style="position: relative; width: 100%; height: 560px; border-radius: 24px; overflow: hidden; border: 3px solid rgba(243, 139, 168, 0.4); box-shadow: 0 0 40px rgba(243, 139, 168, 0.25);">
-        <div style="position: absolute; top: -1px; left: 50%; transform: translateX(-50%); width: 300px; height: 48px; background: #11111b; border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; z-index: 1000; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(243, 139, 168, 0.5); border-top: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+    <div style="position: relative; width: 100%; height: 560px; border-radius: 24px; overflow: hidden; border: 3px solid rgba(56, 189, 248, 0.4); box-shadow: 0 0 40px rgba(56, 189, 248, 0.25);">
+        <div style="position: absolute; top: -1px; left: 50%; transform: translateX(-50%); width: 300px; height: 48px; background: #0f172a; border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; z-index: 1000; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(56, 189, 248, 0.5); border-top: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
             <div style="display: flex; align-items: center; gap: 9px;">
-                <div style="width: 8px; height: 8px; background: #f38ba8; border-radius: 50%; box-shadow: 0 0 8px #f38ba8;"></div>
-                <span style="color: #f38ba8; font-weight: 800; font-size: 0.85rem; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.7px;">NASA TELEMETRY</span>
+                <div style="width: 8px; height: 8px; background: #38bdf8; border-radius: 50%; box-shadow: 0 0 8px #38bdf8;"></div>
+                <span style="color: #38bdf8; font-weight: 800; font-size: 0.85rem; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.7px;">NASA TELEMETRY</span>
             </div>
         </div>        
         <iframe src="{windy_embed_url}" width="100%" height="560px" style="border:none;"></iframe>
@@ -611,23 +610,23 @@ with tab2:
     render_box(
         title=f"📊 {secilen_tarih.strftime('%d.%m.%Y')} Tarihli Gerçek Veri Trendleri",
         subtitle=f"Seçilen Koordinat: {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}.",
-        border_color="rgba(243, 139, 168, 0.75)",
-        glow_color="rgba(243, 139, 168, 0.55)",
-        bg_gradient="linear-gradient(135deg, rgba(243, 139, 168, 0.25) 0%, rgba(17, 17, 27, 0.9) 100%)"
+        border_color="rgba(56, 189, 248, 0.75)",
+        glow_color="rgba(56, 189, 248, 0.55)",
+        bg_gradient="linear-gradient(135deg, rgba(14, 116, 144, 0.45) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        render_metric_card("1️⃣ Sıcaklık", f"{d['sicaklik']} °C", "Seçilen tarih sıcaklığı", "rgba(243, 139, 168, 0.75)", "#f38ba8", "rgba(243, 139, 168, 0.45)", "linear-gradient(135deg, rgba(243, 139, 168, 0.25) 0%, rgba(17, 17, 27, 0.9) 100%)")
+        render_metric_card("1️⃣ Sıcaklık", f"{d['sicaklik']} °C", "Seçilen tarih sıcaklığı", "rgba(56, 189, 248, 0.75)", "#38bdf8", "rgba(56, 189, 248, 0.45)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c2:
-        render_metric_card("2️⃣ Rüzgar", f"{d['ruzgar']} km/s", f"Yön: {d['ruzgar_yon']}°", "rgba(166, 227, 161, 0.75)", "#a6e3a1", "rgba(166, 227, 161, 0.45)", "linear-gradient(135deg, rgba(166, 227, 161, 0.25) 0%, rgba(17, 17, 27, 0.9) 100%)")
+        render_metric_card("2️⃣ Rüzgar", f"{d['ruzgar']} km/s", f"Yön: {d['ruzgar_yon']}°", "rgba(16, 185, 129, 0.75)", "#34d399", "rgba(16, 185, 129, 0.45)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c3:
-        render_metric_card("3️⃣ NDVI", f"{d['ndvi_val']}", "Bitki Örtüsü İndeksi", "rgba(249, 226, 175, 0.75)", "#f9e2af", "rgba(249, 226, 175, 0.45)", "linear-gradient(135deg, rgba(249, 226, 175, 0.25) 0%, rgba(17, 17, 27, 0.9) 100%)")
+        render_metric_card("3️⃣ NDVI", f"{d['ndvi_val']}", "Bitki Örtüsü İndeksi", "rgba(245, 158, 11, 0.75)", "#fbbf24", "rgba(245, 158, 11, 0.45)", "linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c4:
-        render_metric_card("4️⃣ Basınç", f"{d['basinc']} hPa", "Deniz seviyesi basınç", "rgba(203, 166, 247, 0.75)", "#cba6f7", "rgba(203, 166, 247, 0.45)", "linear-gradient(135deg, rgba(203, 166, 247, 0.25) 0%, rgba(17, 17, 27, 0.9) 100%)")
+        render_metric_card("4️⃣ Basınç", f"{d['basinc']} hPa", "Deniz seviyesi basınç", "rgba(168, 85, 247, 0.75)", "#c084fc", "rgba(168, 85, 247, 0.45)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
 
     df_trend = zaman_serisi_cek(st.session_state.secilen_lat, st.session_state.secilen_lon, secilen_tarih)
     fig_temp = px.line(df_trend, x="Tarih", y="Sıcaklık (°C)", title=f"{secilen_tarih.strftime('%d.%m.%Y')} Odaklı 30 Günlük Sıcaklık Trendi", template="plotly_dark")
-    fig_temp.update_traces(line=dict(color="#f38ba8", width=3))
+    fig_temp.update_traces(line=dict(color="#38bdf8", width=3))
     fig_temp.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig_temp, use_container_width=True)
 
@@ -635,14 +634,14 @@ with tab3:
     render_box(
         title="🚨 Yapay Zeka Risk ve Alarm Analizi",
         subtitle=f"Seçilen Tarih: {secilen_tarih.strftime('%d.%m.%Y')} | Koordinat: {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}",
-        border_color="rgba(166, 227, 161, 0.75)",
-        glow_color="rgba(166, 227, 161, 0.45)",
-        bg_gradient="linear-gradient(135deg, rgba(64, 160, 112, 0.3) 0%, rgba(17, 17, 27, 0.9) 100%)"
+        border_color="rgba(34, 197, 94, 0.75)",
+        glow_color="rgba(34, 197, 94, 0.45)",
+        bg_gradient="linear-gradient(135deg, rgba(20, 83, 45, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     st.markdown(f"""
-    <div style="background: rgba(17, 17, 27, 0.85); backdrop-filter: blur(25px); padding: 2rem; border-radius: 28px; border: 2px solid rgba(166, 227, 161, 0.5); box-shadow: 0 0 35px rgba(166, 227, 161, 0.25);">
-        <h3 style="color: #a6e3a1; margin-top: 0; font-weight: 800; text-shadow: 0 0 15px rgba(166, 227, 161, 0.5);">🟢 Ekosistem Sağlık Raporu ({secilen_tarih.strftime('%d.%m.%Y')})</h3>
-        <p style="color: #cdd6f4; font-size: 1.05rem; line-height: 1.6; font-weight: 500;">
+    <div style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(25px); padding: 2rem; border-radius: 28px; border: 2px solid rgba(34, 197, 94, 0.5); box-shadow: 0 0 35px rgba(34, 197, 94, 0.25);">
+        <h3 style="color: #4ade80; margin-top: 0; font-weight: 800; text-shadow: 0 0 15px rgba(74, 222, 128, 0.5);">🟢 Ekosistem Sağlık Raporu ({secilen_tarih.strftime('%d.%m.%Y')})</h3>
+        <p style="color: #e2e8f0; font-size: 1.05rem; line-height: 1.6; font-weight: 500;">
             Seçilen tarih için nem oranı %{d['nem']} ve toprak rutubeti (SMAP) %{d['smap_soil']} olarak analiz edilmiştir. Belirtilen gün için ekosistem dengesi stabil seyretmektedir.
         </p>
     </div>
@@ -652,9 +651,9 @@ with tab4:
     render_box(
         title="⚖️ Bölgesel Karşılaştırma Analizi",
         subtitle=f"Seçilen Tarih: {secilen_tarih.strftime('%d.%m.%Y')} itibarıyla iki farklı bölgenin eş zamanlı karşılaştırması.",
-        border_color="rgba(203, 166, 247, 0.75)",
-        glow_color="rgba(203, 166, 247, 0.55)",
-        bg_gradient="linear-gradient(135deg, rgba(137, 180, 250, 0.3) 0%, rgba(17, 17, 27, 0.9) 100%)"
+        border_color="rgba(168, 85, 247, 0.75)",
+        glow_color="rgba(168, 85, 247, 0.55)",
+        bg_gradient="linear-gradient(135deg, rgba(76, 29, 149, 0.45) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     c_b1, c_b2 = st.columns(2)
     with c_b1:
@@ -673,17 +672,17 @@ with tab4:
 
     c_res1, c_res2 = st.columns(2)
     with c_res1:
-        render_metric_card(f"📍 {yer_1}", f"{d1['sicaklik']} °C", f"Nem: %{d1['nem']} | Rüzgar: {d1['ruzgar']} km/s", "rgba(243, 139, 168, 0.75)", "#f38ba8", "rgba(243, 139, 168, 0.45)", "linear-gradient(135deg, rgba(243, 139, 168, 0.25) 0%, rgba(17, 17, 27, 0.9) 100%)")
+        render_metric_card(f"📍 {yer_1}", f"{d1['sicaklik']} °C", f"Nem: %{d1['nem']} | Rüzgar: {d1['ruzgar']} km/s", "rgba(56, 189, 248, 0.75)", "#38bdf8", "rgba(56, 189, 248, 0.45)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c_res2:
-        render_metric_card(f"📍 {yer_2}", f"{d2['sicaklik']} °C", f"Nem: %{d2['nem']} | Rüzgar: {d2['ruzgar']} km/s", "rgba(203, 166, 247, 0.75)", "#cba6f7", "rgba(203, 166, 247, 0.45)", "linear-gradient(135deg, rgba(203, 166, 247, 0.25) 0%, rgba(17, 17, 27, 0.9) 100%)")
+        render_metric_card(f"📍 {yer_2}", f"{d2['sicaklik']} °C", f"Nem: %{d2['nem']} | Rüzgar: {d2['ruzgar']} km/s", "rgba(168, 85, 247, 0.75)", "#c084fc", "rgba(168, 85, 247, 0.45)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
 
 with tab5:
     render_box(
         title=f"🔍 135+ Kapsamlı Veri Havuzu ({secilen_tarih.strftime('%d.%m.%Y')})",
         subtitle=f"Seçilen Konum: <b>{st.session_state.mekan_adi}</b> ve Seçilen Tarih için üretilen 135+ parametre.",
-        border_color="rgba(137, 180, 250, 0.75)",
-        glow_color="rgba(137, 180, 250, 0.55)",
-        bg_gradient="linear-gradient(135deg, rgba(137, 180, 250, 0.3) 0%, rgba(17, 17, 27, 0.9) 100%)"
+        border_color="rgba(2, 132, 199, 0.75)",
+        glow_color="rgba(2, 132, 199, 0.55)",
+        bg_gradient="linear-gradient(135deg, rgba(2, 132, 199, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     
     veri_arama = st.text_input("🔎 135+ Veri İçinde Ara (Örn: Rüzgar, Nem, Sıcaklık, Toprak, Basınç...):", "", key="data_search_bar")
@@ -699,5 +698,16 @@ with tab5:
     else:
         filtrelenmis_df = df_tum_veriler
 
-    st.markdown(f"<p style='color: #f38ba8; font-weight: 700;'>Seçilen tarih için toplam <b>{len(df_tum_veriler)}</b> parametre içerisinden <b>{len(filtrelenmis_df)}</b> sonuç listeleniyor.</p>", unsafe_allow_html=True)
-    st.dataframe(filtrelenmis_df, use_container_width=True, hide_index=True)
+    st.markdown(f"<p style='color: #38bdf8; font-weight: 700;'>Seçilen tarih için toplam <b>{len(df_tum_veriler)}</b> parametre içerisinden <b>{len(filtrelenmis_df)}</b> sonuç listeleniyor.</p>", unsafe_allow_html=True)
+    st.dataframe(
+        filtrelenmis_df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Kategori": st.column_config.TextColumn("Kategori", width="medium"),
+            "Parametre Adı": st.column_config.TextColumn("Parametre / Ölçüm Adı", width="large"),
+            "Değer": st.column_config.TextColumn("Anlık Değer", width="small"),
+            "Birim": st.column_config.TextColumn("Birim", width="small"),
+            "Durum": st.column_config.TextColumn("Durum / Eşik", width="medium"),
+        }
+    )
