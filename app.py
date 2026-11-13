@@ -93,7 +93,7 @@ def gercek_yukseklik_matrisi(merkez_lat, merkez_lon, grid_boyutu=25, yari_cap_km
         bitis = baslangic + 100
         params = {
             "latitude": ",".join(f"{v:.6f}" for v in lat_duz[baslangic:bitis]),
-            "longitude": ",".join(f"{v:.6f}" for v in lon_duz[baslangic:bitis]),import streamlit as st
+            "longitude": ",".join(f"{v:.6f}" for v in lon_duz[baslangic:bitis]),
         }
 import streamlit.components.v1 as components
 import pandas as pd
