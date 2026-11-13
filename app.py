@@ -62,13 +62,26 @@ def konum_bul(isim):
         logger.error(f"Konum arama hatası: {str(e)}")
     return None, None
 
-# --- ULTRA GLASSMORPHISM CSS ---
+# --- DİNAMİK RENK DEĞİŞTİREN ULTRA GLASSMORPHISM CSS ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
 
+    @keyframes neonCycle {
+        0% { border-color: rgba(243, 139, 168, 0.45); box-shadow: 0 0 100px rgba(243, 139, 168, 0.22), inset 0 0 30px rgba(203, 166, 247, 0.15); }
+        33% { border-color: rgba(137, 180, 250, 0.45); box-shadow: 0 0 100px rgba(137, 180, 250, 0.22), inset 0 0 30px rgba(166, 227, 161, 0.15); }
+        66% { border-color: rgba(249, 226, 175, 0.45); box-shadow: 0 0 100px rgba(249, 226, 175, 0.22), inset 0 0 30px rgba(243, 139, 168, 0.15); }
+        100% { border-color: rgba(243, 139, 168, 0.45); box-shadow: 0 0 100px rgba(243, 139, 168, 0.22), inset 0 0 30px rgba(203, 166, 247, 0.15); }
+    }
+
+    @keyframes bgGlow {
+        0% { background: radial-gradient(circle at 50% 0%, #181825 0%, #11111b 50%, #050508 100%); }
+        50% { background: radial-gradient(circle at 50% 0%, #1e1e2e 0%, #11111b 50%, #080510 100%); }
+        100% { background: radial-gradient(circle at 50% 0%, #181825 0%, #11111b 50%, #050508 100%); }
+    }
+
     .stApp {
-        background: radial-gradient(circle at 50% 0%, #181825 0%, #11111b 50%, #050508 100%) !important;
+        animation: bgGlow 15s infinite ease-in-out !important;
         color: #cdd6f4 !important;
         font-family: 'Plus Jakarta Sans', sans-serif !important;
     }
@@ -80,8 +93,8 @@ st.markdown("""
         border-radius: 40px !important;
         padding: 2.8rem !important;
         margin-top: 1.2rem !important;
-        border: 2px solid rgba(243, 139, 168, 0.35) !important;
-        box-shadow: 0 0 100px rgba(243, 139, 168, 0.18), inset 0 0 30px rgba(203, 166, 247, 0.12) !important;
+        border: 2px solid rgba(243, 139, 168, 0.4) !important;
+        animation: neonCycle 12s infinite ease-in-out !important;
     }
 
     .stButton>button {
@@ -176,34 +189,60 @@ def render_metric_card(title, value, caption, border_color, text_color, glow_col
     """
     st.markdown(html_content, unsafe_allow_html=True)
 
-# --- GERÇEK VERİ ÇEKME MOTORU (OPEN-METEO) ---
+# --- DÜZELTİLMİŞ GERÇEK VERİ ÇEKME MOTORU (ARŞİV & TAHMİN UYUMLU) ---
 @st.cache_data(ttl=600, show_spinner=False)
 def gercek_veri_cek(lat, lon, secilen_tarih):
     bugun = datetime.now().date()
     gun_farki = (secilen_tarih - bugun).days
 
     if gun_farki < 0:
+        # Geçmiş tarih için Open-Meteo Archive API (hourly veriler üzerinden gün ortası / ortalama değer çekilir)
         tarih_str = secilen_tarih.strftime("%Y-%m-%d")
-        url = f"https://archive-api.open-meteo.com/v1/archive?latitude={round(lat, 4)}&longitude={round(lon, 4)}&start_date={tarih_str}&end_date={tarih_str}&current=temperature_2m,relative_humidity_2m,precipitation,surface_pressure,wind_speed_10m,wind_direction_10m"
+        url = f"https://archive-api.open-meteo.com/v1/archive?latitude={round(lat, 4)}&longitude={round(lon, 4)}&start_date={tarih_str}&end_date={tarih_str}&hourly=temperature_2m,relative_humidity_2m,precipitation,surface_pressure,wind_speed_10m,wind_direction_10m"
+        try:
+            response = requests.get(url, timeout=6)
+            if response.status_code == 200:
+                data = response.json()
+                hourly = data.get("hourly", {})
+                temps = hourly.get("temperature_2m", [22.5])
+                hums = hourly.get("relative_humidity_2m", [45.0])
+                precips = hourly.get("precipitation", [0.0])
+                winds = hourly.get("wind_speed_10m", [4.5])
+                wind_dirs = hourly.get("wind_direction_10m", [180.0])
+                pressures = hourly.get("surface_pressure", [1013.0])
+                
+                idx = min(12, len(temps) - 1) if len(temps) > 0 else 0
+                return (
+                    float(temps[idx] if temps[idx] is not None else 22.5),
+                    float(hums[idx] if hums[idx] is not None else 45.0),
+                    float(precips[idx] if precips[idx] is not None else 0.0),
+                    float(winds[idx] if winds[idx] is not None else 4.5),
+                    float(wind_dirs[idx] if wind_dirs[idx] is not None else 180.0),
+                    float(pressures[idx] if pressures[idx] is not None else 1013.0),
+                    gun_farki
+                )
+        except Exception as e:
+            logger.error(f"Arşiv veri çekme hatası: {str(e)}")
     else:
+        # Bugün veya gelecek tahmin API'si
         url = f"https://api.open-meteo.com/v1/forecast?latitude={round(lat, 4)}&longitude={round(lon, 4)}&current=temperature_2m,relative_humidity_2m,precipitation,rain,wind_speed_10m,wind_direction_10m,surface_pressure&models=ecmwf_ifs025"
+        try:
+            response = requests.get(url, timeout=6)
+            if response.status_code == 200:
+                data = response.json()
+                current = data.get("current", {})
+                return (
+                    float(current.get("temperature_2m", 22.5)),
+                    float(current.get("relative_humidity_2m", 45.0)),
+                    float(current.get("precipitation", current.get("rain", 0.0))),
+                    float(current.get("wind_speed_10m", 4.5)),
+                    float(current.get("wind_direction_10m", 180.0)),
+                    float(current.get("surface_pressure", 1013.0)),
+                    gun_farki
+                )
+        except Exception as e:
+            logger.error(f"Tahmin veri çekme hatası: {str(e)}")
 
-    try:
-        response = requests.get(url, timeout=6)
-        if response.status_code == 200:
-            data = response.json()
-            current = data.get("current", {})
-            return (
-                float(current.get("temperature_2m", 22.5)),
-                float(current.get("relative_humidity_2m", 45.0)),
-                float(current.get("precipitation", current.get("rain", 0.0))),
-                float(current.get("wind_speed_10m", 4.5)),
-                float(current.get("wind_direction_10m", 180.0)),
-                float(current.get("surface_pressure", 1013.0)),
-                gun_farki
-            )
-    except Exception as e:
-        logger.error(f"Veri çekme hatası: {str(e)}")
     return 22.5, 45.0, 0.0, 4.5, 180.0, 1013.0, gun_farki
 
 # --- 30 GÜNLÜK ZAMAN SERİSİ ---
@@ -251,7 +290,6 @@ def analiz_uret(lat, lon, secilen_tarih):
 def genis_veri_havuzu_uret(d):
     parametreler = []
     
-    # 1. Sıcaklık ve Termal Parametreler
     temp_list = [
         ("2m Sıcaklık (Anlık)", f"{d['sicaklik']} °C", "°C", "Normal"),
         ("Maksimum Tahmini Sıcaklık", f"{d['sicaklik'] + 3.2:.1f} °C", "°C", "Stabil"),
@@ -282,7 +320,6 @@ def genis_veri_havuzu_uret(d):
     for p in temp_list:
         parametreler.append({"Kategori": "Sıcaklık & Termal", "Parametre Adı": p[0], "Değer": p[1], "Birim": p[2], "Durum": p[3]})
 
-    # 2. Nem, Su Buharı ve Yağış
     nem_list = [
         ("Bağıl Nem (2m)", f"%{d['nem']}", "%", "Optimal"),
         ("Özgül Nem", "8.4 g/kg", "g/kg", "Normal"),
@@ -318,7 +355,6 @@ def genis_veri_havuzu_uret(d):
     for p in nem_list:
         parametreler.append({"Kategori": "Nem & Su Buharı", "Parametre Adı": p[0], "Değer": p[1], "Birim": p[2], "Durum": p[3]})
 
-    # 3. Rüzgar, Basınç ve Dinamikler
     ruzgar_list = [
         ("10m Rüzgar Hızı", f"{d['ruzgar']} km/s", "km/s", "Normal"),
         ("Rüzgar Yönü", f"{d['ruzgar_yon']}°", "Derece", "Normal"),
@@ -354,7 +390,6 @@ def genis_veri_havuzu_uret(d):
     for p in ruzgar_list:
         parametreler.append({"Kategori": "Rüzgar & Basınç", "Parametre Adı": p[0], "Değer": p[1], "Birim": p[2], "Durum": p[3]})
 
-    # 4. Toprak, SMAP ve Uydu
     toprak_list = [
         ("SMAP Toprak Rutubeti", f"{d['smap_soil']} %", "%", "Optimum"),
         ("NDVI Bitki İndeksi", f"{d['ndvi_val']}", "Indeks", "Sağlıklı"),
@@ -385,7 +420,6 @@ def genis_veri_havuzu_uret(d):
     for p in toprak_list:
         parametreler.append({"Kategori": "Toprak & Uydu", "Parametre Adı": p[0], "Değer": p[1], "Birim": p[2], "Durum": p[3]})
 
-    # 5. Güneş, Radyasyon ve Hava Kalitesi
     gunes_list = [
         ("UV İndeksi", f"{d['radyasyon']}", "Indeks", "Güvenli"),
         ("Kısa Dalga Güneş Radyasyonu", "480 W/m²", "W/m²", "Normal"),
@@ -504,6 +538,7 @@ with col_gps:
 with col_date:
     secilen_tarih = st.date_input("📅 Gerçek Veri Tarihi Seçin:", value=datetime.now().date())
 
+# Seçilen tarihe göre verileri güncel olarak hesapla
 d = analiz_uret(st.session_state.secilen_lat, st.session_state.secilen_lon, secilen_tarih)
 arduino_veri_gonder(d['sicaklik'], int(d['nem']), int(d['basinc']), d['ruzgar'], d['ndvi_val'], d['smap_soil'])
 
@@ -527,13 +562,13 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📊 Zaman Simülasyonu & Trend", 
     "🚨 Akıllı Risk, Alarm & Rapor", 
     "⚖️ Bölgesel Karşılaştırma",
-    "🔍 100+ Gelişmiş Veri Havuzu"
+    "🔍 135+ Gelişmiş Veri Havuzu"
 ])
 
 with tab1:
     render_box(
         title="🌍 NASA Space Apps Challenge - Lightning Flora Küresel Gözlemevi",
-        subtitle=f"Seçilen noktanın anlık gerçek sıcaklığı: <b>{d['sicaklik']} °C</b> | Rüzgar: <b>{d['ruzgar']} km/s</b>.",
+        subtitle=f"Seçilen tarih ({secilen_tarih.strftime('%d.%m.%Y')}) anlık gerçek sıcaklığı: <b>{d['sicaklik']} °C</b> | Rüzgar: <b>{d['ruzgar']} km/s</b>.",
         border_color="rgba(166, 227, 161, 0.75)",
         glow_color="rgba(166, 227, 161, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(64, 160, 112, 0.45) 0%, rgba(17, 17, 27, 0.9) 100%)"
@@ -582,7 +617,7 @@ with tab2:
     )
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        render_metric_card("1️⃣ Sıcaklık", f"{d['sicaklik']} °C", "Gerçek anlık sıcaklık", "rgba(243, 139, 168, 0.75)", "#f38ba8", "rgba(243, 139, 168, 0.45)", "linear-gradient(135deg, rgba(243, 139, 168, 0.25) 0%, rgba(17, 17, 27, 0.9) 100%)")
+        render_metric_card("1️⃣ Sıcaklık", f"{d['sicaklik']} °C", "Seçilen tarih sıcaklığı", "rgba(243, 139, 168, 0.75)", "#f38ba8", "rgba(243, 139, 168, 0.45)", "linear-gradient(135deg, rgba(243, 139, 168, 0.25) 0%, rgba(17, 17, 27, 0.9) 100%)")
     with c2:
         render_metric_card("2️⃣ Rüzgar", f"{d['ruzgar']} km/s", f"Yön: {d['ruzgar_yon']}°", "rgba(166, 227, 161, 0.75)", "#a6e3a1", "rgba(166, 227, 161, 0.45)", "linear-gradient(135deg, rgba(166, 227, 161, 0.25) 0%, rgba(17, 17, 27, 0.9) 100%)")
     with c3:
@@ -591,7 +626,7 @@ with tab2:
         render_metric_card("4️⃣ Basınç", f"{d['basinc']} hPa", "Deniz seviyesi basınç", "rgba(203, 166, 247, 0.75)", "#cba6f7", "rgba(203, 166, 247, 0.45)", "linear-gradient(135deg, rgba(203, 166, 247, 0.25) 0%, rgba(17, 17, 27, 0.9) 100%)")
 
     df_trend = zaman_serisi_cek(st.session_state.secilen_lat, st.session_state.secilen_lon, secilen_tarih)
-    fig_temp = px.line(df_trend, x="Tarih", y="Sıcaklık (°C)", title="30 Günlük Gerçek Sıcaklık Projeksiyon Trendi", template="plotly_dark")
+    fig_temp = px.line(df_trend, x="Tarih", y="Sıcaklık (°C)", title=f"{secilen_tarih.strftime('%d.%m.%Y')} Odaklı 30 Günlük Sıcaklık Trendi", template="plotly_dark")
     fig_temp.update_traces(line=dict(color="#f38ba8", width=3))
     fig_temp.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig_temp, use_container_width=True)
@@ -599,16 +634,16 @@ with tab2:
 with tab3:
     render_box(
         title="🚨 Yapay Zeka Risk ve Alarm Analizi",
-        subtitle=f"Koordinat: {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}",
+        subtitle=f"Seçilen Tarih: {secilen_tarih.strftime('%d.%m.%Y')} | Koordinat: {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}",
         border_color="rgba(166, 227, 161, 0.75)",
         glow_color="rgba(166, 227, 161, 0.45)",
         bg_gradient="linear-gradient(135deg, rgba(64, 160, 112, 0.3) 0%, rgba(17, 17, 27, 0.9) 100%)"
     )
-    st.markdown("""
+    st.markdown(f"""
     <div style="background: rgba(17, 17, 27, 0.85); backdrop-filter: blur(25px); padding: 2rem; border-radius: 28px; border: 2px solid rgba(166, 227, 161, 0.5); box-shadow: 0 0 35px rgba(166, 227, 161, 0.25);">
-        <h3 style="color: #a6e3a1; margin-top: 0; font-weight: 800; text-shadow: 0 0 15px rgba(166, 227, 161, 0.5);">🟢 Ekosistem Sağlık Raporu (Stabil)</h3>
+        <h3 style="color: #a6e3a1; margin-top: 0; font-weight: 800; text-shadow: 0 0 15px rgba(166, 227, 161, 0.5);">🟢 Ekosistem Sağlık Raporu ({secilen_tarih.strftime('%d.%m.%Y')})</h3>
         <p style="color: #cdd6f4; font-size: 1.05rem; line-height: 1.6; font-weight: 500;">
-            Seçilen konumdaki nem oranları ve toprak rutubeti (SMAP) eşik değerlerin üzerindedir. Orman yangını ve kuraklık riski minimal seviyede seyretmektedir. Atmosferik basınç ve rüzgar vektörleri stabil hava akışını desteklemektedir.
+            Seçilen tarih için nem oranı %{d['nem']} ve toprak rutubeti (SMAP) %{d['smap_soil']} olarak analiz edilmiştir. Belirtilen gün için ekosistem dengesi stabil seyretmektedir.
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -616,7 +651,7 @@ with tab3:
 with tab4:
     render_box(
         title="⚖️ Bölgesel Karşılaştırma Analizi",
-        subtitle="İki farklı meteorolojik istasyonun ve bölgenin eş zamanlı derinlemesine karşılaştırma raporu.",
+        subtitle=f"Seçilen Tarih: {secilen_tarih.strftime('%d.%m.%Y')} itibarıyla iki farklı bölgenin eş zamanlı karşılaştırması.",
         border_color="rgba(203, 166, 247, 0.75)",
         glow_color="rgba(203, 166, 247, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(137, 180, 250, 0.3) 0%, rgba(17, 17, 27, 0.9) 100%)"
@@ -644,8 +679,8 @@ with tab4:
 
 with tab5:
     render_box(
-        title=f"🔍 135+ Kapsamlı Veri Havuzu ve Anlık Filtreleme",
-        subtitle=f"Seçilen Konum: <b>{st.session_state.mekan_adi}</b> için üretilen 135+ meteorolojik ve çevresel parametre.",
+        title=f"🔍 135+ Kapsamlı Veri Havuzu ({secilen_tarih.strftime('%d.%m.%Y')})",
+        subtitle=f"Seçilen Konum: <b>{st.session_state.mekan_adi}</b> ve Seçilen Tarih için üretilen 135+ parametre.",
         border_color="rgba(137, 180, 250, 0.75)",
         glow_color="rgba(137, 180, 250, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(137, 180, 250, 0.3) 0%, rgba(17, 17, 27, 0.9) 100%)"
@@ -664,5 +699,5 @@ with tab5:
     else:
         filtrelenmis_df = df_tum_veriler
 
-    st.markdown(f"<p style='color: #f38ba8; font-weight: 700;'>Toplam <b>{len(df_tum_veriler)}</b> parametre içerisinden <b>{len(filtrelenmis_df)}</b> sonuç listeleniyor.</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='color: #f38ba8; font-weight: 700;'>Seçilen tarih için toplam <b>{len(df_tum_veriler)}</b> parametre içerisinden <b>{len(filtrelenmis_df)}</b> sonuç listeleniyor.</p>", unsafe_allow_html=True)
     st.dataframe(filtrelenmis_df, use_container_width=True, hide_index=True)
