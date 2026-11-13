@@ -62,27 +62,27 @@ def konum_bul(isim):
         logger.error(f"Konum arama hatası: {str(e)}")
     return None, None
 
-# --- DİNAMİK RENDER EDEN RGB ANİMASYONLU GLASSMORPHISM CSS ---
+# --- ZORLANMIŞ RGB ANİMASYONLU GLASSMORPHISM CSS ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
 
     @keyframes rgbGlow {
         0% { 
-            border-color: rgba(255, 0, 128, 0.9) !important; 
-            box-shadow: 0 0 60px rgba(255, 0, 128, 0.5), inset 0 0 25px rgba(255, 0, 128, 0.3) !important; 
+            border-color: rgba(255, 0, 128, 1) !important; 
+            box-shadow: 0 0 70px rgba(255, 0, 128, 0.7), inset 0 0 30px rgba(255, 0, 128, 0.4) !important; 
         }
         33% { 
-            border-color: rgba(0, 255, 255, 0.9) !important; 
-            box-shadow: 0 0 60px rgba(0, 255, 255, 0.5), inset 0 0 25px rgba(0, 255, 255, 0.3) !important; 
+            border-color: rgba(0, 255, 255, 1) !important; 
+            box-shadow: 0 0 70px rgba(0, 255, 255, 0.7), inset 0 0 30px rgba(0, 255, 255, 0.4) !important; 
         }
         66% { 
-            border-color: rgba(168, 85, 247, 0.9) !important; 
-            box-shadow: 0 0 60px rgba(168, 85, 247, 0.5), inset 0 0 25px rgba(168, 85, 247, 0.3) !important; 
+            border-color: rgba(168, 85, 247, 1) !important; 
+            box-shadow: 0 0 70px rgba(168, 85, 247, 0.7), inset 0 0 30px rgba(168, 85, 247, 0.4) !important; 
         }
         100% { 
-            border-color: rgba(255, 0, 128, 0.9) !important; 
-            box-shadow: 0 0 60px rgba(255, 0, 128, 0.5), inset 0 0 25px rgba(255, 0, 128, 0.3) !important; 
+            border-color: rgba(255, 0, 128, 1) !important; 
+            box-shadow: 0 0 70px rgba(255, 0, 128, 0.7), inset 0 0 30px rgba(255, 0, 128, 0.4) !important; 
         }
     }
 
@@ -105,8 +105,9 @@ st.markdown("""
         border-radius: 40px !important;
         padding: 2.8rem !important;
         margin-top: 1.2rem !important;
-        border: 3px solid rgba(255, 0, 128, 0.9) !important;
-        animation: rgbGlow 6s infinite linear !important;
+        border: 4px solid rgba(255, 0, 128, 1) !important;
+        animation: rgbGlow 5s infinite linear !important;
+        transform: translateZ(0);
     }
 
     .stButton>button {
@@ -190,7 +191,6 @@ def render_metric_card(title, value, caption, border_color, text_color, glow_col
     """
     st.markdown(html_content, unsafe_allow_html=True)
 
-# --- DÜZELTİLMİŞ GERÇEK VERİ ÇEKME MOTORU (ARŞİV & TAHMİN UYUMLU) ---
 @st.cache_data(ttl=600, show_spinner=False)
 def gercek_veri_cek(lat, lon, secilen_tarih):
     bugun = datetime.now().date()
@@ -244,7 +244,6 @@ def gercek_veri_cek(lat, lon, secilen_tarih):
 
     return 22.5, 45.0, 0.0, 4.5, 180.0, 1013.0, gun_farki
 
-# --- 30 GÜNLÜK ZAMAN SERİSİ ---
 @st.cache_data(ttl=600, show_spinner=False)
 def zaman_serisi_cek(lat, lon, merkez_tarih):
     baslangic = merkez_tarih - timedelta(days=15)
@@ -285,7 +284,6 @@ def analiz_uret(lat, lon, secilen_tarih):
         "gun_farki": gun_farki
     }
 
-# --- 135+ PARAMETRELİ GENİŞ VERİ HAVUZU FONKSİYONU ---
 def genis_veri_havuzu_uret(d):
     parametreler = []
     
@@ -451,7 +449,6 @@ def genis_veri_havuzu_uret(d):
 
     return pd.DataFrame(parametreler)
 
-# --- OTURUM DURUMU ---
 if "secilen_lat" not in st.session_state:
     st.session_state.secilen_lat = 37.8859
 if "secilen_lon" not in st.session_state:
@@ -461,7 +458,6 @@ if "mekan_adi" not in st.session_state:
 if "arduino_ser" not in st.session_state:
     st.session_state.arduino_ser = None
 
-# --- SIDEBAR ---
 with st.sidebar:
     st.markdown("### 🔌 Tablet / Web Serial Bağlantısı")
     st.markdown("<p style='font-size:0.85rem; color:#94a3b8;'>Tabletten OTG ile bağlı Arduino'ya doğrudan tarayıcı üzerinden bağlanın:</p>", unsafe_allow_html=True)
@@ -510,7 +506,6 @@ with st.sidebar:
             except Exception as e:
                 st.error(f"Hata: {e}")
 
-# --- ÜST ARAMA, GPS & TARİH ---
 col_search, col_gps, col_date = st.columns([2, 1, 1])
 
 with col_search:
@@ -537,7 +532,6 @@ with col_gps:
 with col_date:
     secilen_tarih = st.date_input("📅 Gerçek Veri Tarihi Seçin:", value=datetime.now().date())
 
-# Seçilen tarihe göre verileri güncel olarak hesapla
 d = analiz_uret(st.session_state.secilen_lat, st.session_state.secilen_lon, secilen_tarih)
 arduino_veri_gonder(d['sicaklik'], int(d['nem']), int(d['basinc']), d['ruzgar'], d['ndvi_val'], d['smap_soil'])
 
@@ -555,7 +549,6 @@ render_box(
     bg_gradient="linear-gradient(135deg, rgba(49, 46, 129, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
 )
 
-# --- 5 SEKME (TABS) ---
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🗺️ NASA Space Apps Telemetri Haritası", 
     "📊 Zaman Simülasyonu & Trend", 
