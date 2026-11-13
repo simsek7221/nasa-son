@@ -63,6 +63,101 @@ def konum_bul(isim):
         logger.error(f"Konum arama hatası: {str(e)}")
     return None, None
 
+
+# --- GERÇEK 3D ARAZİ MODELİ (COPERNICUS DEM / OPEN-METEO) ---
+@st.cache_data(ttl=86400, show_spinner=False)
+def gercek_yukseklik_matrisi(merkez_lat, merkez_lon, grid_boyutu=25, yari_cap_km=12):
+    """
+    Open-Meteo Elevation API üzerinden Copernicus GLO-90 DEM verisi alır.
+    Her koordinatın gerçek arazi yüksekliğini metre cinsinden döndürür.
+    API tek istekte en fazla 100 koordinat kabul ettiği için parçalı istek yapar.
+    """
+    merkez_lat = float(merkez_lat)
+    merkez_lon = float(merkez_lon)
+
+    # Enlemde ve boylamda yaklaşık aynı fiziksel mesafeyi kapsa.
+    lat_yari = yari_cap_km / 111.32
+    cos_lat = max(np.cos(np.radians(merkez_lat)), 0.2)
+    lon_yari = yari_cap_km / (111.32 * cos_lat)
+
+    lat_dizi = np.linspace(merkez_lat - lat_yari, merkez_lat + lat_yari, grid_boyutu)
+    lon_dizi = np.linspace(merkez_lon - lon_yari, merkez_lon + lon_yari, grid_boyutu)
+    X, Y = np.meshgrid(lon_dizi, lat_dizi)
+
+    lat_duz = X*0 + Y
+    lat_duz = lat_duz.ravel()
+    lon_duz = X.ravel()
+
+    yukseklikler = []
+    for baslangic in range(0, len(lat_duz), 100):
+        bitis = baslangic + 100
+        params = {
+            "latitude": ",".join(f"{v:.6f}" for v in lat_duz[baslangic:bitis]),
+            "longitude": ",".join(f"{v:.6f}" for v in lon_duz[baslangic:bitis]),import streamlit as st
+import streamlit.components.v1 as components
+import pandas as pd
+import numpy as np
+import requests
+from datetime import datetime, timedelta
+import plotly.express as px
+import plotly.graph_objects as go
+import logging
+import time
+
+# --- SİSTEM LOGLAMA ---
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("LightningFloraNASAPro")
+
+try:
+    from streamlit_geolocation import streamlit_geolocation
+except ImportError:
+    streamlit_geolocation = None
+
+try:
+    import serial
+    import serial.tools.list_ports
+except ImportError:
+    serial = None
+
+# Streamlit Sayfa Yapılandırması
+st.set_page_config(
+    page_title="Lightning Flora - NASA Space Apps Observatory Pro",
+    page_icon="🛰️",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# --- ARDUİNO SERİ PORT GÖNDERİM FONKSİYONU ---
+def arduino_veri_gonder(temp, hum, pres, wind, ndvi, soil):
+    if serial is None:
+        return
+    if "arduino_ser" in st.session_state and st.session_state.arduino_ser:
+        try:
+            veri_paketi = f"T:{temp:.1f},H:{hum},P:{pres},W:{wind:.1f},N:{ndvi:.2f},S:{soil:.1f}\n"
+            st.session_state.arduino_ser.write(veri_paketi.encode('utf-8'))
+        except Exception as e:
+            logger.error(f"Arduino veri gönderim hatası: {e}")
+            st.session_state.arduino_ser = None
+
+# --- COĞRAFİ KONUM ÇÖZÜCÜ (GEOCODING API) ---
+@st.cache_data(ttl=3600, show_spinner=False)
+def konum_bul(isim):
+    if not isim or not isinstance(isim, str) or not isim.strip():
+        return None, None
+    clean_name = isim.strip()
+    url = f"https://geocoding-api.open-meteo.com/v1/search?name={clean_name}&count=1&language=tr&format=json"
+    try:
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            res_data = response.json()
+            results = res_data.get("results", [])
+            if results:
+                r = results[0]
+                return (float(r.get("latitude")), float(r.get("longitude"))), f"{r.get('name')}, {r.get('country', 'Bilinmeyen Ülke')}"
+    except Exception as e:
+        logger.error(f"Konum arama hatası: {str(e)}")
+    return None, None
+
 # --- ULTRA GLASSMORPHISM CSS ---
 st.markdown("""
 <style>
