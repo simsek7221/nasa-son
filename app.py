@@ -274,23 +274,101 @@ def gercek_veri_cek(lat, lon, secilen_tarih):
             logger.error(f"Tahmin veri hatası: {str(e)}")
 
     return 22.5, 45.0, 0.0, 4.5, 180.0, 1013.0, gun_farki
+# --- GERÇEK 3D ARAZİ MODELİ ---
+@st.cache_data(ttl=86400, show_spinner=False)
+def gercek_yukseklik_matrisi(
+    merkez_lat,
+    merkez_lon,
+    grid_boyutu=10,
+    yari_cap_km=12
+):
+    merkez_lat = float(merkez_lat)
+    merkez_lon = float(merkez_lon)
 
-@st.cache_data(ttl=600, show_spinner=False)
-def zaman_serisi_cek(lat, lon, merkez_tarih):
-    baslangic = merkez_tarih - timedelta(days=15)
-    bitis = merkez_tarih + timedelta(days=14)
-    bugun = datetime.now().date()
-    url = f"https://archive-api.open-meteo.com/v1/archive?latitude={round(lat, 4)}&longitude={round(lon, 4)}&start_date={baslangic.strftime('%Y-%m-%d')}&end_date={min(bitis, bugun).strftime('%Y-%m-%d')}&daily=temperature_2m_mean,precipitation_sum,wind_speed_10m_max"
-    try:
-        res = requests.get(url, timeout=6)
-        if res.status_code == 200:
-            d = res.json().get("daily", {})
-            if "time" in d and len(d["time"]) > 0:
-                return pd.DataFrame({
-                    "Tarih": pd.to_datetime(d["time"]),
-                    "Sıcaklık (°C)": d.get("temperature_2m_mean", [20]*len(d["time"])),
-                    "Yağış (mm)": d.get("precipitation_sum", [0]*len(d["time"])),
-                    "Rüzgar (km/s)": d.get("wind_speed_10m_max", [5]*len(d["time"]))
+    lat_yari = yari_cap_km / 111.32
+    cos_lat = max(np.cos(np.radians(merkez_lat)), 0.2)
+    lon_yari = yari_cap_km / (111.32 * cos_lat)
+
+    lat_dizi = np.linspace(
+        merkez_lat - lat_yari,
+        merkez_lat + lat_yari,
+        grid_boyutu
+    )
+
+    lon_dizi = np.linspace(
+        merkez_lon - lon_yari,
+        merkez_lon + lon_yari,
+        grid_boyutu
+    )
+
+    X, Y = np.meshgrid(lon_dizi, lat_dizi)
+
+    lat_duz = Y.ravel()
+    lon_duz = X.ravel()
+
+    params = {
+        "latitude": ",".join(f"{v:.6f}" for v in lat_duz),
+        "longitude": ",".join(f"{v:.6f}" for v in lon_duz)
+    }
+
+    url = "https://api.open-meteo.com/v1/elevation"
+
+    yanit = None
+
+    # 429 hatasında artan bekleme süresiyle yeniden dene.
+    for deneme in range(3):
+        try:
+            yanit = requests.get(
+                url,
+                params=params,
+                timeout=30
+            )
+
+            if yanit.status_code == 429:
+                time.sleep(3 * (2 ** deneme))
+                continue
+
+            yanit.raise_for_status()
+            break
+
+        except requests.RequestException:
+            if deneme == 2:
+                raise
+            time.sleep(3 * (2 ** deneme))
+
+    if yanit is None or yanit.status_code == 429:
+        raise Exception(
+            "Arazi API'si istek sınırına ulaştı. "
+            "Lütfen birkaç dakika sonra tekrar deneyin."
+        )
+
+    yukseklikler = yanit.json().get("elevation", [])
+
+    if len(yukseklikler) != grid_boyutu * grid_boyutu:
+        raise ValueError("Arazi verisi eksik geldi.")
+
+    Z = np.asarray(
+        yukseklikler,
+        dtype=float
+    ).reshape(grid_boyutu, grid_boyutu)
+
+    if not np.isfinite(Z).all():
+        raise ValueError("Geçersiz arazi yüksekliği.")
+
+    x_km = (
+        (lon_dizi - merkez_lon)
+        * 111.32
+        * cos_lat
+    )
+
+    y_km = (
+        (lat_dizi - merkez_lat)
+        * 111.32
+    )
+
+    X_km, Y_km = np.meshgrid(x_km, y_km)
+
+    return X_km, Y_km, Z
                 })
     except Exception as e:
         logger.error(f"Zaman serisi hatası: {str(e)}")
