@@ -369,7 +369,8 @@ def gercek_yukseklik_matrisi(
     X_km, Y_km = np.meshgrid(x_km, y_km)
 
     return X_km, Y_km, Z
-    except Exception as e:
+    )
+except Exception as e:
         logger.error(f"Zaman serisi hatası: {str(e)}")
 
     dates = [merkez_tarih - timedelta(days=i) for i in range(15, -15, -1)]
