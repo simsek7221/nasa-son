@@ -95,69 +95,27 @@ def gercek_yukseklik_matrisi(merkez_lat, merkez_lon, grid_boyutu=25, yari_cap_km
             "latitude": ",".join(f"{v:.6f}" for v in lat_duz[baslangic:bitis]),
             "longitude": ",".join(f"{v:.6f}" for v in lon_duz[baslangic:bitis]),
         }
-import streamlit.components.v1 as components
-import pandas as pd
-import numpy as np
-import requests
-from datetime import datetime, timedelta
-import plotly.express as px
-import plotly.graph_objects as go
-import logging
-import time
+        yanit = requests.get(
+            "https://api.open-meteo.com/v1/elevation",
+            params=params,
+            timeout=25
+        )
+        yanit.raise_for_status()
+        parca = yanit.json().get("elevation", [])
+        if len(parca) != len(params["latitude"].split(",")):
+            raise ValueError("Yükseklik servisinden eksik veri döndü.")
+        yukseklikler.extend(parca)
 
-# --- SİSTEM LOGLAMA ---
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("LightningFloraNASAPro")
+    Z = np.asarray(yukseklikler, dtype=float).reshape(grid_boyutu, grid_boyutu)
+    if not np.isfinite(Z).all():
+        raise ValueError("Arazi yükseklik verisinde geçersiz değer bulundu.")
 
-try:
-    from streamlit_geolocation import streamlit_geolocation
-except ImportError:
-    streamlit_geolocation = None
+    # X/Y eksenleri şehir merkezine göre kilometre cinsindendir.
+    x_km = (lon_dizi - merkez_lon) * 111.32 * cos_lat
+    y_km = (lat_dizi - merkez_lat) * 111.32
+    X_km, Y_km = np.meshgrid(x_km, y_km)
+    return X_km, Y_km, Z
 
-try:
-    import serial
-    import serial.tools.list_ports
-except ImportError:
-    serial = None
-
-# Streamlit Sayfa Yapılandırması
-st.set_page_config(
-    page_title="Lightning Flora - NASA Space Apps Observatory Pro",
-    page_icon="🛰️",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
-
-# --- ARDUİNO SERİ PORT GÖNDERİM FONKSİYONU ---
-def arduino_veri_gonder(temp, hum, pres, wind, ndvi, soil):
-    if serial is None:
-        return
-    if "arduino_ser" in st.session_state and st.session_state.arduino_ser:
-        try:
-            veri_paketi = f"T:{temp:.1f},H:{hum},P:{pres},W:{wind:.1f},N:{ndvi:.2f},S:{soil:.1f}\n"
-            st.session_state.arduino_ser.write(veri_paketi.encode('utf-8'))
-        except Exception as e:
-            logger.error(f"Arduino veri gönderim hatası: {e}")
-            st.session_state.arduino_ser = None
-
-# --- COĞRAFİ KONUM ÇÖZÜCÜ (GEOCODING API) ---
-@st.cache_data(ttl=3600, show_spinner=False)
-def konum_bul(isim):
-    if not isim or not isinstance(isim, str) or not isim.strip():
-        return None, None
-    clean_name = isim.strip()
-    url = f"https://geocoding-api.open-meteo.com/v1/search?name={clean_name}&count=1&language=tr&format=json"
-    try:
-        response = requests.get(url, timeout=5)
-        if response.status_code == 200:
-            res_data = response.json()
-            results = res_data.get("results", [])
-            if results:
-                r = results[0]
-                return (float(r.get("latitude")), float(r.get("longitude"))), f"{r.get('name')}, {r.get('country', 'Bilinmeyen Ülke')}"
-    except Exception as e:
-        logger.error(f"Konum arama hatası: {str(e)}")
-    return None, None
 
 # --- ULTRA GLASSMORPHISM CSS ---
 st.markdown("""
@@ -751,26 +709,63 @@ with tab6:
         glow_color="rgba(236, 72, 153, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(131, 24, 67, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
-    x = np.linspace(-5, 5, 40)
-    y = np.linspace(-5, 5, 40)
-    X, Y = np.meshgrid(x, y)
-    Z = np.sin(np.sqrt(X**2 + Y**2)) * 150 + (d['sicaklik'] * 2)
-
-    fig_3d = go.Figure(data=[go.Surface(z=Z, x=X, y=Y, colorscale='Viridis')])
-    fig_3d.update_layout(
-        title="3D Arazi Dijital İkiz Matrisi",
-        autosize=True,
-        height=550,
-        margin=dict(l=20, r=20, t=40, b=20),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        scene=dict(
-            xaxis=dict(backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
-            yaxis=dict(backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
-            zaxis=dict(backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)", title="Rakım (m)")
-        )
+    st.markdown(
+        "<p style='color:#cbd5e1;'>Bu model, seçilen koordinatın çevresindeki gerçek arazi yüksekliklerini "
+        "Copernicus GLO-90 sayısal yükseklik modelinden alır. Yatay eksenler kilometre, dikey eksen metre cinsindendir.</p>",
+        unsafe_allow_html=True
     )
-    st.plotly_chart(fig_3d, use_container_width=True)
+
+    try:
+        with st.spinner("🛰️ Gerçek arazi yükseklik verileri alınıyor..."):
+            X_km, Y_km, Z = gercek_yukseklik_matrisi(
+                st.session_state.secilen_lat,
+                st.session_state.secilen_lon
+            )
+
+        fig_3d = go.Figure(data=[
+            go.Surface(
+                z=Z,
+                x=X_km,
+                y=Y_km,
+                colorscale="Earth",
+                colorbar=dict(title=dict(text="Rakım (m)", font=dict(color="#e2e8f0")), tickfont=dict(color="#e2e8f0")),
+                contours={
+                    "z": {
+                        "show": True,
+                        "usecolormap": True,
+                        "project_z": True
+                    }
+                },
+                hovertemplate="Doğu-Batı: %{x:.2f} km<br>Kuzey-Güney: %{y:.2f} km<br>Rakım: %{z:.0f} m<extra></extra>"
+            )
+        ])
+        fig_3d.update_layout(
+            title=f"{st.session_state.mekan_adi} — Gerçek 3D Arazi Modeli",
+            autosize=True,
+            height=620,
+            margin=dict(l=10, r=10, t=55, b=10),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#e2e8f0"),
+            scene=dict(
+                xaxis=dict(title="Doğu ↔ Batı (km)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
+                yaxis=dict(title="Güney ↔ Kuzey (km)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
+                zaxis=dict(title="Rakım (m)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
+                aspectmode="manual",
+                aspectratio=dict(x=1.15, y=1.0, z=0.42),
+                camera=dict(eye=dict(x=1.55, y=1.55, z=1.05))
+            )
+        )
+        st.plotly_chart(fig_3d, use_container_width=True)
+        st.caption(
+            f"Yükseklik aralığı: {np.nanmin(Z):.0f}–{np.nanmax(Z):.0f} m · "
+            "Kaynak: Copernicus DEM GLO-90 / Open-Meteo Elevation API · "
+            "Yaklaşık 24 × 24 km alan, 90 m kaynak çözünürlüğü."
+        )
+    except Exception as e:
+        logger.exception("3D arazi modeli oluşturulamadı")
+        st.error(f"Gerçek arazi verisi alınamadı: {e}")
+        st.info("İnternet bağlantısını kontrol edip sayfayı yenileyin. Önceki yapay yüzey artık gösterilmez.")
 
 with tab7:
     render_box(
