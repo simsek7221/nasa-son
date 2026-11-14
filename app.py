@@ -1,3 +1,20 @@
+import serial
+import serial.tools.list_ports
+
+# Seri portu otomatik bulup açan fonksiyon
+def seri_port_gonder(sicaklik, nem, risk):
+    ports = serial.tools.list_ports.comports()
+    for p in ports:
+        if "USB" in p.description or "UART" in p.description or "CP210" in p.description or "CH340" in p.description:
+            try:
+                ser = serial.Serial(p.device, 115200, timeout=1)
+                veri_paketi = f"T:{sicaklik},N:{nem},R:{risk}\n"
+                ser.write(veri_paketi.encode('utf-8'))
+                ser.close()
+                break
+            except:
+                pass
+
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
