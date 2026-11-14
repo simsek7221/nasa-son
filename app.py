@@ -1,20 +1,3 @@
-import serial
-import serial.tools.list_ports
-
-# Seri portu otomatik bulup açan fonksiyon
-def seri_port_gonder(sicaklik, nem, risk):
-    ports = serial.tools.list_ports.comports()
-    for p in ports:
-        if "USB" in p.description or "UART" in p.description or "CP210" in p.description or "CH340" in p.description:
-            try:
-                ser = serial.Serial(p.device, 115200, timeout=1)
-                veri_paketi = f"T:{sicaklik},N:{nem},R:{risk}\n"
-                ser.write(veri_paketi.encode('utf-8'))
-                ser.close()
-                break
-            except:
-                pass
-
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
@@ -650,10 +633,11 @@ with tab1:
     windy_embed_url = f"https://embed.windy.com/embed2.html?lat={lat_val}&lon={lon_val}&zoom=6&level=surface&overlay={aktif_overlay}&menu=&message=&marker=&pressure=&calendar=now&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
 
     components.html(f"""
-    <div style="position: relative; width: 100%; height: 560px; border-radius: 24px; overflow: hidden; border: 3px solid rgba(56, 189, 248, 0.4);">
-        <iframe src="{windy_embed_url}" width="100%" height="560px" style="border:none;"></iframe>
+    <div style="position: relative; width: 100%; height: 530px; border-radius: 24px; overflow: hidden; border: 3px solid rgba(56, 189, 248, 0.4);">
+        <iframe src="{windy_embed_url}" width="100%" height="600px" style="border:none; margin-top: -35px;"></iframe>
+        <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 45px; background: #0f172a; pointer-events: none;"></div>
     </div>
-    """, height=575)
+    """, height=540)
 
 with tab2:
     render_box(
