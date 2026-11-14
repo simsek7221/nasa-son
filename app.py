@@ -176,8 +176,7 @@ def gercek_veri_cek(lat, lon, secilen_tarih):
                     float(temps[idx] if temps[idx] is not None else 22.5),
                     float(hums[idx] if hums[idx] is not None else 45.0),
                     float(precips[idx] if precips[idx] is not None else 0.0),
-                    float(winds[idx] if winds[idx] is not None else 4.5),                    float(wind_dirs[idx] if wind_dirs[idx] is not None else 180.0),
-                    float(pressures[idx] if pressures[idx] is not None else 1013.0),
+                    float(winds[idx] if winds[idx] is not None else 4.5),                    float(wind_dirs[idx] if wind_dirs[idx] is not None else 180.0),                    float(pressures[idx] if pressures[idx] is not None else 1013.0),
                     gun_farki
                 )
         except Exception as e:
@@ -297,7 +296,8 @@ def zaman_serisi_cek(lat, lon, merkez_tarih):
     url = f"https://archive-api.open-meteo.com/v1/archive?latitude={round(lat, 4)}&longitude={round(lon, 4)}&start_date={baslangic.strftime('%Y-%m-%d')}&end_date={min(bitis, bugun).strftime('%Y-%m-%d')}&daily=temperature_2m_mean,precipitation_sum,wind_speed_10m_max"
     try:
         res = requests.get(url, timeout=6)
-        if res.status_code == 200:            d = res.json().get("daily", {})
+        if res.status_code == 200:
+            d = res.json().get("daily", {})
             if "time" in d and len(d["time"]) > 0:
                 return pd.DataFrame({
                     "Tarih": pd.to_datetime(d["time"]),
@@ -307,7 +307,6 @@ def zaman_serisi_cek(lat, lon, merkez_tarih):
                 })
     except Exception as e:
         logger.error(f"Zaman serisi hatası: {str(e)}")
-
     dates = [merkez_tarih - timedelta(days=i) for i in range(15, -15, -1)]
     return pd.DataFrame({
         "Tarih": dates,
@@ -517,7 +516,6 @@ with col_search:
             st.session_state.secilen_lat, st.session_state.secilen_lon = coords
             st.session_state.mekan_adi = f"Gerçek Konum: {addr or aranan_konum}"
             st.success(f"✅ Konum Doğrulandı: {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}")
-
 with col_gps:
     st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
     if streamlit_geolocation is not None:
@@ -756,8 +754,7 @@ with tab5:
     render_box(
         title=f"🔍 135+ Kapsamlı Veri Havuzu",
         subtitle=f"Konum: {st.session_state.mekan_adi}",
-        border_color="rgba(2, 132, 199, 0.75)",
-        glow_color="rgba(2, 132, 199, 0.55)",
+        border_color="rgba(2, 132, 199, 0.75)",        glow_color="rgba(2, 132, 199, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(2, 132, 199, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     veri_arama = st.text_input("🔎 135+ Veri İçinde Ara:", "", key="data_search_bar")
