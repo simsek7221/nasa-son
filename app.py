@@ -176,8 +176,7 @@ def gercek_veri_cek(lat, lon, secilen_tarih):
                     float(temps[idx] if temps[idx] is not None else 22.5),
                     float(hums[idx] if hums[idx] is not None else 45.0),
                     float(precips[idx] if precips[idx] is not None else 0.0),
-                    float(winds[idx] if winds[idx] is not None else 4.5),
-                    float(wind_dirs[idx] if wind_dirs[idx] is not None else 180.0),
+                    float(winds[idx] if winds[idx] is not None else 4.5),                    float(wind_dirs[idx] if wind_dirs[idx] is not None else 180.0),
                     float(pressures[idx] if pressures[idx] is not None else 1013.0),
                     gun_farki
                 )
@@ -204,14 +203,15 @@ def gercek_veri_cek(lat, lon, secilen_tarih):
 
     return 22.5, 45.0, 0.0, 4.5, 180.0, 1013.0, gun_farki
 
-# --- GERÇEK 3D ARAZİ MODELİ ---
+# --- YÜKSEK ÇÖZÜNÜRLÜKLÜ 3D ARAZİ MODELİ ---
 @st.cache_data(ttl=86400, show_spinner=False)
 def gercek_yukseklik_matrisi(
     merkez_lat,
     merkez_lon,
-    grid_boyutu=10,
-    yari_cap_km=12
+    grid_boyutu=25,
+    yari_cap_km=15
 ):
+    """Open-Meteo yükseklik servisinden koordinat bazlı DEM verisi alır."""
     merkez_lat = float(merkez_lat)
     merkez_lon = float(merkez_lon)
 
@@ -224,7 +224,6 @@ def gercek_yukseklik_matrisi(
         merkez_lat + lat_yari,
         grid_boyutu
     )
-
     lon_dizi = np.linspace(
         merkez_lon - lon_yari,
         merkez_lon + lon_yari,
@@ -232,69 +231,60 @@ def gercek_yukseklik_matrisi(
     )
 
     X, Y = np.meshgrid(lon_dizi, lat_dizi)
-
     lat_duz = Y.ravel()
     lon_duz = X.ravel()
-
-    params = {
-        "latitude": ",".join(f"{v:.6f}" for v in lat_duz),
-        "longitude": ",".join(f"{v:.6f}" for v in lon_duz)
-    }
-
+    koordinat_sayisi = len(lat_duz)
+    yukseklikler = []
     url = "https://api.open-meteo.com/v1/elevation"
 
-    yanit = None
+    # Servise tek seferde aşırı uzun koordinat listesi göndermemek için
+    # noktaları 100'lük paketler halinde al.
+    for baslangic in range(0, koordinat_sayisi, 100):
+        bitis = min(baslangic + 100, koordinat_sayisi)
+        params = {
+            "latitude": ",".join(f"{v:.6f}" for v in lat_duz[baslangic:bitis]),
+            "longitude": ",".join(f"{v:.6f}" for v in lon_duz[baslangic:bitis])
+        }
+        yanit = None
 
-    for deneme in range(3):
-        try:
-            yanit = requests.get(
-                url,
-                params=params,
-                timeout=30
+        for deneme in range(3):
+            try:
+                yanit = requests.get(url, params=params, timeout=30)
+                if yanit.status_code == 429:
+                    time.sleep(2 * (deneme + 1))
+                    continue
+                yanit.raise_for_status()
+                break
+            except requests.RequestException:
+                if deneme == 2:
+                    raise
+                time.sleep(2 * (deneme + 1))
+
+        if yanit is None or yanit.status_code == 429:
+            raise RuntimeError(
+                "Yükseklik servisi istek sınırına ulaştı. "
+                "Lütfen biraz sonra yeniden deneyin."
             )
 
-            if yanit.status_code == 429:
-                time.sleep(3 * (2 ** deneme))
-                continue
+        paket = yanit.json().get("elevation", [])
+        beklenen = bitis - baslangic
+        if len(paket) != beklenen:
+            raise ValueError(
+                f"Eksik arazi verisi: {len(paket)} / {beklenen} nokta."
+            )
+        yukseklikler.extend(paket)
 
-            yanit.raise_for_status()
-            break
+    if len(yukseklikler) != koordinat_sayisi:
+        raise ValueError("Arazi yükseklik matrisi tamamlanamadı.")
 
-        except requests.RequestException:
-            if deneme == 2:
-                raise
-            time.sleep(3 * (2 ** deneme))
-
-    if yanit is None or yanit.status_code == 429:
-        raise Exception(
-            "Arazi API'si istek sınırına ulaştı. "
-            "Lütfen birkaç dakika sonra tekrar deneyin."
-        )
-
-    yukseklikler = yanit.json().get("elevation", [])
-
-    if len(yukseklikler) != grid_boyutu * grid_boyutu:
-        raise ValueError("Arazi verisi eksik geldi.")
-
-    Z = np.asarray(
-        yukseklikler,
-        dtype=float
-    ).reshape(grid_boyutu, grid_boyutu)
-
+    Z = np.asarray(yukseklikler, dtype=float).reshape(
+        grid_boyutu, grid_boyutu
+    )
     if not np.isfinite(Z).all():
-        raise ValueError("Geçersiz arazi yüksekliği.")
+        raise ValueError("Arazi verisinde geçersiz yükseklik değeri var.")
 
-    x_km = (
-        (lon_dizi - merkez_lon)
-        * 111.32
-        * cos_lat
-    )
-
-    y_km = (
-        (lat_dizi - merkez_lat)
-        * 111.32
-    )
-
+    x_km = (lon_dizi - merkez_lon) * 111.32 * cos_lat
+    y_km = (lat_dizi - merkez_lat) * 111.32
     X_km, Y_km = np.meshgrid(x_km, y_km)
 
     return X_km, Y_km, Z
@@ -307,8 +297,7 @@ def zaman_serisi_cek(lat, lon, merkez_tarih):
     url = f"https://archive-api.open-meteo.com/v1/archive?latitude={round(lat, 4)}&longitude={round(lon, 4)}&start_date={baslangic.strftime('%Y-%m-%d')}&end_date={min(bitis, bugun).strftime('%Y-%m-%d')}&daily=temperature_2m_mean,precipitation_sum,wind_speed_10m_max"
     try:
         res = requests.get(url, timeout=6)
-        if res.status_code == 200:
-            d = res.json().get("daily", {})
+        if res.status_code == 200:            d = res.json().get("daily", {})
             if "time" in d and len(d["time"]) > 0:
                 return pd.DataFrame({
                     "Tarih": pd.to_datetime(d["time"]),
@@ -516,7 +505,6 @@ if "mekan_adi" not in st.session_state:
     st.session_state.mekan_adi = "Batman (Gerçek İstasyon)"
 
 d = analiz_uret(st.session_state.secilen_lat, st.session_state.secilen_lon, datetime.now().date())
-
 # Arduino bağlantı arayüzü, seçilen konum ve tarih hesaplandıktan sonra oluşturulur.
 
 col_search, col_gps, col_date = st.columns([2, 1, 1])
@@ -756,8 +744,7 @@ with tab4:
     res2 = konum_bul(yer_2)
     lat1, lon1 = res1[0] if res1 and res1[0] is not None else (37.8859, 41.1198)
     lat2, lon2 = res2[0] if res2 and res2[0] is not None else (39.9334, 32.8597)
-    d1 = analiz_uret(lat1, lon1, secilen_tarih)
-    d2 = analiz_uret(lat2, lon2, secilen_tarih)
+    d1 = analiz_uret(lat1, lon1, secilen_tarih)    d2 = analiz_uret(lat2, lon2, secilen_tarih)
 
     c_res1, c_res2 = st.columns(2)
     with c_res1:
@@ -823,6 +810,8 @@ with tab6:
                 x=X_km,
                 y=Y_km,
                 colorscale="Earth",
+                lighting=dict(ambient=0.45, diffuse=0.85, specular=0.35, roughness=0.65, fresnel=0.15),
+                lightposition=dict(x=1000, y=1000, z=1500),
                 colorbar=dict(title=dict(text="Rakım (m)", font=dict(color="#e2e8f0")), tickfont=dict(color="#e2e8f0")),
                 contours={
                     "z": {
@@ -847,7 +836,7 @@ with tab6:
                 yaxis=dict(title="Güney ↔ Kuzey (km)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
                 zaxis=dict(title="Rakım (m)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
                 aspectmode="manual",
-                aspectratio=dict(x=1.15, y=1.0, z=0.42),
+                aspectratio=dict(x=1.0, y=1.0, z=0.65),
                 camera=dict(eye=dict(x=1.55, y=1.55, z=1.05))
             )
         )
