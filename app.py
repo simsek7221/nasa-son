@@ -351,8 +351,8 @@ def analiz_uret(lat, lon, secilen_tarih):
     ndvi_val = round(max(0.1, min(0.85, 0.4 + (smap_soil * 0.01))), 3)
 
     return {
-        "sicaklik": sicaklik, "nem": nem, "yagis": yagis, "ruzgar": ruzgar, "ruzgar_yon": ruzgar_yon,
-        "basinc": basinc, "radyasyon": radyasyon, "smap_soil": smap_soil, "ndvi_val": ndvi_val, 
+        "sicaklik": sicaklik, "nem": int(nem), "yagis": yagis, "ruzgar": ruzgar, "ruzgar_yon": ruzgar_yon,
+        "basinc": int(basinc), "radyasyon": radyasyon, "smap_soil": smap_soil, "ndvi_val": ndvi_val, 
         "gun_farki": gun_farki
     }
 
@@ -534,35 +534,52 @@ if "mekan_adi" not in st.session_state:
 if "arduino_ser" not in st.session_state:
     st.session_state.arduino_ser = None
 
+d = analiz_uret(st.session_state.secilen_lat, st.session_state.secilen_lon, datetime.now().date())
+
+# --- KENAR ÇUBUĞU: DENEYAP KART V2 İÇİN WEB SERIAL BAĞLANTISI ---
 with st.sidebar:
-    st.markdown("### 🔌 Tablet / Web Serial Bağlantısı")
-    st.markdown("<p style='font-size:0.85rem; color:#94a3b8;'>Tabletten OTG ile bağlı Arduino'ya doğrudan bağlanın:</p>", unsafe_allow_html=True)
+    st.markdown("### 🔌 Deneyap Kart V2 Bağlantısı")
+    st.markdown("<p style='font-size:0.85rem; color:#94a3b8;'>Tek tuşla karta bağlanın ve güncel verileri aktarın:</p>", unsafe_allow_html=True)
     
-    components.html("""
-    <div style="padding: 5px;">
-        <button id="connectSerial" style="background: linear-gradient(135deg, #0284c7 0%, #7c3aed 100%); color: white; border: none; padding: 10px 15px; border-radius: 12px; font-weight: bold; cursor: pointer; width: 100%; font-family: sans-serif;">
-            📱 USB / Arduino'ya Bağlan
+    js_veri_paketi = f"T:{d['sicaklik']:.1f},H:{d['nem']},P:{d['basinc']},W:{d['ruzgar']:.1f},N:{d['ndvi_val']:.2f},S:{d['smap_soil']:.1f}\n"
+    
+    components.html(f"""
+    <div style="padding: 5px; font-family: sans-serif;">
+        <button id="connectSerial" style="background: linear-gradient(135deg, #0284c7 0%, #7c3aed 100%); color: white; border: none; padding: 12px 15px; border-radius: 12px; font-weight: bold; cursor: pointer; width: 100%; box-shadow: 0 4px 15px rgba(2,132,199,0.4);">
+            🚀 Deneyap Kart'a Bağlan
         </button>
-        <p id="status" style="color: #38bdf8; font-size: 0.8rem; margin-top: 8px; text-align: center; font-family: sans-serif;">Durum: Bağlı Değil</p>
+        <p id="status" style="color: #38bdf8; font-size: 0.8rem; margin-top: 10px; text-align: center;">Durum: Bağlı Değil ❌</p>
     </div>
     <script>
         let port;
         let writer;
         const button = document.getElementById('connectSerial');
         const status = document.getElementById('status');
-        button.addEventListener('click', async () => {
-            try {
-                port = await navigator.serial.requestPort();
-                await port.open({ baudRate: 9600 });
-                status.innerText = "Durum: Bağlandı! ✅";
-                status.style.color = "#4ade80";
-            } catch (err) {
-                status.innerText = "Bağlantı Hatası / İptal";
+        const veriPaketi = "{js_veri_paketi}";
+
+        button.addEventListener('click', async () => {{
+            try {{
+                if (!port) {{
+                    port = await navigator.serial.requestPort();
+                    await port.open({{ baudRate: 9600 }});
+                    status.innerText = "Bağlandı! Veriler aktarılıyor ✅";
+                    status.style.color = "#4ade80";
+                    button.innerText = "Bağlantı Aktif 🔄";
+                }}
+                
+                const textEncoder = new TextEncoderStream();
+                const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
+                writer = textEncoder.writable.getWriter();
+                await writer.write(veriPaketi);
+                await writer.close();
+                
+            }} catch (err) {{
+                status.innerText = "Hata / İptal Edildi";
                 status.style.color = "#f87171";
-            }
-        });
+            }}
+        }});
     </script>
-    """, height=110)
+    """, height=130)
 
 col_search, col_gps, col_date = st.columns([2, 1, 1])
 
