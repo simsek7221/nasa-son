@@ -635,8 +635,8 @@ with tab1:
     components.html(f"""
     <div style="position: relative; width: 100%; height: 530px; border-radius: 24px; overflow: hidden; border: 3px solid rgba(56, 189, 248, 0.4);">
         <iframe src="{windy_embed_url}" width="100%" height="570px" style="border:none; margin-top: -15px;"></iframe>
-        <div style="position: absolute; top: 0; left: 0; width: 38%; height: 18px; background: #0f172a; pointer-events: none;"></div>
-        <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 14%; height: 26px; background: #0f172a; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; pointer-events: none;"></div>
+        <div style="position: absolute; top: 0; left: 0; width: 42%; height: 18px; background: #0f172a; pointer-events: none;"></div>
+        <div style="position: absolute; top: 0; left: 42%; width: 16%; height: 26px; background: #0f172a; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; pointer-events: none;"></div>
         <div style="position: absolute; top: 0; right: 0; width: 12%; height: 55px; background: transparent; pointer-events: none;"></div>
         <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 60px; background: #0f172a; pointer-events: none;"></div>
     </div>
