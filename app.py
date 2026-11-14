@@ -207,7 +207,7 @@ def gercek_veri_cek(lat, lon, secilen_tarih):
 def gercek_yukseklik_matrisi(
     merkez_lat,
     merkez_lon,
-    grid_boyutu=25,
+    grid_boyutu=15,
     yari_cap_km=15
 ):
     """Open-Meteo yükseklik servisinden koordinat bazlı DEM verisi alır."""
@@ -250,14 +250,15 @@ def gercek_yukseklik_matrisi(
             try:
                 yanit = requests.get(url, params=params, timeout=30)
                 if yanit.status_code == 429:
-                    time.sleep(2 * (deneme + 1))
+                    bekleme = yanit.headers.get("Retry-After")
+                    time.sleep(float(bekleme) if bekleme and bekleme.isdigit() else 5 * (deneme + 1))
                     continue
                 yanit.raise_for_status()
                 break
             except requests.RequestException:
                 if deneme == 2:
                     raise
-                time.sleep(2 * (deneme + 1))
+                time.sleep(3 * (deneme + 1))
 
         if yanit is None or yanit.status_code == 429:
             raise RuntimeError(
@@ -791,7 +792,8 @@ with tab6:
     )
     st.markdown(
         "<p style='color:#cbd5e1;'>Bu model, seçilen koordinatın çevresindeki gerçek arazi yüksekliklerini "
-        "NASA sayısal yükseklik modelinden alır. Yatay eksenler kilometre, dikey eksen metre cinsindendir.</p>",
+        "Open-Meteo yükseklik servisinden alır. Bu veri NASA DEM olarak adlandırılmamalıdır. "
+        "Yatay eksenler kilometre, dikey eksen metre cinsindendir.</p>",
         unsafe_allow_html=True
     )
 
