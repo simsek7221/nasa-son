@@ -63,60 +63,6 @@ def konum_bul(isim):
         logger.error(f"Konum arama hatası: {str(e)}")
     return None, None
 
-
-# --- GERÇEK 3D ARAZİ MODELİ (COPERNICUS DEM / OPEN-METEO) ---
-@st.cache_data(ttl=86400, show_spinner=False)
-def gercek_yukseklik_matrisi(merkez_lat, merkez_lon, grid_boyutu=25, yari_cap_km=12):
-    """
-    Open-Meteo Elevation API üzerinden Copernicus GLO-90 DEM verisi alır.
-    Her koordinatın gerçek arazi yüksekliğini metre cinsinden döndürür.
-    API tek istekte en fazla 100 koordinat kabul ettiği için parçalı istek yapar.
-    """
-    merkez_lat = float(merkez_lat)
-    merkez_lon = float(merkez_lon)
-
-    # Enlemde ve boylamda yaklaşık aynı fiziksel mesafeyi kapsa.
-    lat_yari = yari_cap_km / 111.32
-    cos_lat = max(np.cos(np.radians(merkez_lat)), 0.2)
-    lon_yari = yari_cap_km / (111.32 * cos_lat)
-
-    lat_dizi = np.linspace(merkez_lat - lat_yari, merkez_lat + lat_yari, grid_boyutu)
-    lon_dizi = np.linspace(merkez_lon - lon_yari, merkez_lon + lon_yari, grid_boyutu)
-    X, Y = np.meshgrid(lon_dizi, lat_dizi)
-
-    lat_duz = X*0 + Y
-    lat_duz = lat_duz.ravel()
-    lon_duz = X.ravel()
-
-    yukseklikler = []
-    for baslangic in range(0, len(lat_duz), 100):
-        bitis = baslangic + 100
-        params = {
-            "latitude": ",".join(f"{v:.6f}" for v in lat_duz[baslangic:bitis]),
-            "longitude": ",".join(f"{v:.6f}" for v in lon_duz[baslangic:bitis]),
-        }
-        yanit = requests.get(
-            "https://api.open-meteo.com/v1/elevation",
-            params=params,
-            timeout=25
-        )
-        yanit.raise_for_status()
-        parca = yanit.json().get("elevation", [])
-        if len(parca) != len(params["latitude"].split(",")):
-            raise ValueError("Yükseklik servisinden eksik veri döndü.")
-        yukseklikler.extend(parca)
-
-    Z = np.asarray(yukseklikler, dtype=float).reshape(grid_boyutu, grid_boyutu)
-    if not np.isfinite(Z).all():
-        raise ValueError("Arazi yükseklik verisinde geçersiz değer bulundu.")
-
-    # X/Y eksenleri şehir merkezine göre kilometre cinsindendir.
-    x_km = (lon_dizi - merkez_lon) * 111.32 * cos_lat
-    y_km = (lat_dizi - merkez_lat) * 111.32
-    X_km, Y_km = np.meshgrid(x_km, y_km)
-    return X_km, Y_km, Z
-
-
 # --- ULTRA GLASSMORPHISM CSS ---
 st.markdown("""
 <style>
@@ -274,6 +220,7 @@ def gercek_veri_cek(lat, lon, secilen_tarih):
             logger.error(f"Tahmin veri hatası: {str(e)}")
 
     return 22.5, 45.0, 0.0, 4.5, 180.0, 1013.0, gun_farki
+
 # --- GERÇEK 3D ARAZİ MODELİ ---
 @st.cache_data(ttl=86400, show_spinner=False)
 def gercek_yukseklik_matrisi(
@@ -315,7 +262,6 @@ def gercek_yukseklik_matrisi(
 
     yanit = None
 
-    # 429 hatasında artan bekleme süresiyle yeniden dene.
     for deneme in range(3):
         try:
             yanit = requests.get(
@@ -369,8 +315,25 @@ def gercek_yukseklik_matrisi(
     X_km, Y_km = np.meshgrid(x_km, y_km)
 
     return X_km, Y_km, Z
-    )
-except Exception as e:
+
+@st.cache_data(ttl=600, show_spinner=False)
+def zaman_serisi_cek(lat, lon, merkez_tarih):
+    baslangic = merkez_tarih - timedelta(days=15)
+    bitis = merkez_tarih + timedelta(days=14)
+    bugun = datetime.now().date()
+    url = f"https://archive-api.open-meteo.com/v1/archive?latitude={round(lat, 4)}&longitude={round(lon, 4)}&start_date={baslangic.strftime('%Y-%m-%d')}&end_date={min(bitis, bugun).strftime('%Y-%m-%d')}&daily=temperature_2m_mean,precipitation_sum,wind_speed_10m_max"
+    try:
+        res = requests.get(url, timeout=6)
+        if res.status_code == 200:
+            d = res.json().get("daily", {})
+            if "time" in d and len(d["time"]) > 0:
+                return pd.DataFrame({
+                    "Tarih": pd.to_datetime(d["time"]),
+                    "Sıcaklık (°C)": d.get("temperature_2m_mean", [20]*len(d["time"])),
+                    "Yağış (mm)": d.get("precipitation_sum", [0]*len(d["time"])),
+                    "Rüzgar (km/s)": d.get("wind_speed_10m_max", [5]*len(d["time"]))
+                })
+    except Exception as e:
         logger.error(f"Zaman serisi hatası: {str(e)}")
 
     dates = [merkez_tarih - timedelta(days=i) for i in range(15, -15, -1)]
@@ -397,7 +360,6 @@ def analiz_uret(lat, lon, secilen_tarih):
 def genis_veri_havuzu_uret(d):
     parametreler = []
     
-    # 1. Sıcaklık ve Termal Parametreler (1-27)
     temp_list = [
         ("2m Sıcaklık (Anlık)", f"{d['sicaklik']} °C", "°C", "Normal"),
         ("Maksimum Tahmini Sıcaklık", f"{d['sicaklik'] + 3.2:.1f} °C", "°C", "Stabil"),
@@ -430,7 +392,6 @@ def genis_veri_havuzu_uret(d):
     for p in temp_list:
         parametreler.append({"Kategori": "Sıcaklık & Termal", "Parametre Adı": p[0], "Değer": p[1], "Birim": p[2], "Durum": p[3]})
 
-    # 2. Nem, Su Buharı ve Yağış Parametreleri (28-58)
     nem_list = [
         ("Bağıl Nem (2m)", f"%{d['nem']}", "%", "Optimal"),
         ("Özgül Nem", "8.4 g/kg", "g/kg", "Normal"),
@@ -467,7 +428,6 @@ def genis_veri_havuzu_uret(d):
     for p in nem_list:
         parametreler.append({"Kategori": "Nem & Su Buharı", "Parametre Adı": p[0], "Değer": p[1], "Birim": p[2], "Durum": p[3]})
 
-    # 3. Rüzgar, Basınç ve Dinamikler (59-88)
     ruzgar_list = [
         ("10m Rüzgar Hızı", f"{d['ruzgar']} km/s", "km/s", "Normal"),
         ("Rüzgar Yönü", f"{d['ruzgar_yon']}°", "Derece", "Normal"),
@@ -503,7 +463,6 @@ def genis_veri_havuzu_uret(d):
     for p in ruzgar_list:
         parametreler.append({"Kategori": "Rüzgar & Basınç", "Parametre Adı": p[0], "Değer": p[1], "Birim": p[2], "Durum": p[3]})
 
-    # 4. Toprak, SMAP ve Uydu Parametreleri (89-113)
     toprak_list = [
         ("SMAP Toprak Rutubeti", f"{d['smap_soil']} %", "%", "Optimum"),
         ("NDVI Bitki İndeksi", f"{d['ndvi_val']}", "Indeks", "Sağlıklı"),
@@ -534,7 +493,6 @@ def genis_veri_havuzu_uret(d):
     for p in toprak_list:
         parametreler.append({"Kategori": "Toprak & Uydu", "Parametre Adı": p[0], "Değer": p[1], "Birim": p[2], "Durum": p[3]})
 
-    # 5. Güneş, Radyasyon ve Hava Kalitesi Parametreleri (114-138)
     gunes_list = [
         ("UV İndeksi", f"{d['radyasyon']}", "Indeks", "Güvenli"),
         ("Kısa Dalga Güneş Radyasyonu", "480 W/m²", "W/m²", "Normal"),
@@ -843,7 +801,7 @@ with tab6:
     except Exception as e:
         logger.exception("3D arazi modeli oluşturulamadı")
         st.error(f"Gerçek arazi verisi alınamadı: {e}")
-        st.info("İnternet bağlantısını kontrol edip sayfayı yenileyin. Önceki yapay yüzey artık gösterilmez.")
+        st.info("İnternet bağlantısını kontrol edip sayfayı yenileyin.")
 
 with tab7:
     render_box(
