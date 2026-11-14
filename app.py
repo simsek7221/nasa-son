@@ -536,9 +536,9 @@ if "arduino_ser" not in st.session_state:
 
 d = analiz_uret(st.session_state.secilen_lat, st.session_state.secilen_lon, datetime.now().date())
 
-# --- KENAR ÇUBUĞU: TABLET / WEB SERIAL BAĞLANTISI ---
+# --- KENAR ÇUBUĞU: WEB SERIAL BAĞLANTISI ---
 with st.sidebar:
-    st.markdown("### 🔌 Tablet / Deneyap Kart Bağlantısı")
+    st.markdown("### 🔌 Deneyap Kart V2 Bağlantısı")
     st.markdown("<p style='font-size:0.85rem; color:#94a3b8;'>Type-C kablo ile bağlı kartınıza tek tuşla bağlanın:</p>", unsafe_allow_html=True)
     
     js_veri_paketi = f"T:{d['sicaklik']:.1f},H:{d['nem']},P:{d['basinc']},W:{d['ruzgar']:.1f},N:{d['ndvi_val']:.2f},S:{d['smap_soil']:.1f}\n"
@@ -811,15 +811,9 @@ with tab6:
             )
         )
         st.plotly_chart(fig_3d, use_container_width=True)
-        st.caption(
-            f"Yükseklik aralığı: {np.nanmin(Z):.0f}–{np.nanmax(Z):.0f} m · "
-            "Kaynak: Copernicus DEM GLO-90 / Open-Meteo Elevation API · "
-            "Yaklaşık 24 × 24 km alan, 90 m kaynak çözünürlüğü."
-        )
     except Exception as e:
         logger.exception("3D arazi modeli oluşturulamadı")
         st.error(f"Gerçek arazi verisi alınamadı: {e}")
-        st.info("İnternet bağlantısını kontrol edip sayfayı yenileyin.")
 
 with tab7:
     render_box(
