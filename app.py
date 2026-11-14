@@ -634,8 +634,9 @@ with tab1:
 
     components.html(f"""
     <div style="position: relative; width: 100%; height: 530px; border-radius: 24px; overflow: hidden; border: 3px solid rgba(56, 189, 248, 0.4);">
-        <iframe src="{windy_embed_url}" width="100%" height="600px" style="border:none; margin-top: -35px;"></iframe>
-        <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 45px; background: #0f172a; pointer-events: none;"></div>
+        <iframe src="{windy_embed_url}" width="100%" height="565px" style="border:none; margin-top: -20px;"></iframe>
+        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 18px; background: #0f172a; pointer-events: none;"></div>
+        <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 35px; background: #0f172a; pointer-events: none;"></div>
     </div>
     """, height=540)
 
