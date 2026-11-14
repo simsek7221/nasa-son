@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import plotly.express as px
 import plotly.graph_objects as go
 import logging
+import json
 import time
 
 # --- SİSTEM LOGLAMA ---
@@ -18,12 +19,6 @@ try:
 except ImportError:
     streamlit_geolocation = None
 
-try:
-    import serial
-    import serial.tools.list_ports
-except ImportError:
-    serial = None
-
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
     page_title="Lightning Flora - NASA Space Apps Observatory Pro",
@@ -32,17 +27,21 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- ARDUİNO SERİ PORT GÖNDERİM FONKSİYONU ---
+# --- DOSYAYA VERİ YAZMA FONKSİYONU (Python Bridge Köprüsü) ---
 def arduino_veri_gonder(temp, hum, pres, wind, ndvi, soil):
-    if serial is None:
-        return
-    if "arduino_ser" in st.session_state and st.session_state.arduino_ser:
-        try:
-            veri_paketi = f"T:{temp:.1f},H:{hum},P:{pres},W:{wind:.1f},N:{ndvi:.2f},S:{soil:.1f}\n"
-            st.session_state.arduino_ser.write(veri_paketi.encode('utf-8'))
-        except Exception as e:
-            logger.error(f"Arduino veri gönderim hatası: {e}")
-            st.session_state.arduino_ser = None
+    veri = {
+        "temp": temp, 
+        "hum": hum, 
+        "pres": pres, 
+        "wind": wind, 
+        "ndvi": ndvi, 
+        "soil": soil
+    }
+    try:
+        with open("sensor_data.json", "w", encoding="utf-8") as f:
+            json.dump(veri, f)
+    except Exception as e:
+        logger.error(f"Veri dosyaya yazılamadı: {e}")
 
 # --- COĞRAFİ KONUM ÇÖZÜCÜ (GEOCODING API) ---
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -531,55 +530,14 @@ if "secilen_lon" not in st.session_state:
     st.session_state.secilen_lon = 41.1198
 if "mekan_adi" not in st.session_state:
     st.session_state.mekan_adi = "Batman (Gerçek İstasyon)"
-if "arduino_ser" not in st.session_state:
-    st.session_state.arduino_ser = None
 
 d = analiz_uret(st.session_state.secilen_lat, st.session_state.secilen_lon, datetime.now().date())
+arduino_veri_gonder(d['sicaklik'], int(d['nem']), int(d['basinc']), d['ruzgar'], d['ndvi_val'], d['smap_soil'])
 
-# --- KENAR ÇUBUĞU: WEB SERIAL BAĞLANTISI ---
+# --- KENAR ÇUBUĞU: PYTHON BRIDGE BİLGİLENDİRMESİ ---
 with st.sidebar:
-    st.markdown("### 🔌 Deneyap Kart V2 Bağlantısı")
-    st.markdown("<p style='font-size:0.85rem; color:#94a3b8;'>Type-C kablo ile bağlı kartınıza tek tuşla bağlanın:</p>", unsafe_allow_html=True)
-    
-    js_veri_paketi = f"T:{d['sicaklik']:.1f},H:{d['nem']},P:{d['basinc']},W:{d['ruzgar']:.1f},N:{d['ndvi_val']:.2f},S:{d['smap_soil']:.1f}\n"
-    
-    components.html(f"""
-    <div style="padding: 5px; font-family: sans-serif;">
-        <button id="connectSerial" style="background: linear-gradient(135deg, #0284c7 0%, #7c3aed 100%); color: white; border: none; padding: 12px 15px; border-radius: 12px; font-weight: bold; cursor: pointer; width: 100%; box-shadow: 0 4px 15px rgba(2,132,199,0.4);">
-            🚀 Deneyap Kart'a Bağlan
-        </button>
-        <p id="status" style="color: #38bdf8; font-size: 0.8rem; margin-top: 10px; text-align: center;">Durum: Bağlı Değil ❌</p>
-    </div>
-    <script>
-        let port;
-        let writer;
-        const button = document.getElementById('connectSerial');
-        const status = document.getElementById('status');
-        const veriPaketi = "{js_veri_paketi}";
-
-        button.addEventListener('click', async () => {{
-            try {{
-                if (!port) {{
-                    port = await navigator.serial.requestPort();
-                    await port.open({{ baudRate: 9600 }});
-                    status.innerText = "Bağlandı! Veriler aktarılıyor ✅";
-                    status.style.color = "#4ade80";
-                    button.innerText = "Bağlantı Aktif 🔄";
-                }}
-                
-                const textEncoder = new TextEncoderStream();
-                const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
-                writer = textEncoder.writable.getWriter();
-                await writer.write(veriPaketi);
-                await writer.close();
-                
-            }} catch (err) {{
-                status.innerText = "Hata / İptal Edildi";
-                status.style.color = "#f87171";
-            }}
-        }});
-    </script>
-    """, height=130)
+    st.markdown("### 🔌 Python Bridge (Köprü) Aktif")
+    st.markdown("<p style='font-size:0.85rem; color:#4ade80;'>Veriler arka planda `sensor_data.json` üzerinden karta aktarılıyor ✅</p>", unsafe_allow_html=True)
 
 col_search, col_gps, col_date = st.columns([2, 1, 1])
 
