@@ -536,10 +536,10 @@ if "arduino_ser" not in st.session_state:
 
 d = analiz_uret(st.session_state.secilen_lat, st.session_state.secilen_lon, datetime.now().date())
 
-# --- KENAR ÇUBUĞU: DENEYAP KART V2 İÇİN WEB SERIAL BAĞLANTISI ---
+# --- KENAR ÇUBUĞU: TABLET / WEB SERIAL BAĞLANTISI ---
 with st.sidebar:
-    st.markdown("### 🔌 Deneyap Kart V2 Bağlantısı")
-    st.markdown("<p style='font-size:0.85rem; color:#94a3b8;'>Tek tuşla karta bağlanın ve güncel verileri aktarın:</p>", unsafe_allow_html=True)
+    st.markdown("### 🔌 Tablet / Deneyap Kart Bağlantısı")
+    st.markdown("<p style='font-size:0.85rem; color:#94a3b8;'>Type-C kablo ile bağlı kartınıza tek tuşla bağlanın:</p>", unsafe_allow_html=True)
     
     js_veri_paketi = f"T:{d['sicaklik']:.1f},H:{d['nem']},P:{d['basinc']},W:{d['ruzgar']:.1f},N:{d['ndvi_val']:.2f},S:{d['smap_soil']:.1f}\n"
     
