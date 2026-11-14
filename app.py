@@ -764,7 +764,7 @@ with tab6:
     )
     st.markdown(
         "<p style='color:#cbd5e1;'>Bu model, seçilen koordinatın çevresindeki gerçek arazi yüksekliklerini "
-        "Copernicus NASA sayısal yükseklik modelinden alır. Yatay eksenler kilometre, dikey eksen metre cinsindendir.</p>",
+        "NASA sayısal yükseklik modelinden alır. Yatay eksenler kilometre, dikey eksen metre cinsindendir.</p>",
         unsafe_allow_html=True
     )
 
