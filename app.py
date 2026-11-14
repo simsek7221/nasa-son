@@ -8,6 +8,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import logging
 import time
+import json
 
 # --- SİSTEM LOGLAMA ---
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -516,50 +517,7 @@ if "mekan_adi" not in st.session_state:
 
 d = analiz_uret(st.session_state.secilen_lat, st.session_state.secilen_lon, datetime.now().date())
 
-# --- KENAR ÇUBUĞU: MANUEL WEB SERIAL BAĞLANTISI ---
-with st.sidebar:
-    st.markdown("### 🔌 Arduino Uno Manuel Bağlantısı")
-    st.markdown("<p style='font-size:0.85rem; color:#94a3b8;'>USB ile bağlı kartınıza siteden manuel bağlanın:</p>", unsafe_allow_html=True)
-    
-    js_veri_paketi = f"T:{d['sicaklik']:.1f},H:{d['nem']},P:{d['basinc']},W:{d['ruzgar']:.1f},N:{d['ndvi_val']:.2f},S:{d['smap_soil']:.1f}\n"
-    
-    components.html(f"""
-    <div style="padding: 5px; font-family: sans-serif;">
-        <button id="connectSerial" style="background: linear-gradient(135deg, #0284c7 0%, #7c3aed 100%); color: white; border: none; padding: 12px 15px; border-radius: 12px; font-weight: bold; cursor: pointer; width: 100%; box-shadow: 0 4px 15px rgba(2,132,199,0.4);">
-            🚀 Arduino Uno'ya Bağlan
-        </button>
-        <p id="status" style="color: #38bdf8; font-size: 0.8rem; margin-top: 10px; text-align: center;">Durum: Bağlı Değil ❌</p>
-    </div>
-    <script>
-        let port;
-        let writer;
-        const button = document.getElementById('connectSerial');
-        const status = document.getElementById('status');
-        const veriPaketi = "{js_veri_paketi}";
-
-        button.addEventListener('click', async () => {{
-            try {{
-                if (!port) {{
-                    port = await navigator.serial.requestPort();
-                    await port.open({{ baudRate: 9600 }});
-                    status.innerText = "Bağlandı! Veriler aktarılıyor ✅";
-                    status.style.color = "#4ade80";
-                    button.innerText = "Bağlantı Aktif 🔄";
-                }}
-                
-                const textEncoder = new TextEncoderStream();
-                const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
-                writer = textEncoder.writable.getWriter();
-                await writer.write(veriPaketi);
-                await writer.close();
-                
-            }} catch (err) {{
-                status.innerText = "Hata / İptal Edildi";
-                status.style.color = "#f87171";
-            }}
-        }});
-    </script>
-    """, height=130)
+# Arduino bağlantı arayüzü, seçilen konum ve tarih hesaplandıktan sonra oluşturulur.
 
 col_search, col_gps, col_date = st.columns([2, 1, 1])
 
@@ -588,6 +546,110 @@ with col_date:
     secilen_tarih = st.date_input("📅 Gerçek Veri Tarihi Seçin:", value=datetime.now().date())
 
 d = analiz_uret(st.session_state.secilen_lat, st.session_state.secilen_lon, secilen_tarih)
+
+
+# --- ARDUINO UNO: MANUEL GÖNDERİM + OTOMATİK GÖNDERİM ---
+# Web Serial tarayıcı üzerinden çalışır. Kullanıcı ilk bağlantıda COM5'i seçmelidir.
+# json.dumps, satır sonu karakterinin JavaScript metnini bozmasını önler.
+veri_paketi_arduino = (
+    f"T:{d['sicaklik']:.1f},"
+    f"H:{d['nem']},"
+    f"P:{d['basinc']},"
+    f"W:{d['ruzgar']:.1f},"
+    f"N:{d['ndvi_val']:.2f},"
+    f"S:{d['smap_soil']:.1f}\n"
+)
+js_veri_paketi = json.dumps(veri_paketi_arduino, ensure_ascii=False)
+
+with st.sidebar:
+    st.markdown("### 🔌 Arduino UNO — COM5")
+    st.caption("İlk bağlantıda açılan pencereden COM5 portunu seç.")
+    otomatik_gonder = st.checkbox(
+        "Veriler değiştiğinde otomatik gönder",
+        value=False,
+        key="arduino_otomatik_gonder"
+    )
+    components.html(f"""
+    <div style="padding:8px;font-family:Arial,sans-serif;color:#e2e8f0;">
+      <button id="connectBtn" style="width:100%;padding:12px;border:0;border-radius:10px;background:#0369a1;color:white;font-weight:700;cursor:pointer;margin-bottom:8px;">
+        🔌 Arduino'ya Bağlan (COM5)
+      </button>
+      <button id="sendBtn" style="width:100%;padding:12px;border:0;border-radius:10px;background:#6d28d9;color:white;font-weight:700;cursor:pointer;">
+        📤 Verileri Şimdi Gönder
+      </button>
+      <div id="serialStatus" style="font-size:12px;margin-top:10px;text-align:center;color:#7dd3fc;">
+        Bağlantı bekleniyor
+      </div>
+    </div>
+    <script>
+    (() => {{
+      const packet = {js_veri_paketi};
+      const autoEnabled = {str(bool(otomatik_gonder)).lower()};
+      const connectBtn = document.getElementById('connectBtn');
+      const sendBtn = document.getElementById('sendBtn');
+      const status = document.getElementById('serialStatus');
+      let port = null;
+
+      function showStatus(message, color='#7dd3fc') {{
+        status.textContent = message;
+        status.style.color = color;
+      }}
+
+      async function openGrantedPort() {{
+        if (!('serial' in navigator)) {{
+          throw new Error('Web Serial desteklenmiyor. Güncel Chrome ve HTTPS gerekir.');
+        }}
+        if (port && port.writable) return port;
+        const grantedPorts = await navigator.serial.getPorts();
+        if (grantedPorts.length > 0) {{
+          port = grantedPorts[0];
+        }} else {{
+          throw new Error('Önce Arduino\'ya Bağlan düğmesine basıp COM5\'i seç.');
+        }}
+        if (!port.writable) await port.open({{ baudRate: 9600 }});
+        return port;
+      }}
+
+      async function sendPacket() {{
+        const activePort = await openGrantedPort();
+        const writer = activePort.writable.getWriter();
+        try {{
+          await writer.write(new TextEncoder().encode(packet));
+        }} finally {{
+          writer.releaseLock();
+        }}
+        showStatus('Veri gönderildi ✓', '#4ade80');
+      }}
+
+      connectBtn.addEventListener('click', async () => {{
+        try {{
+          if (!('serial' in navigator)) throw new Error('Bu tarayıcı Web Serial desteklemiyor.');
+          // requestPort çağrısı kullanıcı tıklaması içinde yapılmalıdır.
+          port = await navigator.serial.requestPort();
+          if (!port.writable) await port.open({{ baudRate: 9600 }});
+          showStatus('Arduino bağlandı. COM5 seçimini kontrol et.', '#4ade80');
+          await sendPacket();
+        }} catch (err) {{
+          showStatus('Bağlantı hatası: ' + err.message, '#f87171');
+        }}
+      }});
+
+      sendBtn.addEventListener('click', async () => {{
+        try {{ await sendPacket(); }}
+        catch (err) {{ showStatus('Gönderim hatası: ' + err.message, '#f87171'); }}
+      }});
+
+      // Streamlit yeniden çalıştığında izin verilmiş portu bulup yeni veriyi yollar.
+      // Bu, otomatik gönderimin tarayıcıdaki izin ve iframe politikasına bağlı olduğu anlamına gelir.
+      if (autoEnabled) {{
+        openGrantedPort()
+          .then(() => sendPacket())
+          .catch(err => showStatus('Otomatik gönderim bekliyor: ' + err.message, '#fbbf24'));
+      }}
+    }})();
+    </script>
+    """, height=175)
+
 
 zaman_aciklama = "Canlı Gözlem Verileri"
 if d['gun_farki'] < 0:
