@@ -591,7 +591,7 @@ with st.sidebar:
         if (grantedPorts.length > 0) {{
           port = grantedPorts[0];
         }} else {{
-          throw new Error('Önce Arduino\'ya Bağlan düğmesine basıp COM5\'i seç.');
+          throw new Error("Önce Arduino'ya Bağlan düğmesine basıp COM5'i seç.");
         }}
         if (!port.writable) await port.open({{ baudRate: 9600 }});
         return port;
