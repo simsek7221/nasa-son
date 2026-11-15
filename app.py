@@ -552,7 +552,7 @@ if aktif_sekme == "NASA Trendleri":
         render_metric_card("4️⃣ Basınç", "Veri yok" if d['basinc'] is None else f"{d['basinc']:.1f} hPa", "Basınç", "rgba(168, 85, 247, 0.75)", "#c084fc", "rgba(168, 85, 247, 0.45)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
 
     df_trend = zaman_serisi_cek(st.session_state.secilen_lat, st.session_state.secilen_lon, secilen_tarih)
-    fig_temp = px.line(df_trend, x="Tarih", y="Sıcaklık (°C)", title="30 Günlük Sıcaklık Trendi", template="plotly_dark")
+    fig_temp = px.line(df_trend, x="Tarih", y="Günlük Ortalama Sıcaklık (°C)", title="NASA POWER — 30 Günlük Ortalama Sıcaklık", template="plotly_dark")
     fig_temp.update_traces(line=dict(color="#38bdf8", width=3))
     fig_temp.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig_temp, use_container_width=True)
