@@ -573,7 +573,22 @@ with tab1:
       ).addTo(map);
       L.marker([{lat_val}, {lon_val}]).addTo(map)
         .bindPopup('Lightning Flora observation point').openPopup();
-      L.control.layers({{'OpenStreetMap': osm}}, {{'NASA MODIS Terra – True Color': nasaLayer}}).addTo(map);
+      const ndviLayer = L.tileLayer(
+        'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI_8Day/default/{nasa_map_date}/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.png',
+        {{maxZoom: 9, opacity: 0.72, attribution: 'NASA GIBS / MODIS Terra NDVI 8-Day'}}
+      );
+      const lstLayer = L.tileLayer(
+        'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_Land_Surface_Temp_Day/default/{nasa_map_date}/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.png',
+        {{maxZoom: 9, opacity: 0.68, attribution: 'NASA GIBS / MODIS Terra Land Surface Temperature'}}
+      );
+      L.control.layers(
+        {{'OpenStreetMap': osm}},
+        {{
+          'NASA MODIS True Color': nasaLayer,
+          'NASA MODIS NDVI (8-day visual layer)': ndviLayer,
+          'NASA MODIS Land Surface Temperature': lstLayer
+        }}
+      ).addTo(map);
     </script>
     """
     components.html(gibs_map_html, height=575, scrolling=False)
