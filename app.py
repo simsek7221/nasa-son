@@ -564,16 +564,16 @@ with tab1:
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
       const map = L.map('nasa-map').setView([{lat_val}, {lon_val}], 6);
-      const osm = L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {
+      const osm = L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
         maxZoom: 18, attribution: '&copy; OpenStreetMap contributors'
-      }).addTo(map);
+      }}).addTo(map);
       const nasaLayer = L.tileLayer(
         'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/{nasa_map_date}/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.jpg',
-        {maxZoom: 9, opacity: 0.90, attribution: 'NASA GIBS / MODIS Terra'}
+        {{maxZoom: 9, opacity: 0.90, attribution: 'NASA GIBS / MODIS Terra'}}
       ).addTo(map);
       L.marker([{lat_val}, {lon_val}]).addTo(map)
         .bindPopup('Lightning Flora observation point').openPopup();
-      L.control.layers({'OpenStreetMap': osm}, {'NASA MODIS Terra – True Color': nasaLayer}).addTo(map);
+      L.control.layers({{'OpenStreetMap': osm}}, {{'NASA MODIS Terra – True Color': nasaLayer}}).addTo(map);
     </script>
     """
     components.html(gibs_map_html, height=575, scrolling=False)
