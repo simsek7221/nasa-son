@@ -775,7 +775,7 @@ if aktif_sekme == "🛰️ Uydu Haritası":
               console.warn('NASA VIIRS tiles unavailable; keeping NASA Blue Marble base map.');
             }}
           }});
-          nasaSatellite.addTo(map);
+          if (!{json.dumps(show_science_overlay)}) nasaSatellite.addTo(map);
 
           // NASA GIBS WMS, her katmanın kendi çözünürlük ve görüntü formatını yönetir.
           const nasaWms = 'https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi';
