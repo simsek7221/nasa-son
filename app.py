@@ -779,7 +779,7 @@ if aktif_sekme == "🛰️ Uydu Haritası":
 
           // NASA GIBS WMS, her katmanın kendi çözünürlük ve görüntü formatını yönetir.
           const nasaWms = 'https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi';
-          const scienceWmsOptions = {
+          const scienceWmsOptions = {{
             layers: {json.dumps(selected_layer)},
             styles: '',
             format: 'image/png',
@@ -791,7 +791,7 @@ if aktif_sekme == "🛰️ Uydu Haritası":
             updateWhenIdle: true,
             keepBuffer: 1,
             attribution: 'NASA GIBS / EOSDIS'
-          };
+          }};
           if ({json.dumps(selected_has_time)}) {{
             scienceWmsOptions.time = {json.dumps(map_date)};
           }}
