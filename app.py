@@ -709,10 +709,13 @@ if aktif_sekme == "🛰️ Uydu Haritası":
         layer_titles = [x["title"] for x in nasa_layers]
         layer_names = [x["name"] for x in nasa_layers]
         selected_title = st.selectbox("51 NASA haritasından birini seç", layer_titles, index=0, key="nasa_51_layer")
-        selected_layer = layer_names[layer_titles.index(selected_title)]
+        selected_index = layer_titles.index(selected_title)
+        selected_layer = layer_names[selected_index]
+        selected_has_time = nasa_layers[selected_index].get("has_time", False)
+        # NASA GIBS görüntüleri anlık değildir; bugünün tarihi boş karo döndürebilir.
         map_date = st.date_input(
             "Uydu gözlem tarihi",
-            value=datetime.now().date(),
+            value=datetime.now().date() - timedelta(days=3),
             max_value=datetime.now().date(),
             key="nasa_map_date"
         ).strftime("%Y-%m-%d")
@@ -727,13 +730,16 @@ if aktif_sekme == "🛰️ Uydu Haritası":
           const nasaBase = L.tileLayer.wms(nasaWms, {{
             layers: 'MODIS_Terra_CorrectedReflectance_TrueColor',
             format: 'image/jpeg', transparent: false, version: '1.1.1',
-            time: '{map_date}', attribution: 'NASA GIBS / EOSDIS', tiled: true
+            time: '{map_date}', attribution: 'NASA GIBS / EOSDIS',
+            tiled: true, tileSize: 256, detectRetina: false, keepBuffer: 2
           }}).addTo(map);
-          const nasaOverlay = L.tileLayer.wms(nasaWms, {{
+          const overlayParams = {{
             layers: {json.dumps(selected_layer)}, format: 'image/png', transparent: true,
-            version: '1.1.1', time: '{map_date}', attribution: 'NASA GIBS / EOSDIS',
-            tiled: true, opacity: 0.88
-          }});
+            version: '1.1.1', attribution: 'NASA GIBS / EOSDIS',
+            tiled: true, tileSize: 256, detectRetina: false, keepBuffer: 2, opacity: 0.72
+          }};
+          ${selected_has_time ? "overlayParams.time = '" + "{map_date}" + "';" : ""}
+          const nasaOverlay = L.tileLayer.wms(nasaWms, overlayParams);
           if ({json.dumps(selected_layer)} !== 'MODIS_Terra_CorrectedReflectance_TrueColor') nasaOverlay.addTo(map);
           L.control.layers({{'NASA MODIS True Color': nasaBase}}, {{'Selected NASA science layer': nasaOverlay}}).addTo(map);
           L.marker([{st.session_state.secilen_lat}, {st.session_state.secilen_lon}])
