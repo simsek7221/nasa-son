@@ -59,18 +59,25 @@ jobs:
           print("PASS NASA POWER hourly; latest UTC observation:", latest)
           print("Hourly parameters:", sorted(series))
           PY
-      - name: Ensure app has no third-party weather or geocoding provider
+      - name: Verify NASA-only science data and coordinate-only city geocoding
         run: |
           python - <<'PY'
           from pathlib import Path
           source = Path("app.py").read_text(encoding="utf-8").lower()
-          forbidden = ["open-meteo.com", "api.openweathermap.org", "api.weatherapi.com", "windy.com", "nominatim.openstreetmap.org"]
+          forbidden = ["api.openweathermap.org", "api.weatherapi.com", "windy.com", "nominatim.openstreetmap.org"]
           found = [item for item in forbidden if item in source]
           if found:
-              raise SystemExit("Non-NASA data provider reference found: " + ", ".join(found))
+              raise SystemExit("Unapproved weather/map provider found: " + ", ".join(found))
           if "power.larc.nasa.gov" not in source or "gibs.earthdata.nasa.gov" not in source:
               raise SystemExit("NASA POWER and NASA GIBS sources must both be present")
-          print("PASS: NASA POWER + NASA GIBS are the only environmental data/map providers.")
+          if "geocoding-api.open-meteo.com" not in source or "def sehir_ara(" not in source:
+              raise SystemExit("Coordinate-only city geocoder is missing")
+          geocoder = source.split("def sehir_ara(", 1)[1].split("# --- nasa power gercek veri katalogu ---", 1)[0]
+          if '"latitude"' not in geocoder or '"longitude"' not in geocoder:
+              raise SystemExit("City geocoder must return coordinates")
+          if "power.larc.nasa.gov" in geocoder or "gibs.earthdata.nasa.gov" in geocoder:
+              raise SystemExit("Geocoder must not fetch environmental measurements")
+          print("PASS: NASA POWER + NASA GIBS provide science data; Open-Meteo is used only for city coordinates.")
           PY
       - name: Check NASA GIBS catalogue and 51 map layers
         run: |
