@@ -14,11 +14,6 @@ import json
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("LightningFloraNASAPro")
 
-try:
-    from streamlit_geolocation import streamlit_geolocation
-except ImportError:
-    streamlit_geolocation = None
-
 # Streamlit Sayfa Yapılandırması
 st.set_page_config(
     page_title="Lightning Flora - NASA Space Apps Observatory Pro",
@@ -26,6 +21,10 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+from streamlit_autorefresh import st_autorefresh
+# NASA POWER Hourly NRT verilerini 30 dakikada bir yeniden iste.
+st_autorefresh(interval=30 * 60 * 1000, key="nasa_power_auto_refresh")
 
 # Konum çözümleme için üçüncü taraf coğrafi servis kullanılmaz.
 # Kullanıcı koordinat girer veya tarayıcı GPS izni verirse cihaz konumu kullanılır.
@@ -379,15 +378,7 @@ st.session_state.mekan_adi = f"Koordinat: {girilen_lat:.4f}, {girilen_lon:.4f}"
 
 with col_gps:
     st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-    if streamlit_geolocation is not None:
-        loc_data = streamlit_geolocation()
-        if loc_data and loc_data.get("latitude") is not None and loc_data.get("longitude") is not None:
-            if st.button("📍 GPS konumunu kullan"):
-                st.session_state.secilen_lat = float(loc_data["latitude"])
-                st.session_state.secilen_lon = float(loc_data["longitude"])
-                st.rerun()
-    else:
-        st.caption("Konum için koordinat girin.")
+    st.caption("Yalnızca koordinat girişi kullanılır; harici konum servisi yoktur.")
 
 with col_date:
     secilen_tarih = st.date_input("📅 NASA günlük toprak/güneş tarihi:", value=datetime.now().date() - timedelta(days=3), max_value=datetime.now().date() - timedelta(days=1))
