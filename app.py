@@ -737,7 +737,7 @@ if aktif_sekme == "🌐 3D Dünya":
         globe_date = st.date_input("NASA görüntü tarihi", value=datetime.now().date(),
                                   max_value=datetime.now().date(), key="nasa_3d_date").strftime("%Y-%m-%d")
         st.caption(f"NASA GIBS · {globe_title} · {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}")
-        globe_html = f"""
+        globe_html = """
         <div id="nasa-3d-shell" style="position:relative;width:100%;height:560px;border-radius:22px;overflow:hidden;background:radial-gradient(circle at 50% 45%,#102b52,#020617 72%);border:1px solid rgba(56,189,248,.45);">
           <div id="nasa-3d-status" style="position:absolute;z-index:3;top:14px;left:16px;color:#bae6fd;font:600 12px Arial;">NASA görüntüsü yükleniyor…</div>
           <div style="position:absolute;z-index:3;bottom:12px;left:16px;color:#94a3b8;font:12px Arial;">Sürükle: döndür · Tekerlek: yakınlaştır</div>
@@ -760,7 +760,7 @@ if aktif_sekme == "🌐 3D Dünya":
           globe.add(new THREE.Mesh(new THREE.SphereGeometry(1,64,44),material));
           scene.add(new THREE.AmbientLight(0xffffff,1.4));
           const sun=new THREE.DirectionalLight(0xffffff,1.1); sun.position.set(3,2,4); scene.add(sun);
-          const layer=${JSON.stringify(globe_layer)}, date=${JSON.stringify(globe_date)};
+          const layer=__LAYER__, date=__DATE__;
           const base='https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi';
           const textureUrl=base+'?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG:4326&BBOX=-180,-90,180,90&WIDTH=1536&HEIGHT=768&LAYERS='+encodeURIComponent(layer)+'&STYLES=&FORMAT=image/jpeg&TRANSPARENT=FALSE&TIME='+encodeURIComponent(date);
           const loader=new THREE.TextureLoader(); loader.setCrossOrigin('anonymous');
@@ -768,7 +768,7 @@ if aktif_sekme == "🌐 3D Dünya":
             texture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
             material.map=texture; material.needsUpdate=true; status.textContent='NASA GIBS görüntüsü yüklendi · '+layer;
           },undefined,()=>{status.textContent='Bu katmanda seçilen tarih için görüntü yok. Başka NASA tarihi/katmanı seç.';});
-          const lat=${Number(st.session_state.secilen_lat)}, lon=${Number(st.session_state.secilen_lon)};
+          const lat=__LAT__, lon=__LON__;
           const phi=(90-lat)*Math.PI/180, theta=(lon+180)*Math.PI/180;
           const marker=new THREE.Mesh(new THREE.SphereGeometry(.018,14,10),new THREE.MeshBasicMaterial({color:0xffd166}));
           marker.position.set(-Math.sin(phi)*Math.cos(theta)*1.012,Math.cos(phi)*1.012,Math.sin(phi)*Math.sin(theta)*1.012);
@@ -785,7 +785,7 @@ if aktif_sekme == "🌐 3D Dünya":
         })();
         </script>
         """
-        components.html(globe_html, height=570, scrolling=False)
+        globe_html = (globe_html.replace("__LAYER__", json.dumps(globe_layer))\n                      .replace("__DATE__", json.dumps(globe_date))\n                      .replace("__LAT__", str(float(st.session_state.secilen_lat)))\n                      .replace("__LON__", str(float(st.session_state.secilen_lon))))\n        components.html(globe_html, height=570, scrolling=False)
     except Exception as globe_error:
         st.error(f"NASA 3D Dünya katmanı hazırlanamadı: {globe_error}")
 
