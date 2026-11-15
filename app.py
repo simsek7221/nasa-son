@@ -32,12 +32,12 @@ st_autorefresh(interval=30 * 60 * 1000, key="nasa_power_auto_refresh")
 # --- ULTRA GLASSMORPHISM CSS ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+    /* Sistem fontları: harici font indirmesi yok, daha hızlı ilk çizim. */
 
     .stApp {
         background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0f172a 50%, #000000 100%) !important;
         color: #f8fafc !important;
-        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
     }
     
     .block-container {
@@ -779,16 +779,16 @@ if aktif_sekme == "🌐 3D Dünya":
           const camera=new THREE.PerspectiveCamera(38,shell.clientWidth/shell.clientHeight,.1,100);
           camera.position.set(0,0,3.15);
           const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
-          renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.25));
           renderer.setSize(shell.clientWidth,shell.clientHeight,false);
           const globe=new THREE.Group(); scene.add(globe);
           const material=new THREE.MeshPhongMaterial({color:0xffffff,shininess:8});
-          globe.add(new THREE.Mesh(new THREE.SphereGeometry(1,64,44),material));
+          globe.add(new THREE.Mesh(new THREE.SphereGeometry(1,48,32),material));
           scene.add(new THREE.AmbientLight(0xffffff,1.4));
           const sun=new THREE.DirectionalLight(0xffffff,1.1); sun.position.set(3,2,4); scene.add(sun);
           const layer=__LAYER__, date=__DATE__, timeParam=__TIME_PARAM__;
           const base='https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi';
-          const textureUrl=base+'?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG:4326&BBOX=-180,-90,180,90&WIDTH=1536&HEIGHT=768&LAYERS='+encodeURIComponent(layer)+'&STYLES=&FORMAT=image/jpeg&TRANSPARENT=FALSE'+timeParam;
+          const textureUrl=base+'?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG:4326&BBOX=-180,-90,180,90&WIDTH=1024&HEIGHT=512&LAYERS='+encodeURIComponent(layer)+'&STYLES=&FORMAT=image/jpeg&TRANSPARENT=FALSE'+timeParam;
           const loader=new THREE.TextureLoader(); loader.setCrossOrigin('anonymous');
           loader.load(textureUrl, texture=>{
             texture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
@@ -806,7 +806,7 @@ if aktif_sekme == "🌐 3D Dünya":
           canvas.addEventListener('wheel',e=>{e.preventDefault();camera.position.z=Math.max(1.7,Math.min(5,camera.position.z+e.deltaY*.003));},{passive:false});
           const resize=()=>{const w=shell.clientWidth,h=shell.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);};
           if(window.ResizeObserver)new ResizeObserver(resize).observe(shell);else window.addEventListener('resize',resize);
-          function animate(){requestAnimationFrame(animate);if(!dragging)rotY+=.0007;globe.rotation.y=rotY;globe.rotation.x=rotX;renderer.render(scene,camera);}
+          function animate(){requestAnimationFrame(animate);if(document.hidden)return;if(!dragging)rotY+=.0007;globe.rotation.y=rotY;globe.rotation.x=rotX;renderer.render(scene,camera);}
           animate();
         })();
         </script>
