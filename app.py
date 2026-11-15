@@ -27,27 +27,8 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- COĞRAFİ KONUM ÇÖZÜCÜ (GEOCODING API) ---
-@st.cache_data(ttl=3600, show_spinner=False)
-def konum_bul(isim):
-    if not isim or not isinstance(isim, str) or not isim.strip():
-        return None, None
-    clean_name = isim.strip()
-    normalized = clean_name.casefold().replace("ı", "i").strip()
-    if normalized in ("batman", "batman turkey", "batman turkiye", "batman türkiye"):
-        return (37.8859, 41.1198), "Batman, Türkiye"
-    url = "https://geocoding-api.open-meteo.com/v1/search"
-    params = {"name": clean_name, "count": 10, "language": "tr", "format": "json", "countryCode": "TR"}
-    try:
-        response = requests.get(url, params=params, timeout=5)
-        if response.status_code == 200:
-            results = response.json().get("results", [])
-            if results:
-                r = next((x for x in results if x.get("country_code") == "TR"), results[0])
-                return (float(r.get("latitude")), float(r.get("longitude"))), f"{r.get('name')}, {r.get('country', 'Türkiye')}"
-    except Exception as e:
-        logger.error(f"Konum arama hatası: {str(e)}")
-    return None, None
+# Konum çözümleme için üçüncü taraf coğrafi servis kullanılmaz.
+# Kullanıcı koordinat girer veya tarayıcı GPS izni verirse cihaz konumu kullanılır.
 
 # --- ULTRA GLASSMORPHISM CSS ---
 st.markdown("""
@@ -243,21 +224,71 @@ def zaman_serisi_cek(lat, lon, merkez_tarih):
     return pd.DataFrame(rows)
 
 
+@st.cache_data(ttl=1800, show_spinner=False)
+def nasa_saatlik_son_veri_cek(lat, lon):
+    """NASA POWER Hourly NRT: son yayımlanmış saatlik meteoroloji değerleri."""
+    bitis = datetime.utcnow().date()
+    baslangic = bitis - timedelta(days=7)
+    params = {
+        "latitude": round(float(lat), 4), "longitude": round(float(lon), 4),
+        "start": baslangic.strftime("%Y%m%d"), "end": bitis.strftime("%Y%m%d"),
+        "community": "RE",
+        "parameters": "T2M,RH2M,PRECTOTCORR,WS10M,WD10M,PS",
+        "format": "JSON", "time-standard": "UTC"
+    }
+    url = "https://power.larc.nasa.gov/api/temporal/hourly/point"
+    response = requests.get(url, params=params, timeout=35)
+    response.raise_for_status()
+    parameters = response.json().get("properties", {}).get("parameter", {})
+    if not parameters or not parameters.get("T2M"):
+        raise RuntimeError("NASA POWER saatlik yakın-gerçek-zamanlı veri döndürmedi.")
+
+    def latest_value(key):
+        series = parameters.get(key, {})
+        valid = [(stamp, value) for stamp, value in series.items()
+                 if value is not None and float(value) != -999]
+        if not valid:
+            return None, None
+        stamp, value = max(valid, key=lambda item: item[0])
+        return float(value), datetime.strptime(stamp, "%Y%m%d%H")
+
+    result = {}
+    stamps = []
+    for key, field in (
+        ("T2M", "sicaklik"), ("RH2M", "nem"),
+        ("PRECTOTCORR", "yagis"), ("WS10M", "ruzgar"),
+        ("WD10M", "ruzgar_yon"), ("PS", "basinc")
+    ):
+        value, stamp = latest_value(key)
+        result[field] = value
+        if stamp:
+            stamps.append(stamp)
+    if not stamps:
+        raise RuntimeError("NASA POWER saatlik verilerinde geçerli zaman damgası bulunamadı.")
+    result["veri_saati_utc"] = max(stamps)
+    result["kaynak_saatlik"] = "NASA POWER Hourly NRT"
+    return result
+
+
 def analiz_uret(lat, lon, secilen_tarih):
     nasa = gercek_veri_cek(lat, lon, secilen_tarih)
+    # Saatlik NASA POWER meteoroloji verileri ana ekranda en son yayımlanan ölçüm olarak kullanılır.
+    saatlik = nasa_saatlik_son_veri_cek(lat, lon)
     wet = nasa["toprak_ust"]
     wet_percent = None if wet is None else max(0.0, min(100.0, wet * 100.0))
     return {
-        "sicaklik": nasa["sicaklik"], "sicaklik_max": nasa["sicaklik_max"],
-        "sicaklik_min": nasa["sicaklik_min"], "nem": nasa["nem"],
-        "yagis": nasa["yagis"], "ruzgar": nasa["ruzgar"],
-        "ruzgar_yon": nasa["ruzgar_yon"], "basinc": nasa["basinc"],
+        "sicaklik": saatlik["sicaklik"], "sicaklik_max": nasa["sicaklik_max"],
+        "sicaklik_min": nasa["sicaklik_min"], "nem": saatlik["nem"],
+        "yagis": saatlik["yagis"], "ruzgar": saatlik["ruzgar"],
+        "ruzgar_yon": saatlik["ruzgar_yon"],
+        "basinc": None if saatlik["basinc"] is None else saatlik["basinc"] * 10.0,
         "radyasyon": nasa["radyasyon"],
         "smap_soil": None if wet_percent is None else round(wet_percent, 1),
         "toprak_kok": nasa["toprak_kok"], "toprak_profil": nasa["toprak_profil"],
         "ndvi_val": None, "ndvi_is_proxy": False,
-        "veri_tarihi": nasa["veri_tarihi"], "gun_farki": 0,
-        "kaynak": "NASA POWER"
+        "veri_tarihi": nasa["veri_tarihi"], "veri_saati_utc": saatlik["veri_saati_utc"],
+        "gun_farki": 0, "kaynak": "NASA POWER",
+        "kaynak_saatlik": saatlik["kaynak_saatlik"]
     }
 
 
@@ -337,31 +368,30 @@ if "mekan_adi" not in st.session_state:
 
 # Veriler tarih seçildikten sonra tek kez istenir; başlangıçta mükerrer API çağrısı yapılmaz.
 
-col_search, col_gps, col_date = st.columns([2, 1, 1])
+col_lat, col_lon, col_gps, col_date = st.columns([1, 1, 1, 1])
+with col_lat:
+    girilen_lat = st.number_input("Enlem (NASA koordinatı)", min_value=-90.0, max_value=90.0, value=float(st.session_state.secilen_lat), step=0.0001, format="%.4f")
+with col_lon:
+    girilen_lon = st.number_input("Boylam (NASA koordinatı)", min_value=-180.0, max_value=180.0, value=float(st.session_state.secilen_lon), step=0.0001, format="%.4f")
+st.session_state.secilen_lat = float(girilen_lat)
+st.session_state.secilen_lon = float(girilen_lon)
+st.session_state.mekan_adi = f"Koordinat: {girilen_lat:.4f}, {girilen_lon:.4f}"
 
-with col_search:
-    aranan_konum = st.text_input("🔍 Gerçek Konum Arayın (Şehir, İlçe):", "", key="main_search_input")
-    if aranan_konum:
-        coords, addr = konum_bul(aranan_konum)
-        if coords:
-            st.session_state.secilen_lat, st.session_state.secilen_lon = coords
-            st.session_state.mekan_adi = f"Gerçek Konum: {addr or aranan_konum}"
-            st.success(f"✅ Konum koordinata çevrildi: {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}")
-            st.caption("Konum araması yalnızca şehir adını koordinata dönüştürür; sıcaklık, yağış ve diğer bilimsel ölçümler NASA kaynaklıdır.")
 with col_gps:
     st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
     if streamlit_geolocation is not None:
         loc_data = streamlit_geolocation()
-        if loc_data and loc_data.get("latitude") and loc_data.get("longitude"):
-            st.session_state.secilen_lat = loc_data["latitude"]
-            st.session_state.secilen_lon = loc_data["longitude"]
-            st.session_state.mekan_adi = f"GPS Cihaz Konumu ({st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f})"
+        if loc_data and loc_data.get("latitude") is not None and loc_data.get("longitude") is not None:
+            if st.button("📍 GPS konumunu kullan"):
+                st.session_state.secilen_lat = float(loc_data["latitude"])
+                st.session_state.secilen_lon = float(loc_data["longitude"])
+                st.rerun()
     else:
-        if st.button("📍 Konumumu Bul (GPS)"):
-            st.info("Tarayıcı GPS bileşeni aktif.")
+        st.caption("Konum için koordinat girin.")
 
 with col_date:
-    secilen_tarih = st.date_input("📅 NASA gözlem tarihi:", value=datetime.now().date() - timedelta(days=3), max_value=datetime.now().date() - timedelta(days=1))
+    secilen_tarih = st.date_input("📅 NASA günlük toprak/güneş tarihi:", value=datetime.now().date() - timedelta(days=3), max_value=datetime.now().date() - timedelta(days=1))
+st.caption("Saatlik meteoroloji: NASA POWER Hourly NRT (son yayımlanan saat). Toprak ve güneş: NASA POWER günlük arşivi. NASA verileri gerçek zamanlı değildir; kaynak gecikmeleri geçerlidir.")
 
 try:
     d = analiz_uret(st.session_state.secilen_lat, st.session_state.secilen_lon, secilen_tarih)
@@ -373,6 +403,7 @@ except Exception as nasa_hata:
         "basinc": None, "radyasyon": None, "smap_soil": None,
         "toprak_kok": None, "toprak_profil": None, "ndvi_val": None,
         "ndvi_is_proxy": False, "veri_tarihi": secilen_tarih,
+        "veri_saati_utc": None, "kaynak_saatlik": "NASA POWER Hourly NRT",
         "gun_farki": 0, "kaynak": "NASA POWER"
     }
     nasa_veri_hazir = False
@@ -481,7 +512,7 @@ with st.sidebar:
     """, height=175)
 
 
-zaman_aciklama = f"NASA POWER gözlem tarihi: {d['veri_tarihi'].strftime('%d.%m.%Y')}"
+zaman_aciklama = (f"NASA POWER son saatlik veri: {d['veri_saati_utc']:%d.%m.%Y %H:%M} UTC" if d.get("veri_saati_utc") else "NASA POWER saatlik verisi şu anda alınamadı")
 
 render_box(
     title=f"📍 Aktif Gözlem Noktası ve Zaman Modu: {zaman_aciklama}",
@@ -600,16 +631,15 @@ if aktif_sekme == "Bölgesel Karşılaştırma":
         glow_color="rgba(168, 85, 247, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(76, 29, 149, 0.45) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
-    c_b1, c_b2 = st.columns(2)
-    with c_b1:
-        yer_1 = st.text_input("1. Bölge:", "Batman", key="compare_loc_1")
-    with c_b2:
-        yer_2 = st.text_input("2. Bölge:", "Ankara", key="compare_loc_2")
-
-    res1 = konum_bul(yer_1)
-    res2 = konum_bul(yer_2)
-    lat1, lon1 = res1[0] if res1 and res1[0] is not None else (37.8859, 41.1198)
-    lat2, lon2 = res2[0] if res2 and res2[0] is not None else (39.9334, 32.8597)
+    c1, c2 = st.columns(2)
+    with c1:
+        yer_1 = st.text_input("1. Bölge adı:", "Batman", key="compare_loc_1")
+        lat1 = st.number_input("1. Bölge enlemi", value=37.8859, format="%.4f", key="compare_lat_1")
+        lon1 = st.number_input("1. Bölge boylamı", value=41.1198, format="%.4f", key="compare_lon_1")
+    with c2:
+        yer_2 = st.text_input("2. Bölge adı:", "Ankara", key="compare_loc_2")
+        lat2 = st.number_input("2. Bölge enlemi", value=39.9334, format="%.4f", key="compare_lat_2")
+        lon2 = st.number_input("2. Bölge boylamı", value=32.8597, format="%.4f", key="compare_lon_2")
     try:
         d1 = analiz_uret(lat1, lon1, secilen_tarih)
         d2 = analiz_uret(lat2, lon2, secilen_tarih)
