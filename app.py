@@ -733,7 +733,9 @@ if aktif_sekme == "🌐 3D Dünya":
         globe_titles = [x["title"] for x in globe_layers]
         globe_names = [x["name"] for x in globe_layers]
         globe_title = st.selectbox("3D Dünya uydu katmanı", globe_titles, key="nasa_3d_layer")
-        globe_layer = globe_names[globe_titles.index(globe_title)]
+        globe_meta = globe_layers[globe_titles.index(globe_title)]
+        globe_layer = globe_meta["name"]
+        globe_has_time = bool(globe_meta.get("has_time"))
         globe_date = st.date_input("NASA görüntü tarihi", value=datetime.now().date(),
                                   max_value=datetime.now().date(), key="nasa_3d_date").strftime("%Y-%m-%d")
         st.caption(f"NASA GIBS · {globe_title} · {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}")
@@ -760,9 +762,9 @@ if aktif_sekme == "🌐 3D Dünya":
           globe.add(new THREE.Mesh(new THREE.SphereGeometry(1,64,44),material));
           scene.add(new THREE.AmbientLight(0xffffff,1.4));
           const sun=new THREE.DirectionalLight(0xffffff,1.1); sun.position.set(3,2,4); scene.add(sun);
-          const layer=__LAYER__, date=__DATE__;
+          const layer=__LAYER__, date=__DATE__, timeParam=__TIME_PARAM__;
           const base='https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi';
-          const textureUrl=base+'?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG:4326&BBOX=-180,-90,180,90&WIDTH=1536&HEIGHT=768&LAYERS='+encodeURIComponent(layer)+'&STYLES=&FORMAT=image/jpeg&TRANSPARENT=FALSE&TIME='+encodeURIComponent(date);
+          const textureUrl=base+'?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG:4326&BBOX=-180,-90,180,90&WIDTH=1536&HEIGHT=768&LAYERS='+encodeURIComponent(layer)+'&STYLES=&FORMAT=image/jpeg&TRANSPARENT=FALSE'+timeParam;
           const loader=new THREE.TextureLoader(); loader.setCrossOrigin('anonymous');
           loader.load(textureUrl, texture=>{
             texture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
@@ -787,6 +789,7 @@ if aktif_sekme == "🌐 3D Dünya":
         """
         globe_html = (globe_html.replace("__LAYER__", json.dumps(globe_layer))
                       .replace("__DATE__", json.dumps(globe_date))
+                      .replace("__TIME_PARAM__", json.dumps("&TIME=" + globe_date if globe_has_time else ""))
                       .replace("__LAT__", str(float(st.session_state.secilen_lat)))
                       .replace("__LON__", str(float(st.session_state.secilen_lon))))\n        components.html(globe_html, height=570, scrolling=False)
     except Exception as globe_error:
@@ -904,7 +907,7 @@ if aktif_sekme == "🧬 135+ Veri Havuzu":
             chosen_code=st.selectbox("NASA POWER parametresi",code_options,
                 format_func=lambda c:f"{c} — {power_df.loc[power_df['Kod']==c,'Parametre / Ürün'].iloc[0]}",
                 key="nasa_pool_parameter")
-            community=st.selectbox("NASA POWER topluluğu",["AG","RE","SB"],key="nasa_pool_community")
+            community=st.selectbox("NASA POWER topluluğu",["AG","RE","SB","HY"],key="nasa_pool_community")
             if st.button("Seçili parametrenin NASA ölçümünü getir",key="nasa_pool_fetch"):
                 try:
                     with st.spinner("NASA POWER ölçümü sorgulanıyor…"):
