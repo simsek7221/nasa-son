@@ -153,95 +153,6 @@ def render_metric_card(title, value, caption, border_color, text_color, glow_col
     """
     st.markdown(html_content, unsafe_allow_html=True)
 
-# --- YÜKSEK ÇÖZÜNÜRLÜKLÜ 3D ARAZİ MODELİ ---
-@st.cache_data(ttl=86400, show_spinner=False)
-def gercek_yukseklik_matrisi(
-    merkez_lat,
-    merkez_lon,
-    grid_boyutu=15,
-    yari_cap_km=15
-):
-    """Yardımcı 3D yükseklik katmanı; kaynak Open-Meteo, NASA verisi değildir."""
-    merkez_lat = float(merkez_lat)
-    merkez_lon = float(merkez_lon)
-
-    lat_yari = yari_cap_km / 111.32
-    cos_lat = max(np.cos(np.radians(merkez_lat)), 0.2)
-    lon_yari = yari_cap_km / (111.32 * cos_lat)
-
-    lat_dizi = np.linspace(
-        merkez_lat - lat_yari,
-        merkez_lat + lat_yari,
-        grid_boyutu
-    )
-    lon_dizi = np.linspace(
-        merkez_lon - lon_yari,
-        merkez_lon + lon_yari,
-        grid_boyutu
-    )
-
-    X, Y = np.meshgrid(lon_dizi, lat_dizi)
-    lat_duz = Y.ravel()
-    lon_duz = X.ravel()
-    koordinat_sayisi = len(lat_duz)
-    yukseklikler = []
-    url = "https://api.open-meteo.com/v1/elevation"
-
-    # Servise tek seferde aşırı uzun koordinat listesi göndermemek için
-    # noktaları 100'lük paketler halinde al.
-    for baslangic in range(0, koordinat_sayisi, 100):
-        bitis = min(baslangic + 100, koordinat_sayisi)
-        params = {
-            "latitude": ",".join(f"{v:.6f}" for v in lat_duz[baslangic:bitis]),
-            "longitude": ",".join(f"{v:.6f}" for v in lon_duz[baslangic:bitis])
-        }
-        yanit = None
-
-        for deneme in range(3):
-            try:
-                yanit = requests.get(url, params=params, timeout=30)
-                if yanit.status_code == 429:
-                    bekleme = yanit.headers.get("Retry-After")
-                    time.sleep(float(bekleme) if bekleme and bekleme.isdigit() else 5 * (deneme + 1))
-                    continue
-                yanit.raise_for_status()
-                break
-            except requests.RequestException:
-                if deneme == 2:
-                    raise
-                time.sleep(3 * (deneme + 1))
-
-        if yanit is None or yanit.status_code == 429:
-            raise RuntimeError(
-                "Yükseklik servisi istek sınırına ulaştı. "
-                "Lütfen biraz sonra yeniden deneyin."
-            )
-
-        paket = yanit.json().get("elevation", [])
-        beklenen = bitis - baslangic
-        if len(paket) != beklenen:
-            raise ValueError(
-                f"Eksik arazi verisi: {len(paket)} / {beklenen} nokta."
-            )
-        yukseklikler.extend(paket)
-
-    if len(yukseklikler) != koordinat_sayisi:
-        raise ValueError("Arazi yükseklik matrisi tamamlanamadı.")
-
-    Z = np.asarray(yukseklikler, dtype=float).reshape(
-        grid_boyutu, grid_boyutu
-    )
-    if not np.isfinite(Z).all():
-        raise ValueError("Arazi verisinde geçersiz yükseklik değeri var.")
-
-    x_km = (lon_dizi - merkez_lon) * 111.32 * cos_lat
-    y_km = (lat_dizi - merkez_lat) * 111.32
-    X_km, Y_km = np.meshgrid(x_km, y_km)
-
-    return X_km, Y_km, Z
-
-
-
 # --- NASA POWER VERI MOTORU ---
 @st.cache_data(ttl=43200, show_spinner=False)
 def gercek_veri_cek(lat, lon, secilen_tarih):
@@ -323,7 +234,7 @@ def zaman_serisi_cek(lat, lon, merkez_tarih):
             continue
         rows.append({
             "Tarih": pd.to_datetime(day, format="%Y%m%d"),
-            "Sıcaklık (°C)": float(vals[0]),
+            "Günlük Ortalama Sıcaklık (°C)": float(vals[0]),
             "Yağış (mm/gün)": float(vals[1]),
             "Rüzgar (m/s)": float(vals[2])
         })
@@ -383,7 +294,7 @@ def nasa_gibs_harita_katalogu():
 # --- NASA POWER GERCEK VERI KATALOGU ---
 def genis_veri_havuzu_uret(d):
     entries = [
-        ("Atmosfer", "2 metre hava sıcaklığı", d["sicaklik"], "°C", "NASA POWER / T2M"),
+        ("Atmosfer", "2 metre günlük ortalama hava sıcaklığı", d["sicaklik"], "°C", "NASA POWER / T2M"),
         ("Atmosfer", "Günlük maksimum sıcaklık", d["sicaklik_max"], "°C", "NASA POWER / T2M_MAX"),
         ("Atmosfer", "Günlük minimum sıcaklık", d["sicaklik_min"], "°C", "NASA POWER / T2M_MIN"),
         ("Atmosfer", "2 metre bağıl nem", d["nem"], "%", "NASA POWER / RH2M"),
@@ -442,15 +353,22 @@ with col_gps:
             st.info("Tarayıcı GPS bileşeni aktif.")
 
 with col_date:
-    secilen_tarih = st.date_input("📅 Gerçek Veri Tarihi Seçin:", value=datetime.now().date())
+    secilen_tarih = st.date_input("📅 NASA gözlem tarihi:", value=datetime.now().date() - timedelta(days=3), max_value=datetime.now().date() - timedelta(days=1))
 
 try:
     d = analiz_uret(st.session_state.secilen_lat, st.session_state.secilen_lon, secilen_tarih)
     nasa_veri_hazir = True
 except Exception as nasa_hata:
-    d = None
+    d = {
+        "sicaklik": None, "sicaklik_max": None, "sicaklik_min": None,
+        "nem": None, "yagis": None, "ruzgar": None, "ruzgar_yon": None,
+        "basinc": None, "radyasyon": None, "smap_soil": None,
+        "toprak_kok": None, "toprak_profil": None, "ndvi_val": None,
+        "ndvi_is_proxy": False, "veri_tarihi": secilen_tarih,
+        "gun_farki": 0, "kaynak": "NASA POWER"
+    }
     nasa_veri_hazir = False
-    st.error(f"NASA verisi alınamadı: {nasa_hata}")
+    st.warning(f"Bu tarih/konum için NASA POWER verisi alınamadı: {nasa_hata}. Harita ve diğer NASA katmanları kullanılabilir.")
 
 
 # --- ARDUINO UNO: MANUEL GÖNDERİM + OTOMATİK GÖNDERİM ---
@@ -625,7 +543,7 @@ if aktif_sekme == "NASA Trendleri":
         )
         c1, c2, c3, c4 = st.columns(4)
         with c1:
-            render_metric_card("1️⃣ Sıcaklık", f"{d['sicaklik']:.1f} °C", "Sıcaklık", "rgba(56, 189, 248, 0.75)", "#38bdf8", "rgba(56, 189, 248, 0.45)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+            render_metric_card("NASA Günlük Ortalama Sıcaklık", "Veri yok" if d['sicaklik'] is None else f"{d['sicaklik']:.1f} °C", "NASA POWER günlük ortalama sıcaklık", "rgba(56, 189, 248, 0.75)", "#38bdf8", "rgba(56, 189, 248, 0.45)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
         with c2:
             render_metric_card("2️⃣ Rüzgar", "Veri yok" if d['ruzgar'] is None else f"{d['ruzgar']:.1f} m/s", "NASA POWER ölçümü" if d['ruzgar_yon'] is None else f"Yön: {d['ruzgar_yon']:.0f}°", "rgba(16, 185, 129, 0.75)", "#34d399", "rgba(16, 185, 129, 0.45)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
         with c3:
