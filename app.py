@@ -317,7 +317,7 @@ def analiz_uret(lat, lon, secilen_tarih):
 @st.cache_data(ttl=86400, show_spinner=False)
 def nasa_gibs_harita_katalogu():
     """NASA GIBS WMS kataloğundan gerçek görüntü katmanlarını alır."""
-    url = "https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi"
+    url = "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi"
     response = requests.get(url, params={"SERVICE": "WMS", "REQUEST": "GetCapabilities", "VERSION": "1.3.0"}, timeout=30)
     response.raise_for_status()
     import xml.etree.ElementTree as ET
@@ -787,12 +787,12 @@ if aktif_sekme == "🌐 3D Dünya":
           renderer.setSize(shell.clientWidth,shell.clientHeight,false);
           const globe=new THREE.Group(); scene.add(globe);
           const material=new THREE.MeshPhongMaterial({color:0xffffff,shininess:8});
-          globe.add(new THREE.Mesh(new THREE.SphereGeometry(1,48,32),material));
+          globe.add(new THREE.Mesh(new THREE.SphereGeometry(1,96,64),material));
           scene.add(new THREE.AmbientLight(0xffffff,1.4));
           const sun=new THREE.DirectionalLight(0xffffff,1.1); sun.position.set(3,2,4); scene.add(sun);
           const layer=__LAYER__, date=__DATE__, timeParam=__TIME_PARAM__;
           const base='https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi';
-          const textureUrl=base+'?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG:4326&BBOX=-180,-90,180,90&WIDTH=1024&HEIGHT=512&LAYERS='+encodeURIComponent(layer)+'&STYLES=&FORMAT=image/jpeg&TRANSPARENT=FALSE'+timeParam;
+          const textureUrl=base+'?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG:4326&BBOX=-180,-90,180,90&WIDTH=2048&HEIGHT=1024&LAYERS='+encodeURIComponent(layer)+'&STYLES=&FORMAT=image/jpeg&TRANSPARENT=FALSE'+timeParam;
           const loader=new THREE.TextureLoader(); loader.setCrossOrigin('anonymous');
           loader.load(textureUrl, texture=>{
             texture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
