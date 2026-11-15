@@ -24,7 +24,7 @@ st.set_page_config(
 
 from streamlit_autorefresh import st_autorefresh
 # NASA POWER Hourly NRT verilerini 30 dakikada bir yeniden iste.
-st_autorefresh(interval=30 * 60 * 1000, key="nasa_power_auto_refresh")
+st_autorefresh(interval=60 * 60 * 1000, key="nasa_power_auto_refresh")
 
 # Konum çözümleme için üçüncü taraf coğrafi servis kullanılmaz.
 # Kullanıcı koordinat girer veya tarayıcı GPS izni verirse cihaz konumu kullanılır.
@@ -32,12 +32,12 @@ st_autorefresh(interval=30 * 60 * 1000, key="nasa_power_auto_refresh")
 # --- ULTRA GLASSMORPHISM CSS ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+    /* Sistem fontları: harici font indirmesi yok, daha hızlı ilk çizim. */
 
     .stApp {
         background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0f172a 50%, #000000 100%) !important;
         color: #f8fafc !important;
-        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
     }
     
     .block-container {
@@ -93,6 +93,29 @@ st.markdown("""
         border-color: rgba(56, 189, 248, 0.9) !important;
         box-shadow: 0 0 30px rgba(2, 132, 199, 0.65) !important;
     }
+
+    div[data-testid="stRadio"] > div[role="radiogroup"] {
+        display:flex!important; flex-wrap:nowrap!important; gap:8px!important;
+        overflow-x:auto!important; padding:10px!important; border-radius:24px!important;
+        background:rgba(15,23,42,.92)!important; border:1px solid rgba(56,189,248,.35)!important;
+        scrollbar-width:thin;
+    }
+    div[data-testid="stRadio"] > div[role="radiogroup"] label {
+        flex:0 0 auto!important; border:1px solid rgba(56,189,248,.22)!important;
+        border-radius:16px!important; padding:9px 15px!important;
+        background:linear-gradient(135deg,rgba(30,41,59,.9),rgba(15,23,42,.95))!important;
+        transition:all .2s ease!important;
+    }
+    div[data-testid="stRadio"] > div[role="radiogroup"] label:has(input:checked) {
+        background:linear-gradient(135deg,rgba(2,132,199,.9),rgba(124,58,237,.9))!important;
+        border-color:rgba(125,211,252,.9)!important; box-shadow:0 0 18px rgba(56,189,248,.3)!important;
+    }
+    div[data-testid="stRadio"] > div[role="radiogroup"] label p {
+        color:#e2e8f0!important; font-weight:750!important; white-space:nowrap!important; font-size:.82rem!important;
+    }
+    div[data-testid="stRadio"] > div[role="radiogroup"] label > div:first-child { display:none!important; }
+    .stDataFrame { border:1px solid rgba(56,189,248,.22); border-radius:14px; }
+    @media(max-width:900px){.block-container{padding:1rem!important;border-radius:20px!important;}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -223,7 +246,7 @@ def zaman_serisi_cek(lat, lon, merkez_tarih):
     return pd.DataFrame(rows)
 
 
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=3600, show_spinner=False)
 def nasa_saatlik_son_veri_cek(lat, lon):
     """NASA POWER Hourly NRT: son yayımlanmış saatlik meteoroloji değerleri."""
     bitis = datetime.utcnow().date()
@@ -379,6 +402,95 @@ def genis_veri_havuzu_uret(d):
             "Birim": unit, "Kaynak / Parametre": source, "Durum": status
         })
     return pd.DataFrame(rows)
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def nasa_power_parametre_sozlugu():
+    """NASA POWER Manager API'den topluluk/zaman çözünürlüğüne göre gerçek katalog."""
+    url = "https://power.larc.nasa.gov/api/system/manager/parameters"
+    combinations = [
+        ("AG", "DAILY"), ("AG", "HOURLY"),
+        ("RE", "DAILY"), ("RE", "HOURLY"),
+        ("SB", "DAILY"), ("SB", "HOURLY"),
+        ("HY", "DAILY")
+    ]
+    rows = []
+    for community, temporal in combinations:
+        params = {
+            "community": community, "temporal": temporal,
+            "metadata": "true", "user": "nasapower4r"
+        }
+        try:
+            response = requests.get(url, params=params, timeout=25)
+            response.raise_for_status()
+            payload = response.json()
+            if isinstance(payload, dict) and isinstance(payload.get("parameters"), dict):
+                payload = payload["parameters"]
+            if isinstance(payload, dict) and isinstance(payload.get("parameter"), dict):
+                payload = payload["parameter"]
+            if not isinstance(payload, dict):
+                continue
+            for code, meta in payload.items():
+                if not isinstance(meta, dict) or not str(code).replace("_", "").isalnum():
+                    continue
+                code = str(code).upper()
+                name = (meta.get("parameter_name") or meta.get("longname") or
+                        meta.get("name") or meta.get("title") or code)
+                unit = meta.get("units") or meta.get("unit") or "NASA sözlüğünde tanımlı"
+                description = (meta.get("definition") or meta.get("description") or
+                               meta.get("longname") or name)
+                rows.append({
+                    "Tür": "NASA POWER parametre veri seti",
+                    "Kategori": meta.get("category") or meta.get("group") or "NASA POWER",
+                    "Parametre / Ürün": str(name), "Kod": code, "Birim": str(unit),
+                    "Açıklama": str(description), "Topluluk": community,
+                    "Zaman Çözünürlüğü": temporal,
+                    "Kaynak": "NASA POWER Manager API",
+                    "Durum": "NASA katalog kaydı"
+                })
+        except Exception as exc:
+            logger.warning("NASA POWER katalog kombinasyonu atlandı (%s/%s): %s",
+                           community, temporal, exc)
+    if not rows:
+        raise RuntimeError("NASA POWER Manager API hiçbir geçerli parametre kaydı döndürmedi.")
+    return (pd.DataFrame(rows)
+            .drop_duplicates(subset=["Kod", "Topluluk", "Zaman Çözünürlüğü"])
+            .sort_values(["Topluluk", "Zaman Çözünürlüğü", "Kod"])
+            .reset_index(drop=True))
+
+
+@st.cache_data(ttl=21600, show_spinner=False)
+def nasa_power_secili_parametre_cek(lat, lon, secilen_tarih, parameter, community):
+    """Tek bir seçilmiş NASA POWER günlük parametresini on-demand olarak getirir."""
+    params = {
+        "latitude": round(float(lat), 4), "longitude": round(float(lon), 4),
+        "start": secilen_tarih.strftime("%Y%m%d"), "end": secilen_tarih.strftime("%Y%m%d"),
+        "community": community, "parameters": parameter, "format": "JSON", "time-standard": "LST"
+    }
+    response = requests.get("https://power.larc.nasa.gov/api/temporal/daily/point",
+                            params=params, timeout=30)
+    response.raise_for_status()
+    values = response.json().get("properties", {}).get("parameter", {}).get(parameter, {})
+    raw = values.get(secilen_tarih.strftime("%Y%m%d"))
+    if raw is None or float(raw) == -999:
+        return None
+    return float(raw)
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def nasa_veri_havuzu():
+    """NASA POWER sözlüğü + NASA GIBS gerçek katmanlarını tek katalogda birleştirir."""
+    power = nasa_power_parametre_sozlugu()
+    layers = nasa_gibs_harita_katalogu()
+    map_rows = [{
+        "Tür": "NASA uydu harita katmanı", "Kategori": "NASA GIBS / EOSDIS",
+        "Parametre / Ürün": item["title"], "Kod": item["name"], "Birim": "Görüntü katmanı",
+        "Açıklama": "NASA GIBS tarafından yayımlanan gerçek uydu/gözlem katmanı.",
+        "Topluluk": "—", "Zaman Çözünürlüğü": "Görüntü",
+        "Kaynak": "NASA GIBS", "Durum": "NASA katalog katmanı"
+    } for item in layers]
+    combined = pd.concat([power, pd.DataFrame(map_rows)], ignore_index=True)
+    return combined.drop_duplicates(subset=["Tür", "Kod", "Topluluk", "Zaman Çözünürlüğü"]).reset_index(drop=True)
 
 
 if "secilen_lat" not in st.session_state:
@@ -577,13 +689,12 @@ render_box(
 
 # --- YALNIZCA SEÇİLEN SEKMENİN İÇERİĞİNİ ÇİZ: HIZ PERFORMANS İYİLEŞTİRMESİ ---
 sekme_adlari = [
-    "NASA Uydu Haritası", "NASA Trendleri", "NASA Gözlem Özeti",
-    "Bölgesel Karşılaştırma", "NASA Veri Kataloğu", "NASA Kaynak Bilgisi",
-    "NASA Hidroloji Verileri"
+    "🛰️ Uydu Haritası", "🌐 3D Dünya", "📊 Trendler", "📡 Gözlem Özeti",
+    "🌍 Bölgesel Karşılaştırma", "🧬 135+ Veri Havuzu", "💧 Hidroloji", "ℹ️ Kaynaklar"
 ]
-aktif_sekme = st.radio("Görünüm", sekme_adlari, horizontal=True, key="aktif_nasa_sekmesi")
+aktif_sekme = st.radio("Görünüm", sekme_adlari, horizontal=True, key="aktif_nasa_sekmesi", label_visibility="collapsed")
 
-if aktif_sekme == "NASA Uydu Haritası":
+if aktif_sekme == "🛰️ Uydu Haritası":
     render_box(
         title="NASA Earth Observation — 51 Uydu ve Bilimsel Harita Katmanı",
         subtitle="Tüm görüntü katmanları NASA GIBS servisinden gelir. Harita tabanı ve seçilen bilimsel katman NASA verisidir.",
@@ -633,7 +744,84 @@ if aktif_sekme == "NASA Uydu Haritası":
         st.error(f"NASA GIBS harita kataloğu yüklenemedi: {map_error}")
 
 
-if aktif_sekme == "NASA Trendleri":
+if aktif_sekme == "🌐 3D Dünya":
+    render_box(
+        title="NASA Earth — Etkileşimli 3D Dünya",
+        subtitle="Küre dokusu seçilen gerçek NASA GIBS uydu katmanından yüklenir. Sentetik arazi/yükseklik verisi kullanılmaz.",
+        border_color="rgba(56, 189, 248, 0.75)",
+        glow_color="rgba(56, 189, 248, 0.45)",
+        bg_gradient="linear-gradient(135deg, rgba(12, 74, 110, 0.55) 0%, rgba(15, 23, 42, 0.95) 100%)"
+    )
+    try:
+        globe_layers = nasa_gibs_harita_katalogu()
+        globe_titles = [x["title"] for x in globe_layers]
+        globe_names = [x["name"] for x in globe_layers]
+        globe_title = st.selectbox("3D Dünya uydu katmanı", globe_titles, key="nasa_3d_layer")
+        globe_meta = globe_layers[globe_titles.index(globe_title)]
+        globe_layer = globe_meta["name"]
+        globe_has_time = bool(globe_meta.get("has_time"))
+        globe_date = st.date_input("NASA görüntü tarihi", value=datetime.now().date(),
+                                  max_value=datetime.now().date(), key="nasa_3d_date").strftime("%Y-%m-%d")
+        st.caption(f"NASA GIBS · {globe_title} · {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}")
+        globe_html = """
+        <div id="nasa-3d-shell" style="position:relative;width:100%;height:560px;border-radius:22px;overflow:hidden;background:radial-gradient(circle at 50% 45%,#102b52,#020617 72%);border:1px solid rgba(56,189,248,.45);">
+          <div id="nasa-3d-status" style="position:absolute;z-index:3;top:14px;left:16px;color:#bae6fd;font:600 12px Arial;">NASA görüntüsü yükleniyor…</div>
+          <div style="position:absolute;z-index:3;bottom:12px;left:16px;color:#94a3b8;font:12px Arial;">Sürükle: döndür · Tekerlek: yakınlaştır</div>
+          <canvas id="nasa-3d-canvas" style="width:100%;height:100%;display:block;"></canvas>
+        </div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.128.0/three.min.js"></script>
+        <script>
+        (() => {
+          const shell=document.getElementById('nasa-3d-shell'), canvas=document.getElementById('nasa-3d-canvas');
+          const status=document.getElementById('nasa-3d-status');
+          if(!window.THREE){status.textContent='3D motoru yüklenemedi.';return;}
+          const scene=new THREE.Scene();
+          const camera=new THREE.PerspectiveCamera(38,shell.clientWidth/shell.clientHeight,.1,100);
+          camera.position.set(0,0,3.15);
+          const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.25));
+          renderer.setSize(shell.clientWidth,shell.clientHeight,false);
+          const globe=new THREE.Group(); scene.add(globe);
+          const material=new THREE.MeshPhongMaterial({color:0xffffff,shininess:8});
+          globe.add(new THREE.Mesh(new THREE.SphereGeometry(1,48,32),material));
+          scene.add(new THREE.AmbientLight(0xffffff,1.4));
+          const sun=new THREE.DirectionalLight(0xffffff,1.1); sun.position.set(3,2,4); scene.add(sun);
+          const layer=__LAYER__, date=__DATE__, timeParam=__TIME_PARAM__;
+          const base='https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi';
+          const textureUrl=base+'?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG:4326&BBOX=-180,-90,180,90&WIDTH=1024&HEIGHT=512&LAYERS='+encodeURIComponent(layer)+'&STYLES=&FORMAT=image/jpeg&TRANSPARENT=FALSE'+timeParam;
+          const loader=new THREE.TextureLoader(); loader.setCrossOrigin('anonymous');
+          loader.load(textureUrl, texture=>{
+            texture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+            material.map=texture; material.needsUpdate=true; status.textContent='NASA GIBS görüntüsü yüklendi · '+layer;
+          },undefined,()=>{status.textContent='Bu katmanda seçilen tarih için görüntü yok. Başka NASA tarihi/katmanı seç.';});
+          const lat=__LAT__, lon=__LON__;
+          const phi=(90-lat)*Math.PI/180, theta=(lon+180)*Math.PI/180;
+          const marker=new THREE.Mesh(new THREE.SphereGeometry(.018,14,10),new THREE.MeshBasicMaterial({color:0xffd166}));
+          marker.position.set(-Math.sin(phi)*Math.cos(theta)*1.012,Math.cos(phi)*1.012,Math.sin(phi)*Math.sin(theta)*1.012);
+          globe.add(marker);
+          let dragging=false,lastX=0,lastY=0,rotX=0,rotY=0;
+          canvas.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId);});
+          canvas.addEventListener('pointermove',e=>{if(!dragging)return;rotY+=(e.clientX-lastX)*.006;rotX+=(e.clientY-lastY)*.006;rotX=Math.max(-1.35,Math.min(1.35,rotX));lastX=e.clientX;lastY=e.clientY;});
+          canvas.addEventListener('pointerup',()=>dragging=false); canvas.addEventListener('pointercancel',()=>dragging=false);
+          canvas.addEventListener('wheel',e=>{e.preventDefault();camera.position.z=Math.max(1.7,Math.min(5,camera.position.z+e.deltaY*.003));},{passive:false});
+          const resize=()=>{const w=shell.clientWidth,h=shell.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);};
+          if(window.ResizeObserver)new ResizeObserver(resize).observe(shell);else window.addEventListener('resize',resize);
+          function animate(){requestAnimationFrame(animate);if(document.hidden)return;if(!dragging)rotY+=.0007;globe.rotation.y=rotY;globe.rotation.x=rotX;renderer.render(scene,camera);}
+          animate();
+        })();
+        </script>
+        """
+        globe_html = (globe_html.replace("__LAYER__", json.dumps(globe_layer))
+                      .replace("__DATE__", json.dumps(globe_date))
+                      .replace("__TIME_PARAM__", json.dumps("&TIME=" + globe_date if globe_has_time else ""))
+                      .replace("__LAT__", str(float(st.session_state.secilen_lat)))
+                      .replace("__LON__", str(float(st.session_state.secilen_lon))))
+        components.html(globe_html, height=570, scrolling=False)
+    except Exception as globe_error:
+        st.error(f"NASA 3D Dünya katmanı hazırlanamadı: {globe_error}")
+
+
+if aktif_sekme == "📊 Trendler":
     render_box(
         title=f"📊 {secilen_tarih.strftime('%d.%m.%Y')} Tarihli Gerçek Veri Trendleri",
         subtitle=f"Seçilen Koordinat: {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}.",
@@ -657,7 +845,7 @@ if aktif_sekme == "NASA Trendleri":
     fig_temp.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig_temp, use_container_width=True)
 
-if aktif_sekme == "NASA Gözlem Özeti":
+if aktif_sekme == "📡 Gözlem Özeti":
     render_box(
         title="NASA POWER — Gözlem Özeti",
         subtitle=f"{st.session_state.mekan_adi} · {d['veri_tarihi']:%d.%m.%Y}",
@@ -676,7 +864,7 @@ if aktif_sekme == "NASA Gözlem Özeti":
     st.caption("Bu ekranda yapay zekâ tahmini, risk puanı veya simülasyon yoktur; yalnızca NASA POWER gözlemleri listelenir.")
 
 
-if aktif_sekme == "Bölgesel Karşılaştırma":
+if aktif_sekme == "🌍 Bölgesel Karşılaştırma":
     render_box(
         title="Bölgesel Karşılaştırma — NASA POWER",
         subtitle="Aynı NASA POWER parametresi, aynı gözlem tarihi ve aynı gösterim hassasiyeti.",
@@ -712,37 +900,70 @@ if aktif_sekme == "Bölgesel Karşılaştırma":
         render_metric_card(f"📍 {yer_2}", value2, caption2, "rgba(168, 85, 247, 0.75)", "#c084fc", "rgba(168, 85, 247, 0.45)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
 
 
-if aktif_sekme == "NASA Veri Kataloğu":
+if aktif_sekme == "🧬 135+ Veri Havuzu":
     render_box(
-        title="🔍 NASA POWER Gerçek Veri Kataloğu",
-        subtitle=f"Konum: {st.session_state.mekan_adi}",
-        border_color="rgba(2, 132, 199, 0.75)",        glow_color="rgba(2, 132, 199, 0.55)",
-        bg_gradient="linear-gradient(135deg, rgba(2, 132, 199, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)"
+        title="NASA Bilimsel Veri Havuzu",
+        subtitle=f"NASA POWER parametre sözlüğü ve NASA GIBS uydu ürünleri · Aktif konum: {st.session_state.mekan_adi}",
+        border_color="rgba(2, 132, 199, 0.75)", glow_color="rgba(2, 132, 199, 0.45)",
+        bg_gradient="linear-gradient(135deg, rgba(2, 132, 199, 0.35) 0%, rgba(15, 23, 42, 0.92) 100%)"
     )
-    veri_arama = st.text_input("🔎 NASA parametrelerinde ara:", "", key="data_search_bar")
-    df_tum_veriler = genis_veri_havuzu_uret(d)
-    if veri_arama:
-        filtrelenmis_df = df_tum_veriler[
-            df_tum_veriler['Parametre Adı'].str.contains(veri_arama, case=False, na=False) |
-            df_tum_veriler['Kategori'].str.contains(veri_arama, case=False, na=False)
-        ]
-    else:
-        filtrelenmis_df = df_tum_veriler
-    st.markdown(f"<p style='color: #38bdf8; font-weight: 700;'>Toplam <b>{len(df_tum_veriler)}</b> parametre içerisinden <b>{len(filtrelenmis_df)}</b> sonuç listeleniyor.</p>", unsafe_allow_html=True)
-    st.dataframe(
-        filtrelenmis_df,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Kategori": st.column_config.TextColumn("Kategori", width="medium"),
-            "Parametre Adı": st.column_config.TextColumn("Parametre / Ölçüm Adı", width="large"),
-            "Değer": st.column_config.TextColumn("NASA Değeri", width="small"),
-            "Birim": st.column_config.TextColumn("Birim", width="small"),
-            "Durum": st.column_config.TextColumn("Veri Durumu", width="medium"),
-        }
-    )
+    try:
+        df_havuz = nasa_veri_havuzu()
+        power_count = int((df_havuz["Tür"] == "NASA POWER parametresi").sum())
+        gibs_count = int((df_havuz["Tür"] == "NASA uydu harita katmanı").sum())
+        m1,m2,m3=st.columns(3)
+        m1.metric("Toplam NASA veri ürünü", f"{len(df_havuz):,}".replace(",", "."))
+        m2.metric("NASA POWER parametresi", f"{power_count:,}".replace(",", "."))
+        m3.metric("NASA GIBS katmanı", f"{gibs_count:,}".replace(",", "."))
+        st.caption("Sayılar NASA'nın canlı katalog yanıtından hesaplanır. Katalog kaydı, seçilen konum ve tarihte ölçüm bulunduğunu garanti etmez.")
+        search=st.text_input("Havuzda ara",placeholder="Örn. temperature, T2M, radiation",key="nasa_pool_search")
+        type_filter=st.multiselect("Ürün türü",options=sorted(df_havuz["Tür"].unique().tolist()),
+                                   default=sorted(df_havuz["Tür"].unique().tolist()),key="nasa_pool_type")
+        filtered=df_havuz[df_havuz["Tür"].isin(type_filter)].copy()
+        if search.strip():
+            mask=filtered.astype(str).apply(lambda col:col.str.contains(search.strip(),case=False,na=False)).any(axis=1)
+            filtered=filtered[mask]
+        st.caption(f"{len(filtered)} / {len(df_havuz)} NASA ürünü listeleniyor.")
+        st.dataframe(filtered,use_container_width=True,hide_index=True,height=430)
+        st.markdown("#### Seçilen NASA POWER parametresinin gerçek ölçümünü getir")
+        power_df=df_havuz[
+            (df_havuz["Tür"]=="NASA POWER parametre veri seti") &
+            (df_havuz["Zaman Çözünürlüğü"]=="DAILY")
+        ].copy()
+        if not power_df.empty:
+            power_df["Seçim"] = power_df["Kod"] + " · " + power_df["Topluluk"]
+            options=power_df["Seçim"].tolist()
+            selected_dataset=st.selectbox(
+                "NASA POWER günlük veri seti", options,
+                format_func=lambda key: (
+                    f"{key} — " + power_df.loc[power_df["Seçim"]==key,"Parametre / Ürün"].iloc[0]
+                ),
+                key="nasa_pool_parameter"
+            )
+            chosen_row=power_df.loc[power_df["Seçim"]==selected_dataset].iloc[0]
+            chosen_code=str(chosen_row["Kod"])
+            community=str(chosen_row["Topluluk"])
+            if st.button("Seçili parametrenin NASA ölçümünü getir",key="nasa_pool_fetch"):
+                try:
+                    with st.spinner("NASA POWER ölçümü sorgulanıyor…"):
+                        value=nasa_power_secili_parametre_cek(
+                            st.session_state.secilen_lat, st.session_state.secilen_lon,
+                            secilen_tarih, chosen_code, community
+                        )
+                    if value is None:
+                        st.info("NASA bu koordinat ve tarihte geçerli ölçüm yayımlamamış (-999 / veri yok).")
+                    else:
+                        st.success(f"{chosen_code}: {value:g} · NASA POWER {community} · {secilen_tarih:%d.%m.%Y}")
+                except Exception as parameter_error:
+                    st.error(f"NASA POWER bu parametre/topluluk/tarih birleşimini kabul etmedi veya veri döndürmedi: {parameter_error}")
+        else:
+            st.warning("NASA POWER günlük parametre listesi boş döndü; katalogdaki diğer çözünürlükler görüntülenebilir.")
+    except Exception as pool_error:
+        st.error(f"NASA veri havuzu NASA kataloglarından yüklenemedi: {pool_error}")
+        st.caption("Uygulama uydurma kayıt göstermiyor; NASA katalog servisi erişilebilir olduğunda liste otomatik gelir.")
 
-if aktif_sekme == "NASA Kaynak Bilgisi":
+
+if aktif_sekme == "ℹ️ Kaynaklar":
     render_box(
         title="NASA Veri Kaynakları ve Ölçüm Şeffaflığı",
         subtitle="Uygulama yalnızca NASA tarafından yayımlanan çevresel ölçüm ve uydu ürünlerini kullanır.",
@@ -753,14 +974,14 @@ if aktif_sekme == "NASA Kaynak Bilgisi":
     st.markdown("""
     - **NASA POWER Daily API:** atmosfer, meteoroloji ve güneş enerjisi parametreleri.
     - **NASA POWER Hydrology:** üst toprak, kök bölgesi ve profil ıslaklığı.
-    - **NASA GIBS / EOSDIS:** uydu görüntüleri ve bilimsel harita katmanları.
+    - **NASA GIBS / EOSDIS:** 2D haritalar ve 3D Dünya küresinin gerçek uydu görüntü dokusu.\n    - **NASA POWER Manager API:** parametre adları, kodları ve birimlerinin canlı sözlüğü.
     - **NDVI:** yalnızca NASA MODIS ürününden sayısal veri elde edildiğinde değer olarak gösterilir; harita görüntüsü sayısal nokta ölçümü gibi sunulmaz.
 
     NASA'nın ilgili koordinat ve tarih için yayımlamadığı hiçbir değer tahmin edilmez, doldurulmaz veya başka tarihten kopyalanmaz.
     """)
 
 
-if aktif_sekme == "NASA Hidroloji Verileri":
+if aktif_sekme == "💧 Hidroloji":
     render_box(
         title="NASA POWER — Gerçek Hidroloji Gözlemleri",
         subtitle="Bu bölüm yalnızca NASA tarafından döndürülen ölçümleri gösterir. Taşkın simülasyonu veya uydurma risk skoru üretilmez.",
