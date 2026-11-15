@@ -35,6 +35,41 @@ jobs:
           get_power("T2M,T2M_MAX,T2M_MIN,RH2M,PRECTOTCORR,WS10M,WD10M,PS,ALLSKY_SFC_SW_DWN")
           get_power("GWETTOP,GWETROOT,GWETPROF")
           PY
+      - name: Check NASA POWER hourly near-real-time API
+        run: |
+          python - <<'PY'
+          import datetime, json, urllib.parse, urllib.request
+          end = datetime.datetime.utcnow().date()
+          start = end - datetime.timedelta(days=7)
+          params = {
+              "latitude": 37.8859, "longitude": 41.1198,
+              "start": start.strftime("%Y%m%d"), "end": end.strftime("%Y%m%d"),
+              "community": "RE", "parameters": "T2M,RH2M,PRECTOTCORR,WS10M,WD10M,PS",
+              "format": "JSON", "time-standard": "UTC"
+          }
+          url = "https://power.larc.nasa.gov/api/temporal/hourly/point?" + urllib.parse.urlencode(params)
+          with urllib.request.urlopen(url, timeout=60) as r:
+              data = json.load(r)
+          series = data.get("properties", {}).get("parameter", {})
+          if not series.get("T2M"):
+              raise SystemExit("NASA POWER hourly API returned no T2M observations")
+          latest = max(k for k, v in series["T2M"].items() if v is not None and float(v) != -999)
+          print("PASS NASA POWER hourly; latest UTC observation:", latest)
+          print("Hourly parameters:", sorted(series))
+          PY
+      - name: Ensure app has no third-party weather or geocoding provider
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          source = Path("app.py").read_text(encoding="utf-8").lower()
+          forbidden = ["open-meteo.com", "api.openweathermap.org", "api.weatherapi.com", "windy.com", "nominatim.openstreetmap.org"]
+          found = [item for item in forbidden if item in source]
+          if found:
+              raise SystemExit("Non-NASA data provider reference found: " + ", ".join(found))
+          if "power.larc.nasa.gov" not in source or "gibs.earthdata.nasa.gov" not in source:
+              raise SystemExit("NASA POWER and NASA GIBS sources must both be present")
+          print("PASS: NASA POWER + NASA GIBS are the only environmental data/map providers.")
+          PY
       - name: Check NASA GIBS catalogue and 51 map layers
         run: |
           python - <<'PY'
