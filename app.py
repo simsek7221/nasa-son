@@ -391,7 +391,7 @@ with col_gps:
 
 with col_date:
     secilen_tarih = st.date_input("📅 NASA günlük toprak/güneş tarihi:", value=datetime.now().date() - timedelta(days=3), max_value=datetime.now().date() - timedelta(days=1))
-st.caption("Saatlik meteoroloji: NASA POWER Hourly NRT (son yayımlanan saat). Toprak ve güneş: NASA POWER günlük arşivi. NASA verileri gerçek zamanlı değildir; kaynak gecikmeleri geçerlidir.")
+st.caption("Saatlik meteoroloji: NASA POWER Hourly NRT (NASA'nın yayımladığı en son saat). Toprak ve güneş: NASA POWER günlük arşivi. Bu veriler anlık sensör akışı değildir; NASA'nın yayımlama gecikmeleri geçerlidir.")
 
 try:
     d = analiz_uret(st.session_state.secilen_lat, st.session_state.secilen_lon, secilen_tarih)
@@ -546,7 +546,7 @@ if aktif_sekme == "NASA Uydu Haritası":
         selected_layer = layer_names[layer_titles.index(selected_title)]
         map_date = st.date_input(
             "Uydu gözlem tarihi",
-            value=datetime.now().date() - timedelta(days=3),
+            value=datetime.now().date(),
             max_value=datetime.now().date(),
             key="nasa_map_date"
         ).strftime("%Y-%m-%d")
@@ -590,9 +590,9 @@ if aktif_sekme == "NASA Trendleri":
     )
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        render_metric_card("NASA Günlük Ortalama Sıcaklık", "Veri yok" if d['sicaklik'] is None else f"{d['sicaklik']:.1f} °C", "NASA POWER günlük ortalama sıcaklık", "rgba(56, 189, 248, 0.75)", "#38bdf8", "rgba(56, 189, 248, 0.45)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("NASA Son Saatlik Sıcaklık", "Veri yok" if d['sicaklik'] is None else f"{d['sicaklik']:.1f} °C", "NASA POWER Hourly NRT · son yayımlanan saat", "rgba(56, 189, 248, 0.75)", "#38bdf8", "rgba(56, 189, 248, 0.45)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c2:
-        render_metric_card("2️⃣ Rüzgar", "Veri yok" if d['ruzgar'] is None else f"{d['ruzgar']:.1f} m/s", "NASA POWER ölçümü" if d['ruzgar_yon'] is None else f"Yön: {d['ruzgar_yon']:.0f}°", "rgba(16, 185, 129, 0.75)", "#34d399", "rgba(16, 185, 129, 0.45)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("2️⃣ Son Saatlik Rüzgâr", "Veri yok" if d['ruzgar'] is None else f"{d['ruzgar']:.1f} m/s", "NASA POWER Hourly NRT ölçümü" if d['ruzgar_yon'] is None else f"Yön: {d['ruzgar_yon']:.0f}°", "rgba(16, 185, 129, 0.75)", "#34d399", "rgba(16, 185, 129, 0.45)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c3:
         render_metric_card("3️⃣ NDVI", "Harita katmanı", "Sayısal MODIS NDVI entegrasyonu henüz yok", "rgba(245, 158, 11, 0.75)", "#fbbf24", "rgba(245, 158, 11, 0.45)", "linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c4:
@@ -641,9 +641,9 @@ if aktif_sekme == "Bölgesel Karşılaştırma":
         lat2 = st.number_input("2. Bölge enlemi", value=39.9334, format="%.4f", key="compare_lat_2")
         lon2 = st.number_input("2. Bölge boylamı", value=32.8597, format="%.4f", key="compare_lon_2")
     try:
-        d1 = analiz_uret(lat1, lon1, secilen_tarih)
-        d2 = analiz_uret(lat2, lon2, secilen_tarih)
-        st.caption(f"NASA POWER gözlem tarihi: {secilen_tarih:%d.%m.%Y} · Batman koordinatı: {lat1:.4f}, {lon1:.4f}")
+        d1 = gercek_veri_cek(lat1, lon1, secilen_tarih)
+        d2 = gercek_veri_cek(lat2, lon2, secilen_tarih)
+        st.caption(f"NASA POWER günlük gözlem tarihi: {secilen_tarih:%d.%m.%Y} · {yer_1}: {lat1:.4f}, {lon1:.4f} · {yer_2}: {lat2:.4f}, {lon2:.4f}")
     except Exception as compare_error:
         st.error(f"Karşılaştırma için NASA POWER verisi alınamadı: {compare_error}")
         d1 = d2 = None
