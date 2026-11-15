@@ -724,10 +724,12 @@ if aktif_sekme == "🛰️ Uydu Haritası":
             max_value=datetime.now().date(),
             key="nasa_map_date"
         ).strftime("%Y-%m-%d")
-        st.caption(f"Seçili NASA GIBS ürünü: {selected_title} · Katman kodu: {selected_layer}")
-        overlay_time_js = (
-            f"overlayParams.time = '{map_date}';" if selected_has_time else ""
+        st.caption(
+            f"Seçili NASA GIBS ürünü: {selected_title} · Katman kodu: {selected_layer}. "
+            "Bilimsel katman kendi NASA varsayılan gözlem tarihini kullanır; taban görüntü tarihi ayrıdır."
         )
+        # Bilimsel katmanların her biri farklı güncelleme takvimine sahip.
+        # Taban harita tarihini tüm katmanlara zorlamak hatalı/boş karolar üretebilir.
         map_html = f"""
         <div id="nasa-earth-map" style="height:590px;width:100%;border-radius:18px;overflow:hidden;border:1px solid rgba(56,189,248,.45);"></div>
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -746,7 +748,6 @@ if aktif_sekme == "🛰️ Uydu Haritası":
             version: '1.1.1', attribution: 'NASA GIBS / EOSDIS',
             tiled: true, tileSize: 256, detectRetina: false, keepBuffer: 2, opacity: 0.72
           }};
-          {overlay_time_js}
           const nasaOverlay = L.tileLayer.wms(nasaWms, overlayParams);
           if ({json.dumps(show_science_overlay)} && {json.dumps(selected_layer)} !== 'MODIS_Terra_CorrectedReflectance_TrueColor') nasaOverlay.addTo(map);
           L.control.layers({{'NASA MODIS True Color': nasaBase}}, {{'Selected NASA science layer': nasaOverlay}}).addTo(map);
