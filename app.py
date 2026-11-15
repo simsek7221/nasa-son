@@ -337,8 +337,6 @@ def analiz_uret(lat, lon, secilen_tarih):
     nasa = gercek_veri_cek(lat, lon, secilen_tarih)
     wet = nasa["toprak_ust"]
     wet_percent = None if wet is None else max(0.0, min(100.0, wet * 100.0))
-    # Bu yardımcı gösterge NDVI değildir; gerçek NDVI ayrı bir MODIS ürünüdür.
-    vegetation_proxy = None if wet_percent is None else round(wet_percent / 100.0, 3)
     return {
         "sicaklik": round(nasa["sicaklik"], 2), "sicaklik_max": nasa["sicaklik_max"],
         "sicaklik_min": nasa["sicaklik_min"], "nem": round(nasa["nem"], 1),
@@ -346,7 +344,7 @@ def analiz_uret(lat, lon, secilen_tarih):
         "ruzgar_yon": nasa["ruzgar_yon"], "basinc": round(nasa["basinc"], 1),
         "radyasyon": nasa["radyasyon"], "smap_soil": None if wet_percent is None else round(wet_percent, 1),
         "toprak_kok": nasa["toprak_kok"], "toprak_profil": nasa["toprak_profil"],
-        "ndvi_val": vegetation_proxy, "ndvi_is_proxy": True,
+        "ndvi_val": None, "ndvi_is_proxy": False,
         "veri_tarihi": nasa["veri_tarihi"], "gun_farki": nasa["gun_farki"],
         "kaynak": "NASA POWER"
     }
@@ -428,8 +426,8 @@ veri_paketi_arduino = (
     f"H:{d['nem']},"
     f"P:{d['basinc']},"
     f"W:{d['ruzgar']:.1f},"
-    f"N:{d['ndvi_val']:.2f},"
-    f"S:{d['smap_soil']:.1f}\n"
+    f"N:{-1.0 if d['ndvi_val'] is None else d['ndvi_val']:.2f},"
+    f"S:{-1.0 if d['smap_soil'] is None else d['smap_soil']:.1f}\n"
 )
 js_veri_paketi = json.dumps(veri_paketi_arduino, ensure_ascii=False)
 
@@ -523,11 +521,7 @@ with st.sidebar:
     """, height=175)
 
 
-zaman_aciklama = "NASA POWER Günlük Verileri"
-if d['gun_farki'] < 0:
-    zaman_aciklama = f"📜 Arşiv Verisi ({abs(d['gun_farki'])} gün önce)"
-elif d['gun_farki'] > 0:
-    zaman_aciklama = f"🤖 Model Tahmini ({d['gun_farki']} gün sonra)"
+zaman_aciklama = f"NASA POWER gözlem tarihi: {d['veri_tarihi'].strftime('%d.%m.%Y')}"
 
 render_box(
     title=f"📍 Aktif Gözlem Noktası ve Zaman Modu: {zaman_aciklama}",
@@ -598,9 +592,9 @@ with tab2:
     with c1:
         render_metric_card("1️⃣ Sıcaklık", f"{d['sicaklik']} °C", "Sıcaklık", "rgba(56, 189, 248, 0.75)", "#38bdf8", "rgba(56, 189, 248, 0.45)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c2:
-        render_metric_card("2️⃣ Rüzgar", f"{d['ruzgar']} km/s", f"Yön: {d['ruzgar_yon']}°", "rgba(16, 185, 129, 0.75)", "#34d399", "rgba(16, 185, 129, 0.45)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("2️⃣ Rüzgar", f"{d['ruzgar']} m/s", f"Yön: {d['ruzgar_yon']}°", "rgba(16, 185, 129, 0.75)", "#34d399", "rgba(16, 185, 129, 0.45)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c3:
-        render_metric_card("3️⃣ Toprak Nem Göstergesi", f"{d['ndvi_val']}", "NASA POWER verisinden türetilmiş; NDVI değildir", "rgba(245, 158, 11, 0.75)", "#fbbf24", "rgba(245, 158, 11, 0.45)", "linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("3️⃣ NDVI", "Harita katmanı", "Sayısal MODIS NDVI entegrasyonu henüz yok", "rgba(245, 158, 11, 0.75)", "#fbbf24", "rgba(245, 158, 11, 0.45)", "linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c4:
         render_metric_card("4️⃣ Basınç", f"{d['basinc']} hPa", "Basınç", "rgba(168, 85, 247, 0.75)", "#c084fc", "rgba(168, 85, 247, 0.45)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
 
@@ -622,7 +616,7 @@ with tab3:
     <div style="background: rgba(15, 23, 42, 0.85); padding: 2rem; border-radius: 28px; border: 2px solid rgba(34, 197, 94, 0.5);">
         <h3 style="color: #4ade80; margin-top: 0;">🟢 Ekosistem Sağlık Raporu (Stabil)</h3>
         <p style="color: #e2e8f0; font-size: 1.05rem;">
-            Nem oranı %{d['nem']} ve NASA POWER toprak ıslaklığı %{d['smap_soil']} seviyelerindedir. Kuraklık ve yangın riski minimal düzeydedir.
+            Nem oranı %{d['nem']} ve NASA POWER toprak ıslaklığı %{d['smap_soil']} seviyelerindedir. Risk göstergeleri basit eşiklere dayalı ön değerlendirmelerdir; resmî afet tahmini değildir.
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -755,7 +749,7 @@ with tab7:
         glow_color="rgba(59, 130, 246, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(30, 58, 138, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
-    risk_skoru = min(100, max(5, int((d['yagis'] * 15) + (d['smap_soil'] * 0.8))))
+    risk_skoru = min(100, max(5, int(d['yagis'] * 15 + ((d['smap_soil'] or 0) * 0.8)))))
     
     col_h1, col_h2 = st.columns([1, 2])
     with col_h1:
