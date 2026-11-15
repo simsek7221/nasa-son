@@ -730,62 +730,49 @@ if aktif_sekme == "🛰️ Uydu Haritası":
         )
         # Bilimsel katmanların her biri farklı güncelleme takvimine sahip.
         # Taban harita tarihini tüm katmanlara zorlamak hatalı/boş karolar üretebilir.
-        # NASA GIBS WMS kullan: daha önce temiz görüntü veren taban katmanı.
-        # WMTS XYZ karolarındaki siyah boş/uyumsuz karo sorununu önlemek için
-        # NASA'nın EPSG:3857 WMS servisine geri dönüyoruz.
-        # NASA GIBS'in yerel EPSG:4326 projeksiyonunu kullan.
-        # EPSG:3857 uç noktası kaynak karoları yeniden projekte ettiği için
-        # oluşabilecek siyah karo/kenar bozulmalarını önlemeyi hedefler.
+        # Taban harita NASA GIBS'in resmi EPSG:3857 WMTS/XYZ karo servisini kullanır.
+        # Leaflet'in varsayılan Web Mercator karo ızgarası ile NASA'nın
+        # GoogleMapsCompatible_Level9 matrisi aynı koordinat sistemindedir.
         map_html = f"""
         <div id="nasa-earth-map" style="height:590px;width:100%;border-radius:18px;overflow:hidden;border:1px solid rgba(56,189,248,.45);"></div>
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
         <script>
           const map = L.map('nasa-earth-map', {{
-            crs: L.CRS.EPSG4326,
+            crs: L.CRS.EPSG3857,
             zoomControl: true,
             preferCanvas: true,
             worldCopyJump: false,
-            minZoom: 1,
-            maxZoom: 9
+            minZoom: 0,
+            maxZoom: 8
           }}).setView([{st.session_state.secilen_lat}, {st.session_state.secilen_lon}], 4);
 
-          const nasaWms = 'https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi';
-          const nasaBase = L.tileLayer.wms(nasaWms, {{
-            layers: 'MODIS_Terra_CorrectedReflectance_TrueColor',
-            styles: '',
-            format: 'image/jpeg',
-            transparent: false,
-            version: '1.1.1',
-            srs: 'EPSG:4326',
-            time: '{map_date}',
-            tiled: true,
+          const nasaBaseUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/{map_date}/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.jpg';
+          const nasaBase = L.tileLayer(nasaBaseUrl, {{
             tileSize: 256,
-            minZoom: 1,
-            maxZoom: 9,
-            detectRetina: false,
+            minZoom: 0,
+            maxZoom: 8,
+            noWrap: true,
             updateWhenZooming: false,
             updateWhenIdle: true,
             keepBuffer: 1,
             attribution: 'NASA GIBS / EOSDIS'
           }}).addTo(map);
 
+          // Bilimsel katman WMS olarak, fakat tiled=true zorlaması olmadan istenir.
+          // Her katmanın kendi NASA zaman varsayılanı kullanılır.
+          const nasaWms = 'https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi';
           const nasaOverlay = L.tileLayer.wms(nasaWms, {{
             layers: {json.dumps(selected_layer)},
             styles: '',
             format: 'image/png',
             transparent: true,
             version: '1.1.1',
-            srs: 'EPSG:4326',
-            tiled: true,
-            tileSize: 256,
-            minZoom: 1,
-            maxZoom: 9,
-            detectRetina: false,
+            srs: 'EPSG:3857',
+            opacity: 0.72,
             updateWhenZooming: false,
             updateWhenIdle: true,
             keepBuffer: 1,
-            opacity: 0.72,
             attribution: 'NASA GIBS / EOSDIS'
           }});
 
