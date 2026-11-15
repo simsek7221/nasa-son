@@ -785,7 +785,7 @@ if aktif_sekme == "🛰️ Uydu Haritası":
           const scienceTileUrl =
             'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/' +
             encodeURIComponent(scienceLayerName) +
-            '/default/' + scienceTime + '/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png';
+            '/default/' + scienceTime + '/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.png';
           const nasaOverlay = L.tileLayer(scienceTileUrl, {{
             tileSize: 256,
             minZoom: 0,
