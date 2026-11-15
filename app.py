@@ -150,6 +150,95 @@ def render_metric_card(title, value, caption, border_color, text_color, glow_col
     """
     st.markdown(html_content, unsafe_allow_html=True)
 
+# --- YÜKSEK ÇÖZÜNÜRLÜKLÜ 3D ARAZİ MODELİ ---
+@st.cache_data(ttl=86400, show_spinner=False)
+def gercek_yukseklik_matrisi(
+    merkez_lat,
+    merkez_lon,
+    grid_boyutu=15,
+    yari_cap_km=15
+):
+    """Yardımcı 3D yükseklik katmanı; kaynak Open-Meteo, NASA verisi değildir."""
+    merkez_lat = float(merkez_lat)
+    merkez_lon = float(merkez_lon)
+
+    lat_yari = yari_cap_km / 111.32
+    cos_lat = max(np.cos(np.radians(merkez_lat)), 0.2)
+    lon_yari = yari_cap_km / (111.32 * cos_lat)
+
+    lat_dizi = np.linspace(
+        merkez_lat - lat_yari,
+        merkez_lat + lat_yari,
+        grid_boyutu
+    )
+    lon_dizi = np.linspace(
+        merkez_lon - lon_yari,
+        merkez_lon + lon_yari,
+        grid_boyutu
+    )
+
+    X, Y = np.meshgrid(lon_dizi, lat_dizi)
+    lat_duz = Y.ravel()
+    lon_duz = X.ravel()
+    koordinat_sayisi = len(lat_duz)
+    yukseklikler = []
+    url = "https://api.open-meteo.com/v1/elevation"
+
+    # Servise tek seferde aşırı uzun koordinat listesi göndermemek için
+    # noktaları 100'lük paketler halinde al.
+    for baslangic in range(0, koordinat_sayisi, 100):
+        bitis = min(baslangic + 100, koordinat_sayisi)
+        params = {
+            "latitude": ",".join(f"{v:.6f}" for v in lat_duz[baslangic:bitis]),
+            "longitude": ",".join(f"{v:.6f}" for v in lon_duz[baslangic:bitis])
+        }
+        yanit = None
+
+        for deneme in range(3):
+            try:
+                yanit = requests.get(url, params=params, timeout=30)
+                if yanit.status_code == 429:
+                    bekleme = yanit.headers.get("Retry-After")
+                    time.sleep(float(bekleme) if bekleme and bekleme.isdigit() else 5 * (deneme + 1))
+                    continue
+                yanit.raise_for_status()
+                break
+            except requests.RequestException:
+                if deneme == 2:
+                    raise
+                time.sleep(3 * (deneme + 1))
+
+        if yanit is None or yanit.status_code == 429:
+            raise RuntimeError(
+                "Yükseklik servisi istek sınırına ulaştı. "
+                "Lütfen biraz sonra yeniden deneyin."
+            )
+
+        paket = yanit.json().get("elevation", [])
+        beklenen = bitis - baslangic
+        if len(paket) != beklenen:
+            raise ValueError(
+                f"Eksik arazi verisi: {len(paket)} / {beklenen} nokta."
+            )
+        yukseklikler.extend(paket)
+
+    if len(yukseklikler) != koordinat_sayisi:
+        raise ValueError("Arazi yükseklik matrisi tamamlanamadı.")
+
+    Z = np.asarray(yukseklikler, dtype=float).reshape(
+        grid_boyutu, grid_boyutu
+    )
+    if not np.isfinite(Z).all():
+        raise ValueError("Arazi verisinde geçersiz yükseklik değeri var.")
+
+    x_km = (lon_dizi - merkez_lon) * 111.32 * cos_lat
+    y_km = (lat_dizi - merkez_lat) * 111.32
+    X_km, Y_km = np.meshgrid(x_km, y_km)
+
+    return X_km, Y_km, Z
+
+
+
 # --- NASA POWER VERI MOTORU ---
 @st.cache_data(ttl=21600, show_spinner=False)
 def gercek_veri_cek(lat, lon, secilen_tarih):
@@ -454,7 +543,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "📊 Trend Analizi", 
     "🚨 Risk & Alarm", 
     "⚖️ Karşılaştırma",
-    "🔍 135+ Veri Havuzu",
+    "🔍 NASA Veri Kataloğu",
     "🌐 3D Dijital İkiz",
     "💧 Hidrolojik & Taşkın"
 ])
@@ -481,11 +570,11 @@ with tab1:
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
       const map = L.map('nasa-map').setView([{lat_val}, {lon_val}], 6);
-      const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      const osm = L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {
         maxZoom: 18, attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
       const nasaLayer = L.tileLayer(
-        'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/{nasa_map_date}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
+        'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/{nasa_map_date}/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.jpg',
         {maxZoom: 9, opacity: 0.90, attribution: 'NASA GIBS / MODIS Terra'}
       ).addTo(map);
       L.marker([{lat_val}, {lon_val}]).addTo(map)
@@ -533,7 +622,7 @@ with tab3:
     <div style="background: rgba(15, 23, 42, 0.85); padding: 2rem; border-radius: 28px; border: 2px solid rgba(34, 197, 94, 0.5);">
         <h3 style="color: #4ade80; margin-top: 0;">🟢 Ekosistem Sağlık Raporu (Stabil)</h3>
         <p style="color: #e2e8f0; font-size: 1.05rem;">
-            Nem oranı %{d['nem']} ve toprak rutubeti (SMAP) %{d['smap_soil']} seviyelerindedir. Kuraklık ve yangın riski minimal düzeydedir.
+            Nem oranı %{d['nem']} ve NASA POWER toprak ıslaklığı %{d['smap_soil']} seviyelerindedir. Kuraklık ve yangın riski minimal düzeydedir.
         </p>
     </div>
     """, unsafe_allow_html=True)
