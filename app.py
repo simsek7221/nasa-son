@@ -777,21 +777,32 @@ if aktif_sekme == "🛰️ Uydu Haritası":
           }});
           nasaSatellite.addTo(map);
 
-          // Bilimsel katman WMS olarak, fakat tiled=true zorlaması olmadan istenir.
-          // Her katmanın kendi NASA zaman varsayılanı kullanılır.
-          const nasaWms = 'https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi';
-          const nasaOverlay = L.tileLayer.wms(nasaWms, {{
-            layers: {json.dumps(selected_layer)},
-            styles: '',
-            format: 'image/png',
-            transparent: true,
-            version: '1.1.1',
-            srs: 'EPSG:3857',
-            opacity: 0.72,
+          // Bilimsel katmanları NASA GIBS WMTS karo servisiyle yükle.
+          // WMS'nin bazı katmanlarda ürettiği renkli/şeritli yeniden örnekleme
+          // artefaktlarını önlemek için taban haritayla aynı karo ızgarası kullanılır.
+          const scienceLayerName = {json.dumps(selected_layer)};
+          const scienceTileUrl =
+            'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/' +
+            encodeURIComponent(scienceLayerName) +
+            '/default/{json.dumps(map_date)}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png';
+          const nasaOverlay = L.tileLayer(scienceTileUrl, {{
+            tileSize: 256,
+            minZoom: 0,
+            maxZoom: 8,
+            noWrap: true,
+            opacity: 0.82,
             updateWhenZooming: false,
             updateWhenIdle: true,
             keepBuffer: 1,
             attribution: 'NASA GIBS / EOSDIS'
+          }});
+          let scienceTileFailed = false;
+          nasaOverlay.on('tileerror', function() {{
+            if (!scienceTileFailed) {{
+              scienceTileFailed = true;
+              if (map.hasLayer(nasaOverlay)) map.removeLayer(nasaOverlay);
+              console.warn('NASA science WMTS tiles unavailable for: ' + scienceLayerName);
+            }}
           }});
 
           if ({json.dumps(show_science_overlay)} &&
