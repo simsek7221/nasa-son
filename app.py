@@ -747,17 +747,35 @@ if aktif_sekme == "🛰️ Uydu Haritası":
             maxZoom: 8
           }}).setView([{st.session_state.secilen_lat}, {st.session_state.secilen_lon}], 4);
 
-          const nasaBaseUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/{map_date}/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.jpg';
-          const nasaBase = L.tileLayer(nasaBaseUrl, {{
-            tileSize: 256,
-            minZoom: 0,
-            maxZoom: 9,
-            noWrap: true,
-            updateWhenZooming: false,
-            updateWhenIdle: true,
-            keepBuffer: 1,
-            attribution: 'NASA GIBS / EOSDIS'
-          }}).addTo(map);
+          // Önce NASA'nın tarih bağımsız Blue Marble görüntüsünü yükle.
+          // Böylece günlük uydu karoları gecikse/hata verse bile harita boş kalmaz.
+          const nasaBase = L.tileLayer(
+            'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/GoogleMapsCompatible_Level8/{{z}}/{{y}}/{{x}}.jpeg',
+            {{
+              tileSize: 256, minZoom: 0, maxZoom: 8, noWrap: true,
+              updateWhenZooming: false, updateWhenIdle: true, keepBuffer: 2,
+              attribution: 'NASA GIBS / EOSDIS'
+            }}
+          ).addTo(map);
+
+          // Günlük VIIRS gerçek uydu görüntüsü ayrı katmandır.
+          const nasaSatellite = L.tileLayer(
+            'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/{map_date}/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.jpg',
+            {{
+              tileSize: 256, minZoom: 0, maxZoom: 8, noWrap: true,
+              updateWhenZooming: false, updateWhenIdle: true, keepBuffer: 1,
+              attribution: 'NASA GIBS / EOSDIS'
+            }}
+          );
+          let satelliteFailed = false;
+          nasaSatellite.on('tileerror', function() {{
+            if (!satelliteFailed) {{
+              satelliteFailed = true;
+              if (map.hasLayer(nasaSatellite)) map.removeLayer(nasaSatellite);
+              console.warn('NASA VIIRS tiles unavailable; keeping NASA Blue Marble base map.');
+            }}
+          }});
+          nasaSatellite.addTo(map);
 
           // Bilimsel katman WMS olarak, fakat tiled=true zorlaması olmadan istenir.
           // Her katmanın kendi NASA zaman varsayılanı kullanılır.
@@ -782,7 +800,10 @@ if aktif_sekme == "🛰️ Uydu Haritası":
           }}
 
           L.control.layers(
-            {{'NASA VIIRS Suomi NPP True Color': nasaBase}},
+            {{
+              'NASA Blue Marble (yedek taban)': nasaBase,
+              'NASA VIIRS Suomi NPP True Color': nasaSatellite
+            }},
             {{'Selected NASA science layer': nasaOverlay}},
             {{collapsed: true}}
           ).addTo(map);
