@@ -24,7 +24,7 @@ st.set_page_config(
 
 from streamlit_autorefresh import st_autorefresh
 # NASA POWER Hourly NRT verilerini 30 dakikada bir yeniden iste.
-st_autorefresh(interval=30 * 60 * 1000, key="nasa_power_auto_refresh")
+st_autorefresh(interval=60 * 60 * 1000, key="nasa_power_auto_refresh")
 
 # Konum çözümleme için üçüncü taraf coğrafi servis kullanılmaz.
 # Kullanıcı koordinat girer veya tarayıcı GPS izni verirse cihaz konumu kullanılır.
@@ -246,7 +246,7 @@ def zaman_serisi_cek(lat, lon, merkez_tarih):
     return pd.DataFrame(rows)
 
 
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=3600, show_spinner=False)
 def nasa_saatlik_son_veri_cek(lat, lon):
     """NASA POWER Hourly NRT: son yayımlanmış saatlik meteoroloji değerleri."""
     bitis = datetime.utcnow().date()
