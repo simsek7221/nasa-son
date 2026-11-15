@@ -746,16 +746,17 @@ if aktif_sekme == "🛰️ Uydu Haritası":
         st.error(f"NASA GIBS harita kataloğu yüklenemedi: {map_error}")
 
 
-@st.cache_data(ttl=86400, show_spinner=False)
+@st.cache_data(ttl=604800, show_spinner=False)
 def gercek_yukseklik_matrisi(
     merkez_lat,
     merkez_lon,
-    grid_boyutu=25,
+    grid_boyutu=10,
     yari_cap_km=15
 ):
     """Open-Meteo yükseklik servisinden koordinat bazlı DEM verisi alır."""
-    merkez_lat = float(merkez_lat)
-    merkez_lon = float(merkez_lon)
+    # Yakın koordinatları aynı cache anahtarında birleştir; gereksiz API çağrılarını azalt.
+    merkez_lat = round(float(merkez_lat), 3)
+    merkez_lon = round(float(merkez_lon), 3)
 
     lat_yari = yari_cap_km / 111.32
     cos_lat = max(np.cos(np.radians(merkez_lat)), 0.2)
@@ -793,7 +794,8 @@ def gercek_yukseklik_matrisi(
             try:
                 yanit = requests.get(url, params=params, timeout=30)
                 if yanit.status_code == 429:
-                    time.sleep(2 * (deneme + 1))
+                    bekleme = int(yanit.headers.get("Retry-After", 0) or 0)
+                    time.sleep(max(bekleme, 5 * (deneme + 1)))
                     continue
                 yanit.raise_for_status()
                 break
