@@ -284,11 +284,15 @@ def nasa_gibs_harita_katalogu():
                 title = child.text
             elif tag in ("Dimension", "Extent") and child.attrib.get("name", "").casefold() == "time":
                 has_time = True
-        if name and title and has_time and not any(x in (name + " " + title).casefold() for x in disla):
-            katmanlar.append({"name": name, "title": title})
-    # Keep a deterministic, broad Earth-observation catalogue, not arbitrary generated layers.
+        if name and title and not any(x in (name + " " + title).casefold() for x in disla):
+            katmanlar.append({"name": name, "title": title, "has_time": has_time})
+    # Önce zaman boyutu tanımlı NASA katmanlarını seç; sayı 51'e yetmezse
+    # NASA'nın gerçek fakat zamansız bilimsel katmanlarıyla listeyi tamamla.
     unique = {item["name"]: item for item in katmanlar}
-    result = sorted(unique.values(), key=lambda x: x["title"].casefold())
+    all_layers = list(unique.values())
+    timed_layers = [item for item in all_layers if item["has_time"]]
+    pool = timed_layers if len(timed_layers) >= 51 else all_layers
+    result = sorted(pool, key=lambda x: x["title"].casefold())
     if len(result) < 51:
         raise RuntimeError(f"NASA GIBS kataloğundan yalnızca {len(result)} uygun katman alındı.")
     return result[:51]
