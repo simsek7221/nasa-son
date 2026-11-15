@@ -743,7 +743,7 @@ if aktif_sekme == "🛰️ Uydu Haritası":
           // yeniden raster kesip birleştirme yapmaz. Bu, karo dikişlerini azaltır.
           const nasaWmts = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/';
           const nasaBaseUrl = nasaWmts +
-            'MODIS_Terra_CorrectedReflectance_TrueColor/default/{z}/{y}/{x}.jpg';
+            'MODIS_Terra_CorrectedReflectance_TrueColor/default/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.jpg';
           const nasaBase = L.tileLayer(nasaBaseUrl, {{
             attribution: 'NASA GIBS / EOSDIS',
             tileSize: 256, minZoom: 1, maxZoom: 9, maxNativeZoom: 9,
