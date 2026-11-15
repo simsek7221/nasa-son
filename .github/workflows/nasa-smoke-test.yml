@@ -79,6 +79,33 @@ jobs:
               raise SystemExit("Geocoder must not fetch environmental measurements")
           print("PASS: NASA POWER + NASA GIBS provide science data; Open-Meteo is used only for city coordinates.")
           PY
+      - name: Live-test Batman, Istanbul, and Ankara city geocoding
+        run: |
+          python - <<'PY'
+          import json, urllib.parse, urllib.request
+
+          cities = ["Batman", "İstanbul", "Ankara"]
+          for city in cities:
+              query = urllib.parse.urlencode({"name": city, "count": 10, "language": "tr", "format": "json"})
+              url = "https://geocoding-api.open-meteo.com/v1/search?" + query
+              with urllib.request.urlopen(url, timeout=20) as response:
+                  payload = json.load(response)
+              results = payload.get("results") or []
+              if not results:
+                  raise SystemExit(f"Geocoding returned no results for {city}")
+              match = next((item for item in results if item.get("country_code") == "TR"), None)
+              if match is None:
+                  raise SystemExit(f"No Turkey result returned for {city}")
+              name = match.get("name")
+              country = match.get("country")
+              admin = match.get("admin1") or match.get("admin2")
+              lat, lon = float(match["latitude"]), float(match["longitude"])
+              if not name or not country or not admin:
+                  raise SystemExit(f"Missing name/country/admin region for {city}: {match}")
+              if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                  raise SystemExit(f"Invalid coordinates for {city}: {lat}, {lon}")
+              print(f"PASS {city}: {name}, {admin}, {country} ({lat:.5f}, {lon:.5f})")
+          PY
       - name: Check NASA GIBS catalogue and 51 map layers
         run: |
           python - <<'PY'
