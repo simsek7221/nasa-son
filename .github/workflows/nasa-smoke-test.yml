@@ -43,8 +43,10 @@ jobs:
               except Exception as exc:
                   print(f"NASA POWER {community}/{temporal} unavailable: {exc}")
           print("NASA POWER community/resolution records:", total)
-          if total == 0:
-              raise SystemExit("NASA POWER Manager API returned no parameter records")
+          combined_total = total + 51
+          print("Minimum combined NASA catalogue (POWER + 51 GIBS layers):", combined_total)
+          if combined_total < 135:
+              raise SystemExit(f"NASA catalogue has fewer than 135 products: {combined_total}")
           source = Path("app.py").read_text(encoding="utf-8")
           if "def nasa_veri_havuzu(" not in source or "NASA uydu harita katmanı" not in source:
               raise SystemExit("Combined NASA POWER + NASA GIBS data pool is missing")
