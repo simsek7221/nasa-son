@@ -791,7 +791,8 @@ if aktif_sekme == "🌐 3D Dünya":
                       .replace("__DATE__", json.dumps(globe_date))
                       .replace("__TIME_PARAM__", json.dumps("&TIME=" + globe_date if globe_has_time else ""))
                       .replace("__LAT__", str(float(st.session_state.secilen_lat)))
-                      .replace("__LON__", str(float(st.session_state.secilen_lon))))\n        components.html(globe_html, height=570, scrolling=False)
+                      .replace("__LON__", str(float(st.session_state.secilen_lon))))
+        components.html(globe_html, height=570, scrolling=False)
     except Exception as globe_error:
         st.error(f"NASA 3D Dünya katmanı hazırlanamadı: {globe_error}")
 
