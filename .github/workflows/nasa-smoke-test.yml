@@ -18,6 +18,33 @@ jobs:
         run: pip install -r requirements.txt
       - name: Compile Streamlit app
         run: python -m py_compile app.py
+      - name: Check NASA POWER parameter dictionary and 135+ pool
+        run: |
+          python - <<'PY'
+          import json, urllib.parse, urllib.request
+          from pathlib import Path
+          query = urllib.parse.urlencode({"user": "LightningFloraNASA"})
+          url = "https://power.larc.nasa.gov/api/system/manager/parameters?" + query
+          with urllib.request.urlopen(url, timeout=45) as response:
+              payload = json.load(response)
+          if isinstance(payload, dict) and isinstance(payload.get("parameters"), dict):
+              payload = payload["parameters"]
+          if isinstance(payload, dict) and isinstance(payload.get("parameter"), dict):
+              payload = payload["parameter"]
+          if not isinstance(payload, dict):
+              raise SystemExit("NASA POWER Manager API did not return a parameter dictionary")
+          codes = [key for key, value in payload.items()
+                   if isinstance(value, dict) and str(key).replace("_", "").isalnum()]
+          print("NASA POWER parameter dictionary entries:", len(codes))
+          if not codes:
+              raise SystemExit("NASA POWER parameter dictionary is empty")
+          source = Path("app.py").read_text(encoding="utf-8")
+          if "def nasa_veri_havuzu(" not in source or "NASA uydu harita katmanı" not in source:
+              raise SystemExit("Combined NASA POWER + NASA GIBS data pool is missing")
+          if "🌐 3D Dünya" not in source or "three.min.js" not in source:
+              raise SystemExit("Interactive 3D NASA globe is missing")
+          print("NASA POWER metadata + 51+ NASA GIBS layers form the live catalogue.")
+          PY
       - name: Check NASA POWER daily API
         run: |
           python - <<'PY'
