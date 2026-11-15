@@ -747,133 +747,50 @@ if aktif_sekme == "🛰️ Uydu Haritası":
 
 
 @st.cache_data(ttl=604800, show_spinner=False)
-def nasadem_yukseklik_matrisi(merkez_lat, merkez_lon, earthdata_user, earthdata_password,
-                              grid_boyutu=25, yari_cap_km=15):
-    """NASA AppEEARS üzerinden NASADEM sayısal yükseklik modelinden gerçek rakım örnekleri alır."""
-    api = "https://appeears.earthdatacloud.nasa.gov/api/"
-    login = requests.post(api + "login", auth=(earthdata_user, earthdata_password), timeout=30)
-    login.raise_for_status()
-    token = login.json().get("token")
-    if not token:
-        raise RuntimeError("NASA Earthdata girişi başarısız. Kullanıcı adı/şifreyi kontrol et.")
-    headers = {"Authorization": f"Bearer {token}"}
-
-    product = "NASADEM_NC.001"
-    product_response = requests.get(api + "product/" + product, headers=headers, timeout=30)
-    product_response.raise_for_status()
-    available_layers = product_response.json()
-    layer = next((name for name in available_layers if name.lower() == "hgt"), None)
-    if layer is None:
-        layer = next((name for name, meta in available_layers.items()
-                      if "elevation" in str(meta).lower() or "height" in str(meta).lower()), None)
-    if layer is None:
-        raise RuntimeError("NASA AppEEARS içinde NASADEM yükseklik (HGT) katmanı bulunamadı.")
+def nasadem_yukseklik_matrisi(merkez_lat, merkez_lon, grid_boyutu=25, yari_cap_km=15):
+    """NASA'nın NASADEM 30 m verisini herkese açık aynadan alır; kullanıcı girişi gerekmez."""
+    from rasterio.io import MemoryFile
 
     lat0, lon0 = float(merkez_lat), float(merkez_lon)
+    lat_tile, lon_tile = int(np.floor(lat0)), int(np.floor(lon0))
+    ns = "n" if lat_tile >= 0 else "s"
+    ew = "e" if lon_tile >= 0 else "w"
+    tile = f"{ns}{abs(lat_tile):02d}{ew}{abs(lon_tile):03d}"
+    urls = [
+        f"https://opentopography.s3.sdsc.edu/raster/NASADEM/NASADEM_be/NASADEM_HGT_{tile}.tif",
+        f"https://opentopography.s3.sdsc.edu/raster/NASADEM/NASADEM_be/NASADEM_HGT_{tile.upper()}.tif",
+    ]
+    response = None
+    for url in urls:
+        candidate = requests.get(url, timeout=90)
+        if candidate.ok and candidate.content[:4] in (b"II*\\x00", b"MM\\x00*"):
+            response = candidate
+            break
+    if response is None:
+        raise RuntimeError(f"NASADEM döşemesi indirilemedi ({tile}). Biraz sonra tekrar dene.")
+
     lat_half = yari_cap_km / 111.32
     cos_lat = max(float(np.cos(np.radians(lat0))), 0.2)
     lon_half = yari_cap_km / (111.32 * cos_lat)
     latitudes = np.linspace(lat0 - lat_half, lat0 + lat_half, grid_boyutu)
     longitudes = np.linspace(lon0 - lon_half, lon0 + lon_half, grid_boyutu)
     grid_x, grid_y = np.meshgrid(longitudes, latitudes)
-    coords = [
-        {"id": str(i), "longitude": float(lon), "latitude": float(lat)}
-        for i, (lat, lon) in enumerate(zip(grid_y.ravel(), grid_x.ravel()))
-    ]
 
-    task = {
-        "task_type": "point",
-        "task_name": f"NASADEM_DigitalTwin_{lat0:.3f}_{lon0:.3f}_{int(time.time())}",
-        "params": {
-            "dates": [{"startDate": "02-11-2000", "endDate": "02-21-2000"}],
-            "layers": [{"product": product, "layer": layer}],
-            "coordinates": coords
-        }
-    }
-    submitted = requests.post(api + "task", json=task, headers=headers, timeout=45)
-    submitted.raise_for_status()
-    task_id = submitted.json().get("task_id")
-    if not task_id:
-        raise RuntimeError(f"NASA AppEEARS görev oluşturamadı: {submitted.text[:300]}")
+    with MemoryFile(response.content) as memfile:
+        with memfile.open() as src:
+            samples = np.asarray([v[0] for v in src.sample(
+                list(zip(grid_x.ravel(), grid_y.ravel())), masked=True
+            )], dtype=float).reshape(grid_boyutu, grid_boyutu)
+            nodata = src.nodata
 
-    status = "queued"
-    for _ in range(48):
-        task_response = requests.get(api + f"task/{task_id}", headers=headers, timeout=30)
-        task_response.raise_for_status()
-        status_data = task_response.json()
-        status = str(status_data.get("status", "")).lower()
-        if status == "done":
-            break
-        if status in ("error", "failed", "cancelled"):
-            raise RuntimeError(f"NASADEM işleme görevi başarısız: {status_data}")
-        time.sleep(5)
-    else:
-        raise RuntimeError("NASADEM isteği 4 dakika içinde tamamlanmadı. Biraz sonra tekrar deneyebilirsin.")
-
-    bundle_response = requests.get(api + f"bundle/{task_id}", headers=headers, timeout=30)
-    bundle_response.raise_for_status()
-    bundle = bundle_response.json()
-    csv_file = next((f for f in bundle.get("files", [])
-                     if str(f.get("file_name", "")).lower().endswith(".csv")), None)
-    if not csv_file:
-        raise RuntimeError("NASA AppEEARS tamamlandı ancak CSV yükseklik dosyası bulunamadı.")
-
-    download = requests.get(api + f"bundle/{task_id}/{csv_file['file_id']}",
-                            headers=headers, timeout=90)
-    download.raise_for_status()
-    raw = download.content
-    if raw[:2] == b"PK":
-        with zipfile.ZipFile(io.BytesIO(raw)) as archive:
-            csv_name = next((n for n in archive.namelist() if n.lower().endswith(".csv")), None)
-            if not csv_name:
-                raise RuntimeError("NASADEM çıktı arşivinde CSV bulunamadı.")
-            raw = archive.read(csv_name)
-    df = pd.read_csv(io.BytesIO(raw))
-    if df.empty:
-        raise RuntimeError("NASADEM servisi boş yükseklik tablosu döndürdü.")
-
-    normalized = {str(c).strip().lower(): c for c in df.columns}
-    value_col = next((c for k, c in normalized.items()
-                      if k == layer.lower() or k.endswith("_" + layer.lower())), None)
-    if value_col is None:
-        value_col = next((c for k, c in normalized.items()
-                          if any(word in k for word in ("hgt", "elevation", "dem"))), None)
-    if value_col is None:
-        excluded = ("id", "latitude", "longitude", "date", "time", "category", "quality")
-        candidates = [c for c in df.columns
-                      if not any(word in str(c).lower() for word in excluded)]
-        if len(candidates) == 1:
-            value_col = candidates[0]
-    if value_col is None:
-        raise RuntimeError("NASADEM CSV içindeki rakım sütunu tanınamadı: " + ", ".join(map(str, df.columns)))
-
-    df[value_col] = pd.to_numeric(df[value_col], errors="coerce")
-    id_col = normalized.get("id")
-    if id_col is not None:
-        df["_grid_id"] = pd.to_numeric(df[id_col], errors="coerce")
-        df = df.dropna(subset=["_grid_id"]).drop_duplicates("_grid_id").set_index("_grid_id")
-        heights = [df.at[i, value_col] if i in df.index else np.nan for i in range(len(coords))]
-    else:
-        lat_col = normalized.get("latitude")
-        lon_col = normalized.get("longitude")
-        if lat_col is None or lon_col is None:
-            raise RuntimeError("NASADEM çıktısında koordinat veya nokta kimliği bulunamadı.")
-        heights = []
-        for point in coords:
-            distances = (pd.to_numeric(df[lat_col], errors="coerce") - point["latitude"]) ** 2 + (
-                pd.to_numeric(df[lon_col], errors="coerce") - point["longitude"]) ** 2
-            idx = distances.idxmin()
-            heights.append(df.at[idx, value_col])
-
-    Z = np.asarray(heights, dtype=float).reshape(grid_boyutu, grid_boyutu)
-    Z[(~np.isfinite(Z)) | (Z <= -32000)] = np.nan
-    if np.isnan(Z).any():
-        valid = np.isfinite(Z)
-        if valid.sum() < grid_boyutu * grid_boyutu * 0.8:
-            raise RuntimeError("NASADEM örneklerinin %80'inden azı geçerli; yüzey güvenilir biçimde çizilemedi.")
-        Z = pd.DataFrame(Z).interpolate(axis=0, limit_direction="both").interpolate(
-            axis=1, limit_direction="both").to_numpy()
-
+    if nodata is not None:
+        samples[samples == nodata] = np.nan
+    samples[(~np.isfinite(samples)) | (samples < -1000)] = np.nan
+    valid = np.isfinite(samples)
+    if valid.sum() < grid_boyutu * grid_boyutu * 0.8:
+        raise RuntimeError("Bu koordinat çevresi tek NASADEM döşemesinin dışında kalıyor veya veri boş.")
+    Z = pd.DataFrame(samples).interpolate(axis=0, limit_direction="both").interpolate(
+        axis=1, limit_direction="both").to_numpy()
     x_km = (longitudes - lon0) * 111.32 * cos_lat
     y_km = (latitudes - lat0) * 111.32
     X_km, Y_km = np.meshgrid(x_km, y_km)
@@ -889,61 +806,42 @@ if aktif_sekme == "🌐 3D Dünya":
         bg_gradient="linear-gradient(135deg, rgba(131, 24, 67, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
     st.markdown(
-        "<p style='color:#cbd5e1;'>NASADEM 30 m sayısal yükseklik modeli kullanılır. "
-        "Yatay eksenler kilometre, dikey eksen metre cinsindendir. Yapay arazi veya simülasyon verisi kullanılmaz.</p>",
+        "<p style='color:#cbd5e1;'>NASA'nın NASADEM 30 m gerçek rakım verisi kullanılır. "
+        "Giriş veya hesap gerekmez; sayısal yüzey simülasyon değildir.</p>",
         unsafe_allow_html=True
     )
     try:
-        earthdata_user = st.secrets.get("EARTHDATA_USERNAME", "")
-        earthdata_password = st.secrets.get("EARTHDATA_PASSWORD", "")
-    except Exception:
-        earthdata_user, earthdata_password = "", ""
-
-    if not earthdata_user or not earthdata_password:
-        st.warning("NASADEM verisini çekmek için NASA Earthdata hesabı gerekiyor. Streamlit Cloud → uygulama → Settings → Secrets bölümüne aşağıdaki iki satırı ekle:")
-        st.code('EARTHDATA_USERNAME = "NASA_EARTHDATA_KULLANICI_ADIN"\nEARTHDATA_PASSWORD = "NASA_EARTHDATA_SIFREN"')
-        st.markdown("[NASA Earthdata hesabı oluştur / giriş yap](https://urs.earthdata.nasa.gov/)")
-        st.info("Şifreni buraya veya GitHub koduna yazma. Secrets alanına ekledikten sonra uygulama kendiliğinden yeniden başlar.")
-    else:
-        try:
-            with st.spinner("🛰️ NASA AppEEARS üzerinden gerçek NASADEM rakım verileri alınıyor..."):
-                X_km, Y_km, Z = nasadem_yukseklik_matrisi(
-                    st.session_state.secilen_lat,
-                    st.session_state.secilen_lon,
-                    earthdata_user,
-                    earthdata_password
-                )
-
-            fig_3d = go.Figure(data=[
-                go.Surface(
-                    z=Z, x=X_km, y=Y_km,
-                    colorscale="Earth",
-                    lighting=dict(ambient=0.45, diffuse=0.85, specular=0.35, roughness=0.65, fresnel=0.15),
-                    lightposition=dict(x=1000, y=1000, z=1500),
-                    colorbar=dict(title=dict(text="Rakım (m)", font=dict(color="#e2e8f0")),
-                                  tickfont=dict(color="#e2e8f0")),
-                    contours={"z": {"show": True, "usecolormap": True, "project_z": True}},
-                    hovertemplate="Doğu-Batı: %{x:.2f} km<br>Kuzey-Güney: %{y:.2f} km<br>Rakım: %{z:.0f} m<extra></extra>"
-                )
-            ])
-            fig_3d.update_layout(
-                title=f"{st.session_state.mekan_adi} — NASADEM Gerçek 3D Arazi Modeli",
-                autosize=True, height=620, margin=dict(l=10, r=10, t=55, b=10),
-                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(color="#e2e8f0"),
-                scene=dict(
-                    xaxis=dict(title="Doğu ↔ Batı (km)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
-                    yaxis=dict(title="Güney ↔ Kuzey (km)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
-                    zaxis=dict(title="Rakım (m)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
-                    aspectmode="manual", aspectratio=dict(x=1.0, y=1.0, z=0.65),
-                    camera=dict(eye=dict(x=1.55, y=1.55, z=1.05))
-                )
+        with st.spinner("🛰️ NASADEM gerçek yükseklik döşemesi alınıyor..."):
+            X_km, Y_km, Z = nasadem_yukseklik_matrisi(
+                st.session_state.secilen_lat, st.session_state.secilen_lon
             )
-            st.plotly_chart(fig_3d, use_container_width=True, config={"displaylogo": False, "responsive": True})
-            st.caption("Veri kaynağı: NASADEM_NC.001 · NASA LP DAAC · 30 m · statik sayısal yükseklik modeli.")
-        except Exception as e:
-            logger.exception("NASADEM 3D arazi modeli oluşturulamadı")
-            st.error(f"NASADEM verisi alınamadı: {e}")
+        fig_3d = go.Figure(data=[go.Surface(
+            z=Z, x=X_km, y=Y_km, colorscale="Earth",
+            lighting=dict(ambient=0.45, diffuse=0.85, specular=0.35, roughness=0.65, fresnel=0.15),
+            lightposition=dict(x=1000, y=1000, z=1500),
+            colorbar=dict(title=dict(text="Rakım (m)", font=dict(color="#e2e8f0")),
+                          tickfont=dict(color="#e2e8f0")),
+            contours={"z": {"show": True, "usecolormap": True, "project_z": True}},
+            hovertemplate="Doğu-Batı: %{x:.2f} km<br>Kuzey-Güney: %{y:.2f} km<br>Rakım: %{z:.0f} m<extra></extra>"
+        )])
+        fig_3d.update_layout(
+            title=f"{st.session_state.mekan_adi} — NASADEM Gerçek 3D Arazi Modeli",
+            autosize=True, height=620, margin=dict(l=10, r=10, t=55, b=10),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#e2e8f0"),
+            scene=dict(
+                xaxis=dict(title="Doğu ↔ Batı (km)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
+                yaxis=dict(title="Güney ↔ Kuzey (km)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
+                zaxis=dict(title="Rakım (m)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
+                aspectmode="manual", aspectratio=dict(x=1.0, y=1.0, z=0.65),
+                camera=dict(eye=dict(x=1.55, y=1.55, z=1.05))
+            )
+        )
+        st.plotly_chart(fig_3d, use_container_width=True, config={"displaylogo": False, "responsive": True})
+        st.caption("Veri: NASADEM 30 m · NASA/JPL · NASADEM_HGT v001. Dağıtım aynası: OpenTopography.")
+    except Exception as e:
+        logger.exception("NASADEM 3D arazi modeli oluşturulamadı")
+        st.error(f"NASADEM verisi alınamadı: {e}")
 
 
 if aktif_sekme == "📊 Trendler":
