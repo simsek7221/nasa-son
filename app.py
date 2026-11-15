@@ -832,66 +832,66 @@ def gercek_yukseklik_matrisi(
     return X_km, Y_km, Z
 
 if aktif_sekme == "🌐 3D Dünya":
-render_box(
-    title="🌐 3D Topografik Dijital İkiz (Digital Twin Komuta Merkezi)",
-    subtitle=f"Seçilen Koordinat ({st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}) Çevresinin 3 Boyutlu Arazi Modeli ve Dijital Yükseklik Matrisi.",
-    border_color="rgba(236, 72, 153, 0.75)",
-    glow_color="rgba(236, 72, 153, 0.55)",
-    bg_gradient="linear-gradient(135deg, rgba(131, 24, 67, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
-)
-st.markdown(
-    "<p style='color:#cbd5e1;'>Bu model, seçilen koordinatın çevresindeki gerçek arazi yüksekliklerini "
-    "Open-Meteo sayısal yükseklik servisinden alır. Yatay eksenler kilometre, dikey eksen metre cinsindendir.</p>",
-    unsafe_allow_html=True
-)
-
-try:
-    with st.spinner("🛰️ Gerçek arazi yükseklik verileri alınıyor..."):
-        X_km, Y_km, Z = gercek_yukseklik_matrisi(
-            st.session_state.secilen_lat,
-            st.session_state.secilen_lon
-        )
-
-    fig_3d = go.Figure(data=[
-        go.Surface(
-            z=Z,
-            x=X_km,
-            y=Y_km,
-            colorscale="Earth",
-            lighting=dict(ambient=0.45, diffuse=0.85, specular=0.35, roughness=0.65, fresnel=0.15),
-            lightposition=dict(x=1000, y=1000, z=1500),
-            colorbar=dict(title=dict(text="Rakım (m)", font=dict(color="#e2e8f0")), tickfont=dict(color="#e2e8f0")),
-            contours={
-                "z": {
-                    "show": True,
-                    "usecolormap": True,
-                    "project_z": True
-                }
-            },
-            hovertemplate="Doğu-Batı: %{x:.2f} km<br>Kuzey-Güney: %{y:.2f} km<br>Rakım: %{z:.0f} m<extra></extra>"
-        )
-    ])
-    fig_3d.update_layout(
-        title=f"{st.session_state.mekan_adi} — Gerçek 3D Arazi Modeli",
-        autosize=True,
-        height=620,
-        margin=dict(l=10, r=10, t=55, b=10),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#e2e8f0"),
-        scene=dict(
-            xaxis=dict(title="Doğu ↔ Batı (km)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
-            yaxis=dict(title="Güney ↔ Kuzey (km)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
-            zaxis=dict(title="Rakım (m)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
-            aspectmode="manual",
-            aspectratio=dict(x=1.0, y=1.0, z=0.65),
-            camera=dict(eye=dict(x=1.55, y=1.55, z=1.05))
-        )
+    render_box(
+        title="🌐 3D Topografik Dijital İkiz (Digital Twin Komuta Merkezi)",
+        subtitle=f"Seçilen Koordinat ({st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}) Çevresinin 3 Boyutlu Arazi Modeli ve Dijital Yükseklik Matrisi.",
+        border_color="rgba(236, 72, 153, 0.75)",
+        glow_color="rgba(236, 72, 153, 0.55)",
+        bg_gradient="linear-gradient(135deg, rgba(131, 24, 67, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
-    st.plotly_chart(fig_3d, use_container_width=True)
-except Exception as e:
-    logger.exception("3D arazi modeli oluşturulamadı")
-    st.error(f"Gerçek arazi verisi alınamadı: {e}")
+    st.markdown(
+        "<p style='color:#cbd5e1;'>Bu model, seçilen koordinatın çevresindeki gerçek arazi yüksekliklerini "
+        "Open-Meteo sayısal yükseklik servisinden alır. Yatay eksenler kilometre, dikey eksen metre cinsindendir.</p>",
+        unsafe_allow_html=True
+    )
+
+    try:
+        with st.spinner("🛰️ Gerçek arazi yükseklik verileri alınıyor..."):
+            X_km, Y_km, Z = gercek_yukseklik_matrisi(
+                st.session_state.secilen_lat,
+                st.session_state.secilen_lon
+            )
+
+        fig_3d = go.Figure(data=[
+            go.Surface(
+                z=Z,
+                x=X_km,
+                y=Y_km,
+                colorscale="Earth",
+                lighting=dict(ambient=0.45, diffuse=0.85, specular=0.35, roughness=0.65, fresnel=0.15),
+                lightposition=dict(x=1000, y=1000, z=1500),
+                colorbar=dict(title=dict(text="Rakım (m)", font=dict(color="#e2e8f0")), tickfont=dict(color="#e2e8f0")),
+                contours={
+                    "z": {
+                        "show": True,
+                        "usecolormap": True,
+                        "project_z": True
+                    }
+                },
+                hovertemplate="Doğu-Batı: %{x:.2f} km<br>Kuzey-Güney: %{y:.2f} km<br>Rakım: %{z:.0f} m<extra></extra>"
+            )
+        ])
+        fig_3d.update_layout(
+            title=f"{st.session_state.mekan_adi} — Gerçek 3D Arazi Modeli",
+            autosize=True,
+            height=620,
+            margin=dict(l=10, r=10, t=55, b=10),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#e2e8f0"),
+            scene=dict(
+                xaxis=dict(title="Doğu ↔ Batı (km)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
+                yaxis=dict(title="Güney ↔ Kuzey (km)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
+                zaxis=dict(title="Rakım (m)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
+                aspectmode="manual",
+                aspectratio=dict(x=1.0, y=1.0, z=0.65),
+                camera=dict(eye=dict(x=1.55, y=1.55, z=1.05))
+            )
+        )
+        st.plotly_chart(fig_3d, use_container_width=True)
+    except Exception as e:
+        logger.exception("3D arazi modeli oluşturulamadı")
+        st.error(f"Gerçek arazi verisi alınamadı: {e}")
 
 
 if aktif_sekme == "📊 Trendler":
