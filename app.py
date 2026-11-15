@@ -781,11 +781,13 @@ if aktif_sekme == "🛰️ Uydu Haritası":
           // WMS'nin bazı katmanlarda ürettiği renkli/şeritli yeniden örnekleme
           // artefaktlarını önlemek için taban haritayla aynı karo ızgarası kullanılır.
           const scienceLayerName = {json.dumps(selected_layer)};
-          const scienceTime = {json.dumps(selected_has_time)} ? {json.dumps(map_date)} : 'default';
+          const scienceTimeSegment = {json.dumps(map_date if selected_has_time else "")};
           const scienceTileUrl =
             'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/' +
             encodeURIComponent(scienceLayerName) +
-            '/default/' + scienceTime + '/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.png';
+            '/default/' +
+            (scienceTimeSegment ? scienceTimeSegment + '/' : '') +
+            'GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.png';
           const nasaOverlay = L.tileLayer(scienceTileUrl, {{
             tileSize: 256,
             minZoom: 0,
