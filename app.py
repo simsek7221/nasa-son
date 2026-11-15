@@ -150,352 +150,148 @@ def render_metric_card(title, value, caption, border_color, text_color, glow_col
     """
     st.markdown(html_content, unsafe_allow_html=True)
 
-# --- VERİ ÇEKME MOTORU ---
-@st.cache_data(ttl=600, show_spinner=False)
+# --- NASA POWER VERI MOTORU ---
+@st.cache_data(ttl=21600, show_spinner=False)
 def gercek_veri_cek(lat, lon, secilen_tarih):
-    bugun = datetime.now().date()
-    gun_farki = (secilen_tarih - bugun).days
-
-    if gun_farki < 0:
-        tarih_str = secilen_tarih.strftime("%Y-%m-%d")
-        url = f"https://archive-api.open-meteo.com/v1/archive?latitude={round(lat, 4)}&longitude={round(lon, 4)}&start_date={tarih_str}&end_date={tarih_str}&hourly=temperature_2m,relative_humidity_2m,precipitation,surface_pressure,wind_speed_10m,wind_direction_10m"
-        try:
-            response = requests.get(url, timeout=6)
-            if response.status_code == 200:
-                data = response.json()
-                hourly = data.get("hourly", {})
-                temps = hourly.get("temperature_2m", [22.5])
-                hums = hourly.get("relative_humidity_2m", [45.0])
-                precips = hourly.get("precipitation", [0.0])
-                winds = hourly.get("wind_speed_10m", [4.5])
-                wind_dirs = hourly.get("wind_direction_10m", [180.0])
-                pressures = hourly.get("surface_pressure", [1013.0])
-                
-                idx = min(12, len(temps) - 1) if len(temps) > 0 else 0
-                return (
-                    float(temps[idx] if temps[idx] is not None else 22.5),
-                    float(hums[idx] if hums[idx] is not None else 45.0),
-                    float(precips[idx] if precips[idx] is not None else 0.0),
-                    float(winds[idx] if winds[idx] is not None else 4.5),                    float(wind_dirs[idx] if wind_dirs[idx] is not None else 180.0),                    float(pressures[idx] if pressures[idx] is not None else 1013.0),
-                    gun_farki
-                )
-        except Exception as e:
-            logger.error(f"Arşiv veri hatası: {str(e)}")
-    else:
-        url = f"https://api.open-meteo.com/v1/forecast?latitude={round(lat, 4)}&longitude={round(lon, 4)}&current=temperature_2m,relative_humidity_2m,precipitation,rain,wind_speed_10m,wind_direction_10m,surface_pressure&models=ecmwf_ifs025"
-        try:
-            response = requests.get(url, timeout=6)
-            if response.status_code == 200:
-                data = response.json()
-                current = data.get("current", {})
-                return (
-                    float(current.get("temperature_2m", 22.5)),
-                    float(current.get("relative_humidity_2m", 45.0)),
-                    float(current.get("precipitation", current.get("rain", 0.0))),
-                    float(current.get("wind_speed_10m", 4.5)),
-                    float(current.get("wind_direction_10m", 180.0)),
-                    float(current.get("surface_pressure", 1013.0)),
-                    gun_farki
-                )
-        except Exception as e:
-            logger.error(f"Tahmin veri hatası: {str(e)}")
-
-    return 22.5, 45.0, 0.0, 4.5, 180.0, 1013.0, gun_farki
-
-# --- YÜKSEK ÇÖZÜNÜRLÜKLÜ 3D ARAZİ MODELİ ---
-@st.cache_data(ttl=86400, show_spinner=False)
-def gercek_yukseklik_matrisi(
-    merkez_lat,
-    merkez_lon,
-    grid_boyutu=15,
-    yari_cap_km=15
-):
-    """Open-Meteo yükseklik servisinden koordinat bazlı DEM verisi alır."""
-    merkez_lat = float(merkez_lat)
-    merkez_lon = float(merkez_lon)
-
-    lat_yari = yari_cap_km / 111.32
-    cos_lat = max(np.cos(np.radians(merkez_lat)), 0.2)
-    lon_yari = yari_cap_km / (111.32 * cos_lat)
-
-    lat_dizi = np.linspace(
-        merkez_lat - lat_yari,
-        merkez_lat + lat_yari,
-        grid_boyutu
-    )
-    lon_dizi = np.linspace(
-        merkez_lon - lon_yari,
-        merkez_lon + lon_yari,
-        grid_boyutu
-    )
-
-    X, Y = np.meshgrid(lon_dizi, lat_dizi)
-    lat_duz = Y.ravel()
-    lon_duz = X.ravel()
-    koordinat_sayisi = len(lat_duz)
-    yukseklikler = []
-    url = "https://api.open-meteo.com/v1/elevation"
-
-    # Servise tek seferde aşırı uzun koordinat listesi göndermemek için
-    # noktaları 100'lük paketler halinde al.
-    for baslangic in range(0, koordinat_sayisi, 100):
-        bitis = min(baslangic + 100, koordinat_sayisi)
-        params = {
-            "latitude": ",".join(f"{v:.6f}" for v in lat_duz[baslangic:bitis]),
-            "longitude": ",".join(f"{v:.6f}" for v in lon_duz[baslangic:bitis])
+    """NASA POWER AG ve HY servislerinden gerçek günlük verileri alır."""
+    son_hata = None
+    for geri_gun in range(0, 8):
+        veri_tarihi = secilen_tarih - timedelta(days=geri_gun)
+        if veri_tarihi > datetime.now().date():
+            continue
+        tarih_kodu = veri_tarihi.strftime("%Y%m%d")
+        ortak = {
+            "latitude": round(float(lat), 4), "longitude": round(float(lon), 4),
+            "start": tarih_kodu, "end": tarih_kodu, "format": "JSON",
+            "time-standard": "LST"
         }
-        yanit = None
+        try:
+            ag_params = dict(ortak)
+            ag_params.update({
+                "community": "AG",
+                "parameters": "T2M,T2M_MAX,T2M_MIN,RH2M,PRECTOTCORR,WS10M,WD10M,PS,ALLSKY_SFC_SW_DWN"
+            })
+            ag_res = requests.get("https://power.larc.nasa.gov/api/temporal/daily/point", params=ag_params, timeout=25)
+            ag_res.raise_for_status()
+            ag = ag_res.json().get("properties", {}).get("parameter", {})
 
-        for deneme in range(3):
-            try:
-                yanit = requests.get(url, params=params, timeout=30)
-                if yanit.status_code == 429:
-                    bekleme = yanit.headers.get("Retry-After")
-                    time.sleep(float(bekleme) if bekleme and bekleme.isdigit() else 5 * (deneme + 1))
-                    continue
-                yanit.raise_for_status()
-                break
-            except requests.RequestException:
-                if deneme == 2:
-                    raise
-                time.sleep(3 * (deneme + 1))
+            def val(key):
+                raw = ag.get(key, {}).get(tarih_kodu)
+                if raw is None or raw == -999 or raw == -999.0:
+                    return None
+                return float(raw)
 
-        if yanit is None or yanit.status_code == 429:
-            raise RuntimeError(
-                "Yükseklik servisi istek sınırına ulaştı. "
-                "Lütfen biraz sonra yeniden deneyin."
-            )
+            temp, humidity, rain = val("T2M"), val("RH2M"), val("PRECTOTCORR")
+            wind, wind_dir, pressure_kpa = val("WS10M"), val("WD10M"), val("PS")
+            radiation = val("ALLSKY_SFC_SW_DWN")
+            if any(v is None for v in (temp, humidity, rain, wind, pressure_kpa)):
+                continue
 
-        paket = yanit.json().get("elevation", [])
-        beklenen = bitis - baslangic
-        if len(paket) != beklenen:
-            raise ValueError(
-                f"Eksik arazi verisi: {len(paket)} / {beklenen} nokta."
-            )
-        yukseklikler.extend(paket)
+            hy_params = dict(ortak)
+            hy_params.update({"community": "HY", "parameters": "GWETTOP,GWETROOT,GWETPROF"})
+            hy_res = requests.get("https://power.larc.nasa.gov/api/temporal/daily/point", params=hy_params, timeout=25)
+            hy_res.raise_for_status()
+            hy = hy_res.json().get("properties", {}).get("parameter", {})
 
-    if len(yukseklikler) != koordinat_sayisi:
-        raise ValueError("Arazi yükseklik matrisi tamamlanamadı.")
+            def hy_val(key):
+                raw = hy.get(key, {}).get(tarih_kodu)
+                if raw is None or raw == -999 or raw == -999.0:
+                    return None
+                return float(raw)
 
-    Z = np.asarray(yukseklikler, dtype=float).reshape(
-        grid_boyutu, grid_boyutu
-    )
-    if not np.isfinite(Z).all():
-        raise ValueError("Arazi verisinde geçersiz yükseklik değeri var.")
+            return {
+                "sicaklik": temp, "sicaklik_max": val("T2M_MAX"), "sicaklik_min": val("T2M_MIN"),
+                "nem": humidity, "yagis": rain, "ruzgar": wind, "ruzgar_yon": wind_dir,
+                "basinc": pressure_kpa * 10.0, "radyasyon": radiation,
+                "toprak_ust": hy_val("GWETTOP"), "toprak_kok": hy_val("GWETROOT"),
+                "toprak_profil": hy_val("GWETPROF"), "veri_tarihi": veri_tarihi,
+                "gun_farki": (veri_tarihi - datetime.now().date()).days
+            }
+        except Exception as e:
+            son_hata = e
+            logger.warning(f"NASA POWER isteği başarısız ({tarih_kodu}): {e}")
+    raise RuntimeError("NASA POWER seçilen tarih ve önceki 7 gün için veri döndürmedi. Son hata: " + str(son_hata))
 
-    x_km = (lon_dizi - merkez_lon) * 111.32 * cos_lat
-    y_km = (lat_dizi - merkez_lat) * 111.32
-    X_km, Y_km = np.meshgrid(x_km, y_km)
 
-    return X_km, Y_km, Z
-
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=21600, show_spinner=False)
 def zaman_serisi_cek(lat, lon, merkez_tarih):
-    baslangic = merkez_tarih - timedelta(days=15)
-    bitis = merkez_tarih + timedelta(days=14)
-    bugun = datetime.now().date()
-    url = f"https://archive-api.open-meteo.com/v1/archive?latitude={round(lat, 4)}&longitude={round(lon, 4)}&start_date={baslangic.strftime('%Y-%m-%d')}&end_date={min(bitis, bugun).strftime('%Y-%m-%d')}&daily=temperature_2m_mean,precipitation_sum,wind_speed_10m_max"
-    try:
-        res = requests.get(url, timeout=6)
-        if res.status_code == 200:
-            d = res.json().get("daily", {})
-            if "time" in d and len(d["time"]) > 0:
-                return pd.DataFrame({
-                    "Tarih": pd.to_datetime(d["time"]),
-                    "Sıcaklık (°C)": d.get("temperature_2m_mean", [20]*len(d["time"])),
-                    "Yağış (mm)": d.get("precipitation_sum", [0]*len(d["time"])),
-                    "Rüzgar (km/s)": d.get("wind_speed_10m_max", [5]*len(d["time"]))
-                })
-    except Exception as e:
-        logger.error(f"Zaman serisi hatası: {str(e)}")
-    dates = [merkez_tarih - timedelta(days=i) for i in range(15, -15, -1)]
-    return pd.DataFrame({
-        "Tarih": dates,
-        "Sıcaklık (°C)": [22.5]*30,
-        "Yağış (mm)": [0.0]*30,
-        "Rüzgar (km/s)": [4.5]*30
-    })
+    """NASA POWER'dan 30 günlük gerçek günlük sıcaklık, yağış ve rüzgâr serisi."""
+    bitis = min(merkez_tarih, datetime.now().date() - timedelta(days=1))
+    baslangic = bitis - timedelta(days=29)
+    params = {
+        "latitude": round(float(lat), 4), "longitude": round(float(lon), 4),
+        "start": baslangic.strftime("%Y%m%d"), "end": bitis.strftime("%Y%m%d"),
+        "community": "AG", "parameters": "T2M,PRECTOTCORR,WS10M",
+        "format": "JSON", "time-standard": "LST"
+    }
+    res = requests.get("https://power.larc.nasa.gov/api/temporal/daily/point", params=params, timeout=30)
+    res.raise_for_status()
+    p = res.json().get("properties", {}).get("parameter", {})
+    temp, rain, wind = p.get("T2M", {}), p.get("PRECTOTCORR", {}), p.get("WS10M", {})
+    rows = []
+    for day in sorted(temp.keys()):
+        vals = (temp.get(day), rain.get(day), wind.get(day))
+        if any(v is None or v == -999 for v in vals):
+            continue
+        rows.append({
+            "Tarih": pd.to_datetime(day, format="%Y%m%d"),
+            "Sıcaklık (°C)": float(vals[0]),
+            "Yağış (mm/gün)": float(vals[1]),
+            "Rüzgar (m/s)": float(vals[2])
+        })
+    if not rows:
+        raise RuntimeError("NASA POWER bu tarih aralığı için zaman serisi döndürmedi.")
+    return pd.DataFrame(rows)
+
 
 def analiz_uret(lat, lon, secilen_tarih):
-    sicaklik, nem, yagis, ruzgar, ruzgar_yon, basinc, gun_farki = gercek_veri_cek(lat, lon, secilen_tarih)
-    radyasyon = round(max(2.0, min(9.0, 5.0 + (sicaklik * 0.1))), 2)
-    smap_soil = round(max(5.0, min(45.0, 20.0 + (yagis * 12) - (sicaklik * 0.15))), 2)
-    ndvi_val = round(max(0.1, min(0.85, 0.4 + (smap_soil * 0.01))), 3)
-
+    nasa = gercek_veri_cek(lat, lon, secilen_tarih)
+    wet = nasa["toprak_ust"]
+    wet_percent = None if wet is None else max(0.0, min(100.0, wet * 100.0))
+    # Bu yardımcı gösterge NDVI değildir; gerçek NDVI ayrı bir MODIS ürünüdür.
+    vegetation_proxy = None if wet_percent is None else round(wet_percent / 100.0, 3)
     return {
-        "sicaklik": sicaklik, "nem": int(nem), "yagis": yagis, "ruzgar": ruzgar, "ruzgar_yon": ruzgar_yon,
-        "basinc": int(basinc), "radyasyon": radyasyon, "smap_soil": smap_soil, "ndvi_val": ndvi_val, 
-        "gun_farki": gun_farki
+        "sicaklik": round(nasa["sicaklik"], 2), "sicaklik_max": nasa["sicaklik_max"],
+        "sicaklik_min": nasa["sicaklik_min"], "nem": round(nasa["nem"], 1),
+        "yagis": round(nasa["yagis"], 2), "ruzgar": round(nasa["ruzgar"], 2),
+        "ruzgar_yon": nasa["ruzgar_yon"], "basinc": round(nasa["basinc"], 1),
+        "radyasyon": nasa["radyasyon"], "smap_soil": None if wet_percent is None else round(wet_percent, 1),
+        "toprak_kok": nasa["toprak_kok"], "toprak_profil": nasa["toprak_profil"],
+        "ndvi_val": vegetation_proxy, "ndvi_is_proxy": True,
+        "veri_tarihi": nasa["veri_tarihi"], "gun_farki": nasa["gun_farki"],
+        "kaynak": "NASA POWER"
     }
 
-# --- 135+ PARAMETRELİ TAM GİRİŞLİ VERİ HAVUZU ---
+
+# --- NASA POWER GERCEK VERI KATALOGU ---
 def genis_veri_havuzu_uret(d):
-    parametreler = []
-    
-    temp_list = [
-        ("2m Sıcaklık (Anlık)", f"{d['sicaklik']} °C", "°C", "Normal"),
-        ("Maksimum Tahmini Sıcaklık", f"{d['sicaklik'] + 3.2:.1f} °C", "°C", "Stabil"),
-        ("Minimum Tahmini Sıcaklık", f"{d['sicaklik'] - 4.1:.1f} °C", "°C", "Stabil"),
-        ("Toprak Yüzey Sıcaklığı (Skin)", f"{d['sicaklik'] + 1.5:.1f} °C", "°C", "Normal"),
-        ("5cm Derinlik Toprak Sıcaklığı", f"{d['sicaklik'] - 0.5:.1f} °C", "°C", "Normal"),
-        ("20cm Derinlik Toprak Sıcaklığı", f"{d['sicaklik'] - 1.8:.1f} °C", "°C", "Normal"),
-        ("1m Derinlik Toprak Sıcaklığı", f"{d['sicaklik'] - 3.0:.1f} °C", "°C", "Stabil"),
-        ("Çiğ Noktası (Dew Point)", f"{d['sicaklik'] - 6.0:.1f} °C", "°C", "Normal"),
-        ("Hissedilen Sıcaklık", f"{d['sicaklik'] - 0.8:.1f} °C", "°C", "Normal"),
-        ("Wet-Bulb Sıcaklığı", f"{d['sicaklik'] - 3.5:.1f} °C", "°C", "Stabil"),
-        ("Termal Konfor İndeksi", "İyi / Optimal", "Endeks", "Optimum"),
-        ("Donma Riski Eşiği", "Yok (> 0°C)", "Boolean", "Güvenli"),
-        ("Isı Adası Etkisi (UHI)", "+0.4 °C", "°C", "Düşük"),
-        ("Stratosferik Sıcaklık Tahmini", "-55.2 °C", "°C", "Standart"),
-        ("Tropopoz Sıcaklığı", "-56.8 °C", "°C", "Standart"),
-        ("Gece Minimum Sıcaklık Projeksiyonu", f"{d['sicaklik'] - 5.2:.1f} °C", "°C", "Normal"),
-        ("Günlük Sıcaklık Genliği (Amplitüd)", "8.4 °C", "°C", "Normal"),
-        ("Termal Adveksiyon Oranı", "+0.12 °C/h", "°C/h", "Stabil"),
-        ("Yüzey Isı Akısı", "45 W/m²", "W/m²", "Normal"),
-        ("Toprak Isı Kapasitesi", "1.8 MJ/m³K", "MJ/m³K", "Normal"),
-        ("Donma Derinliği", "0.0 cm", "cm", "Güvenli"),
-        ("Biyometeorolojik Stres Skoru", "1.2", "Skor", "Düşük"),
-        ("Termal Uydu Parlaklık Sıcaklığı", f"{d['sicaklik'] + 2.1:.1f} °C", "°C", "Normal"),
-        ("Mikroklima Isı Katsayısı", "1.04", "Oran", "Normal"),
-        ("Sensible Heat Flux", "32 W/m²", "W/m²", "Normal"),
-        ("Toprak Isı İletkenliği", "1.2 W/mK", "W/mK", "Normal"),
-        ("Termal Rejime Uyum Oranı", "%94", "%", "Optimum")
+    entries = [
+        ("Atmosfer", "2 metre hava sıcaklığı", d["sicaklik"], "°C", "NASA POWER / T2M"),
+        ("Atmosfer", "Günlük maksimum sıcaklık", d["sicaklik_max"], "°C", "NASA POWER / T2M_MAX"),
+        ("Atmosfer", "Günlük minimum sıcaklık", d["sicaklik_min"], "°C", "NASA POWER / T2M_MIN"),
+        ("Atmosfer", "2 metre bağıl nem", d["nem"], "%", "NASA POWER / RH2M"),
+        ("Yağış", "Düzeltilmiş toplam yağış", d["yagis"], "mm/gün", "NASA POWER / PRECTOTCORR"),
+        ("Rüzgâr", "10 metre rüzgâr hızı", d["ruzgar"], "m/s", "NASA POWER / WS10M"),
+        ("Rüzgâr", "10 metre rüzgâr yönü", d["ruzgar_yon"], "derece", "NASA POWER / WD10M"),
+        ("Basınç", "Yüzey atmosfer basıncı", d["basinc"], "hPa", "NASA POWER / PS"),
+        ("Güneş", "Günlük kısa dalga güneş radyasyonu", d["radyasyon"], "kWh/m²/gün", "NASA POWER / ALLSKY_SFC_SW_DWN"),
+        ("Toprak", "Üst katman toprak ıslaklığı", d["smap_soil"], "%", "NASA POWER HY / GWETTOP"),
+        ("Toprak", "Kök bölgesi toprak ıslaklığı", d["toprak_kok"], "kesir", "NASA POWER HY / GWETROOT"),
+        ("Toprak", "Toprak profil ıslaklığı", d["toprak_profil"], "kesir", "NASA POWER HY / GWETPROF")
     ]
-    for p in temp_list:
-        parametreler.append({"Kategori": "Sıcaklık & Termal", "Parametre Adı": p[0], "Değer": p[1], "Birim": p[2], "Durum": p[3]})
+    rows = []
+    for category, name, value, unit, source in entries:
+        if value is None:
+            shown, status = "Veri yok", "NASA kaynağında mevcut değil"
+        else:
+            shown = f"{value:.2f}" if isinstance(value, (int, float, np.number)) else str(value)
+            status = "NASA kaynaklı veri"
+        rows.append({
+            "Kategori": category, "Parametre Adı": name, "Değer": shown,
+            "Birim": unit, "Kaynak / Parametre": source, "Durum": status
+        })
+    return pd.DataFrame(rows)
 
-    nem_list = [
-        ("Bağıl Nem (2m)", f"%{d['nem']}", "%", "Optimal"),
-        ("Özgül Nem", "8.4 g/kg", "g/kg", "Normal"),
-        ("Yağış Miktarı", f"{d['yagis']} mm", "mm", "Kurak/Az"),
-        ("Yağmur Olasılığı", "%12", "%", "Düşük"),
-        ("Kar Yağışı Eşdeğeri", "0.0 mm", "mm", "Yok"),
-        ("Buhar Basıncı", "14.2 hPa", "hPa", "Normal"),
-        ("Bulut Tabanı Yüksekliği", "1850 m", "Metre", "Normal"),
-        ("Toplam Kolon Su Buharı", "22.5 mm", "mm", "Normal"),
-        ("Çiy Birikim Oranı", "0.1 mm/h", "mm/h", "Düşük"),
-        ("Konvektif Yağış Potansiyeli", "Düşük", "Seviye", "Güvenli"),
-        ("Atmosferik Doygunluk Açığı", "6.8 hPa", "hPa", "Normal"),
-        ("Evapotranspirasyon", "3.4 mm/gün", "mm/gün", "Normal"),
-        ("Potansiyel Buharlaşma", "4.1 mm/gün", "mm/gün", "Normal"),
-        ("Yağış Rejimi Sınıfı", "Yarı kurak", "Sınıf", "Normal"),
-        ("Hidrolojik Denge Endeksi", "0.85", "Endeks", "Stabil"),
-        ("Mutlak Nem", "9.1 g/m³", "g/m³", "Normal"),
-        ("Kar Örtüsü Kalınlığı", "0 cm", "cm", "Yok"),
-        ("Dolu Riski", "Yok", "Risk", "Güvenli"),
-        ("Sis Oluşum İhtimali", "%5", "%", "Düşük"),
-        ("Bulut Üstü Yüksekliği", "6200 m", "Metre", "Normal"),
-        ("Precipitable Water Vapor", "21.4 mm", "mm", "Normal"),
-        ("Çisenti Yoğunluğu", "0.0 mm/h", "mm/h", "Yok"),
-        ("Toprak Su Doygunluk Oranı", "%48", "%", "Normal"),
-        ("Yeraltı Su Seviyesi İndeksi", "-1.4 m", "Metre", "Stabil"),
-        ("Hidro-Metorolojik Risk Faktörü", "0.08", "Faktör", "Güvenli"),
-        ("Bağıl Nem Eğilimi", "Stabil", "Durum", "Kararlı"),
-        ("Su Buharı Adveksiyonu", "Düşük", "Seviye", "Normal"),
-        ("Atmosferik Nem Kapasitesi", "18.2 g/m³", "g/m³", "Normal"),
-        ("Saturasyon Buhar Basıncı", "23.4 hPa", "hPa", "Normal"),
-        ("Hidrolojik Havza Akış Oranı", "0.12", "Oran", "Normal"),
-        ("Kondenzasyon Seviyesi (LCL)", "1420 m", "Metre", "Normal")
-    ]
-    for p in nem_list:
-        parametreler.append({"Kategori": "Nem & Su Buharı", "Parametre Adı": p[0], "Değer": p[1], "Birim": p[2], "Durum": p[3]})
-
-    ruzgar_list = [
-        ("10m Rüzgar Hızı", f"{d['ruzgar']} km/s", "km/s", "Normal"),
-        ("Rüzgar Yönü", f"{d['ruzgar_yon']}°", "Derece", "Normal"),
-        ("Rüzgar Hamlesi (Gust)", f"{d['ruzgar'] * 1.5:.1f} km/s", "km/s", "Normal"),
-        ("80m Yükseklik Rüzgar Hızı", f"{d['ruzgar'] * 1.25:.1f} km/s", "km/s", "Normal"),
-        ("120m Yükseklik Rüzgar Hızı", f"{d['ruzgar'] * 1.4:.1f} km/s", "km/s", "Normal"),
-        ("Deniz Seviyesi Basınç", f"{d['basinc']} hPa", "hPa", "Stabil"),
-        ("Yüzey Basınç", f"{d['basinc'] - 12:.1f} hPa", "hPa", "Stabil"),
-        ("850 hPa Jeopotansiyel", "1450 m", "Metre", "Normal"),
-        ("500 hPa Jeopotansiyel", "5620 m", "Metre", "Normal"),
-        ("Atmosferik Yoğunluk", "1.185 kg/m³", "kg/m³", "Normal"),
-        ("Dikey Hız (Omega)", "-0.02 Pa/s", "Pa/s", "Stabil"),
-        ("Rüzgar Sınıfı (Beaufort)", "Hafif Esinti", "Skala", "Güvenli"),
-        ("Türbülans Kinetik Enerjisi", "0.45 m²/s²", "m²/s²", "Düşük"),
-        ("Zonal Rüzgar Bileşeni (U)", "2.4 m/s", "m/s", "Normal"),
-        ("Meridyonal Rüzgar Bileşeni (V)", "-1.1 m/s", "m/s", "Normal"),
-        ("Hava Kütlesi Kökeni", "Karasal", "Tip", "Kararlı"),
-        ("Barometrik Eğilim", "+0.4 hPa", "hPa", "Yükseliyor"),
-        ("Geostrofik Sapma", "1.2 m/s", "m/s", "Normal"),
-        ("Sürtünme Hızı", "0.28 m/s", "m/s", "Normal"),
-        ("Sınır Tabaka Yüksekliği (PBL)", "850 m", "Metre", "Normal"),
-        ("Coriolis Parametresi", "8.9e-5 s⁻¹", "s⁻¹", "Sabit"),
-        ("Rüzgar Kırılma İndeksi", "1.002", "Indeks", "Normal"),
-        ("Vortisite (Girdap) Değeri", "1.2e-5 s⁻¹", "s⁻¹", "Düşük"),
-        ("Jet Stream Konumu", "Uzak", "Konum", "Stabil"),
-        ("Baroklinik Kararsızlık", "Düşük", "Seviye", "Güvenli"),
-        ("Rüzgar Güç Yoğunluğu", "45 W/m²", "W/m²", "Düşük"),
-        ("Atmosferik Basınç Düşüş Hızı", "0.1 hPa/h", "hPa/h", "Stabil"),
-        ("Yüzey Gerilme Kuvveti", "0.15 N/m²", "N/m²", "Normal"),
-        ("Konverjans Oranı", "-0.1e-5 s⁻¹", "s⁻¹", "Stabil"),
-        ("Diverjans Göstergesi", "0.2e-5 s⁻¹", "s⁻¹", "Normal")
-    ]
-    for p in ruzgar_list:
-        parametreler.append({"Kategori": "Rüzgar & Basınç", "Parametre Adı": p[0], "Değer": p[1], "Birim": p[2], "Durum": p[3]})
-
-    toprak_list = [
-        ("SMAP Toprak Rutubeti", f"{d['smap_soil']} %", "%", "Optimum"),
-        ("NDVI Bitki İndeksi", f"{d['ndvi_val']}", "Indeks", "Sağlıklı"),
-        ("EVI Gelişmiş Bitki İndeksi", f"{d['ndvi_val'] * 0.85:.3f}", "Indeks", "İyi"),
-        ("Kök Bölgesi Toprak Nemi", f"{d['smap_soil'] * 1.15:.1f} %", "%", "Optimum"),
-        ("Toprak Sıkışma İndeksi", "1.24 kPa", "kPa", "Normal"),
-        ("Toprak pH Tahmini", "7.2", "pH", "Nötr"),
-        ("Toprak Elektriksel İletkenlik", "1.1 dS/m", "dS/m", "Normal"),
-        ("Kök Çürüklüğü Riski", "Düşük", "Risk", "Güvenli"),
-        ("Kuraklık Stres İndeksi (ESI)", "0.12", "Indeks", "Güvenli"),
-        ("Bitki Su Tüketim İhtiyacı", "3.2 mm/gün", "mm/gün", "Normal"),
-        ("Uydu Görüş Açısı", "12.4°", "Derece", "Normal"),
-        ("Yüzey Albedo Katsayısı", "0.22", "Oran", "Standart"),
-        ("Termal Atalet", "1250", "SI", "Normal"),
-        ("Yüzey Pürüzlülüğü", "0.05 m", "Metre", "Normal"),
-        ("Biomas Üretim Potansiyeli", "Yüksek", "Seviye", "Avantajlı"),
-        ("Klorofil Emilim Göstergesi", "0.78", "Indeks", "Güçlü"),
-        ("Yaprak Alan İndeksi (LAI)", "3.1 m²/m²", "m²/m²", "Optimal"),
-        ("Net Ekosistem Değişimi", "+4.2 gC", "gC", "Karbon Yutan"),
-        ("Toprak Solunumu", "2.1 gC", "gC", "Normal"),
-        ("Yangın Hassasiyet Skoru", "14 / 100", "Skor", "Güvenli"),
-        ("Toprak Organik Madde Oranı", "%2.4", "%", "Normal"),
-        ("Kil / Silt Oranı Dengesi", "Dengeli", "Tip", "Uygun"),
-        ("Toprak Su Tutma Kapasitesi", "32 mm", "mm", "Normal"),
-        ("Uydu Radar Geri Saçılımı", "-12.4 dB", "dB", "Normal"),
-        ("Vegetasyon Su İçeriği (VWC)", "1.4 kg/m²", "kg/m²", "Normal")
-    ]
-    for p in toprak_list:
-        parametreler.append({"Kategori": "Toprak & Uydu", "Parametre Adı": p[0], "Değer": p[1], "Birim": p[2], "Durum": p[3]})
-
-    gunes_list = [
-        ("UV İndeksi", f"{d['radyasyon']}", "Indeks", "Güvenli"),
-        ("Kısa Dalga Güneş Radyasyonu", "480 W/m²", "W/m²", "Normal"),
-        ("Doğrudan Normal Işıma (DNI)", "520 W/m²", "W/m²", "Normal"),
-        ("Yayılı Güneş Işınımı (DHI)", "180 W/m²", "W/m²", "Normal"),
-        ("Uzun Dalga Termal Işıma", "320 W/m²", "W/m²", "Normal"),
-        ("Fotosentetik Aktif Radyasyon", "210 W/m²", "W/m²", "Verimli"),
-        ("Güneşlenme Süresi", "8.5 Saat", "Saat", "İyi"),
-        ("Güneş Doğuş Zamanı", "06:42", "Saat", "Sabit"),
-        ("Güneş Batış Zamanı", "17:55", "Saat", "Sabit"),
-        ("Güneş Zenit Açısı", "42.1°", "Derece", "Normal"),
-        ("Güneş Azimut Açısı", "182.4°", "Derece", "Normal"),
-        ("Ozon Tabakası Kalınlığı", "310 DU", "Dobson", "Normal"),
-        ("Atmosferik Transmitans", "0.76", "Oran", "İyi"),
-        ("Bulut Örtüsü Oranı", "%18", "%", "Parçalı"),
-        ("Görüş Mesafesi", "18.5 km", "km", "Net"),
-        ("Karbon Dioksit (CO2 Tahmini)", "421 ppm", "ppm", "Standart"),
-        ("Metan Gazı Tahmini (CH4)", "1.92 ppm", "ppm", "Normal"),
-        ("Karbon Monoksit (CO)", "0.22 mg/m³", "mg/m³", "Temiz"),
-        ("Azot Dioksit (NO2)", "12.4 µg/m³", "µg/m³", "Temiz"),
-        ("Kükürt Dioksit (SO2)", "4.2 µg/m³", "µg/m³", "Temiz"),
-        ("Partikül Madde (PM2.5)", "8.5 µg/m³", "µg/m³", "İyi Hava"),
-        ("Partikül Madde (PM10)", "16.1 µg/m³", "µg/m³", "İyi Hava"),
-        ("Hava Kalitesi İndeksi (AQI)", "32", "AQI", "Temiz"),
-        ("İyonosferik Elektron Yoğunluğu", "Stabil", "Durum", "Kararlı"),
-        ("Manyetik Alan Sapması", "0.14 Gauss", "Gauss", "Normal")
-    ]
-    for p in gunes_list:
-        parametreler.append({"Kategori": "Güneş & Atmosfer", "Parametre Adı": p[0], "Değer": p[1], "Birim": p[2], "Durum": p[3]})
-
-    return pd.DataFrame(parametreler)
 
 if "secilen_lat" not in st.session_state:
     st.session_state.secilen_lat = 37.8859
@@ -638,7 +434,7 @@ with st.sidebar:
     """, height=175)
 
 
-zaman_aciklama = "Canlı Gözlem Verileri"
+zaman_aciklama = "NASA POWER Günlük Verileri"
 if d['gun_farki'] < 0:
     zaman_aciklama = f"📜 Arşiv Verisi ({abs(d['gun_farki'])} gün önce)"
 elif d['gun_farki'] > 0:
@@ -665,24 +461,41 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
 
 with tab1:
     render_box(
-        title="🌍 NASA Space Apps Challenge - Lightning Flora Küresel Gözlemevi",
-        subtitle=f"Seçilen tarih sıcaklığı: <b>{d['sicaklik']} °C</b> | Rüzgar: <b>{d['ruzgar']} km/s</b>.",
+        title="🌍 NASA GIBS Uydu Gözlem Haritası",
+        subtitle=f"NASA MODIS/Terra uydu görüntüsü | Gözlem noktası: {st.session_state.mekan_adi}",
         border_color="rgba(16, 185, 129, 0.75)",
         glow_color="rgba(16, 185, 129, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
-    secilen_katman_adi = st.selectbox("🗺️ Harita Katmanını Değiştir:", ["Rüzgar Akışı", "Sıcaklık Dağılımı", "Yağış & Radar", "Atmosferik Basınç", "Bulut Örtüsü"], key="map_layer_selector")
-    katman_kodlari = {"Rüzgar Akışı": "wind", "Sıcaklık Dağılımı": "temp", "Yağış & Radar": "rain", "Atmosferik Basınç": "pressure", "Bulut Örtüsü": "clouds"}
-    aktif_overlay = katman_kodlari.get(secilen_katman_adi, "wind")
+    st.caption("Uydu görüntüleri NASA Global Imagery Browse Services (GIBS) üzerinden gelir. Görüntü tarihi ürünün işlenme takvimine bağlıdır.")
     lat_val, lon_val = st.session_state.secilen_lat, st.session_state.secilen_lon
-    windy_embed_url = f"https://embed.windy.com/embed2.html?lat={lat_val}&lon={lon_val}&zoom=6&level=surface&overlay={aktif_overlay}&menu=&message=&marker=&pressure=&calendar=now&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1"
+    nasa_map_date = st.date_input(
+        "NASA uydu görüntüsü tarihi",
+        value=datetime.now().date() - timedelta(days=2),
+        max_value=datetime.now().date() - timedelta(days=1),
+        key="nasa_gibs_date"
+    ).strftime("%Y-%m-%d")
+    gibs_map_html = f"""
+    <div id="nasa-map" style="height:560px;width:100%;border-radius:22px;overflow:hidden;border:2px solid rgba(56,189,248,.45);"></div>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      const map = L.map('nasa-map').setView([{lat_val}, {lon_val}], 6);
+      const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18, attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+      const nasaLayer = L.tileLayer(
+        'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/{nasa_map_date}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
+        {maxZoom: 9, opacity: 0.90, attribution: 'NASA GIBS / MODIS Terra'}
+      ).addTo(map);
+      L.marker([{lat_val}, {lon_val}]).addTo(map)
+        .bindPopup('Lightning Flora observation point').openPopup();
+      L.control.layers({'OpenStreetMap': osm}, {'NASA MODIS Terra – True Color': nasaLayer}).addTo(map);
+    </script>
+    """
+    components.html(gibs_map_html, height=575, scrolling=False)
 
-    components.html(f"""
-    <div style="position: relative; width: 100%; height: 530px; border-radius: 24px; overflow: hidden; border: 3px solid rgba(56, 189, 248, 0.4);">
-        <iframe src="{windy_embed_url}" width="100%" height="530px" style="border:none;"></iframe>
-        <div style="position: absolute; top: 0; left: 42%; width: 16%; height: 35px; background: #0f172a; pointer-events: none; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;"></div>
-    </div>
-    """, height=540)
+
 
 with tab2:
     render_box(
@@ -698,7 +511,7 @@ with tab2:
     with c2:
         render_metric_card("2️⃣ Rüzgar", f"{d['ruzgar']} km/s", f"Yön: {d['ruzgar_yon']}°", "rgba(16, 185, 129, 0.75)", "#34d399", "rgba(16, 185, 129, 0.45)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c3:
-        render_metric_card("3️⃣ NDVI", f"{d['ndvi_val']}", "Bitki İndeksi", "rgba(245, 158, 11, 0.75)", "#fbbf24", "rgba(245, 158, 11, 0.45)", "linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+        render_metric_card("3️⃣ Toprak Nem Göstergesi", f"{d['ndvi_val']}", "NASA POWER verisinden türetilmiş; NDVI değildir", "rgba(245, 158, 11, 0.75)", "#fbbf24", "rgba(245, 158, 11, 0.45)", "linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
     with c4:
         render_metric_card("4️⃣ Basınç", f"{d['basinc']} hPa", "Basınç", "rgba(168, 85, 247, 0.75)", "#c084fc", "rgba(168, 85, 247, 0.45)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
 
@@ -754,12 +567,12 @@ with tab4:
 
 with tab5:
     render_box(
-        title=f"🔍 135+ Kapsamlı Veri Havuzu",
+        title="🔍 NASA POWER Gerçek Veri Kataloğu",
         subtitle=f"Konum: {st.session_state.mekan_adi}",
         border_color="rgba(2, 132, 199, 0.75)",        glow_color="rgba(2, 132, 199, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(2, 132, 199, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)"
     )
-    veri_arama = st.text_input("🔎 135+ Veri İçinde Ara:", "", key="data_search_bar")
+    veri_arama = st.text_input("🔎 NASA parametrelerinde ara:", "", key="data_search_bar")
     df_tum_veriler = genis_veri_havuzu_uret(d)
     if veri_arama:
         filtrelenmis_df = df_tum_veriler[
@@ -776,9 +589,9 @@ with tab5:
         column_config={
             "Kategori": st.column_config.TextColumn("Kategori", width="medium"),
             "Parametre Adı": st.column_config.TextColumn("Parametre / Ölçüm Adı", width="large"),
-            "Değer": st.column_config.TextColumn("Anlık Değer", width="small"),
+            "Değer": st.column_config.TextColumn("NASA Değeri", width="small"),
             "Birim": st.column_config.TextColumn("Birim", width="small"),
-            "Durum": st.column_config.TextColumn("Durum / Eşik", width="medium"),
+            "Durum": st.column_config.TextColumn("Veri Durumu", width="medium"),
         }
     )
 
@@ -848,7 +661,7 @@ with tab6:
 with tab7:
     render_box(
         title="💧 Hidrolojik Havza ve Taşkın Risk Analizörü",
-        subtitle=f"Anlık Yağış ({d['yagis']} mm) ve Toprak Doygunluğu (SMAP: %{d['smap_soil']}) Parametrelerine Göre Taşkın & Akış Simülasyonu.",
+        subtitle=f"Anlık Yağış ({d['yagis']} mm) ve Toprak Doygunluğu (NASA POWER üst toprak ıslaklığı: %{d['smap_soil']}) Parametrelerine Göre Taşkın & Akış Simülasyonu.",
         border_color="rgba(59, 130, 246, 0.75)",
         glow_color="rgba(59, 130, 246, 0.55)",
         bg_gradient="linear-gradient(135deg, rgba(30, 58, 138, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
