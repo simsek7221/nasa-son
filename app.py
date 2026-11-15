@@ -712,6 +712,11 @@ if aktif_sekme == "🛰️ Uydu Haritası":
         selected_index = layer_titles.index(selected_title)
         selected_layer = layer_names[selected_index]
         selected_has_time = nasa_layers[selected_index].get("has_time", False)
+        show_science_overlay = st.checkbox(
+            "Seçili bilimsel NASA katmanını uydu görüntüsünün üzerine bindir",
+            value=False,
+            key="nasa_show_science_overlay"
+        )
         # NASA GIBS görüntüleri anlık değildir; bugünün tarihi boş karo döndürebilir.
         map_date = st.date_input(
             "Uydu gözlem tarihi",
@@ -743,7 +748,7 @@ if aktif_sekme == "🛰️ Uydu Haritası":
           }};
           {overlay_time_js}
           const nasaOverlay = L.tileLayer.wms(nasaWms, overlayParams);
-          if ({json.dumps(selected_layer)} !== 'MODIS_Terra_CorrectedReflectance_TrueColor') nasaOverlay.addTo(map);
+          if ({json.dumps(show_science_overlay)} && {json.dumps(selected_layer)} !== 'MODIS_Terra_CorrectedReflectance_TrueColor') nasaOverlay.addTo(map);
           L.control.layers({{'NASA MODIS True Color': nasaBase}}, {{'Selected NASA science layer': nasaOverlay}}).addTo(map);
           L.marker([{st.session_state.secilen_lat}, {st.session_state.secilen_lon}])
             .addTo(map).bindPopup('Lightning Flora observation point');
