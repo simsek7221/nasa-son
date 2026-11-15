@@ -16,26 +16,28 @@ jobs:
           python-version: "3.11"
       - name: Compile Streamlit app
         run: python -m py_compile app.py
-      - name: Check NASA POWER daily API
+      - name: Diagnose NASA POWER daily parameters
         run: |
           python - <<'PY'
-          import datetime, json, urllib.parse, urllib.request
+          import datetime, json, urllib.error, urllib.parse, urllib.request
           lat, lon = 37.8859, 41.1198
           day = (datetime.date.today() - datetime.timedelta(days=7)).strftime("%Y%m%d")
           common = {"latitude": lat, "longitude": lon, "start": day, "end": day, "format": "JSON", "time-standard": "LST"}
-          def get_power(community, parameters):
+          tests = [
+              ("AG", "T2M,T2M_MAX,T2M_MIN,RH2M,PRECTOTCORR,WS10M,WD10M,PS,ALLSKY_SFC_SW_DWN"),
+              ("HY", "GWETTOP,GWETROOT,GWETPROF"),
+              ("AG", "T2M"), ("AG", "PS"), ("AG", "GWETTOP"),
+              ("HY", "T2M"), ("HY", "GWETTOP")
+          ]
+          for community, parameters in tests:
               q = dict(common, community=community, parameters=parameters)
               url = "https://power.larc.nasa.gov/api/temporal/daily/point?" + urllib.parse.urlencode(q)
-              with urllib.request.urlopen(url, timeout=45) as r:
-                  data = json.load(r)
-              if "properties" not in data or "parameter" not in data["properties"]:
-                  raise RuntimeError("NASA POWER response has no parameter data")
-              return data["properties"]["parameter"]
-          ag = get_power("AG", "T2M,T2M_MAX,T2M_MIN,RH2M,PRECTOTCORR,WS10M,WD10M,PS,ALLSKY_SFC_SW_DWN")
-          hy = get_power("HY", "GWETTOP,GWETROOT,GWETPROF")
-          print("NASA POWER AG parameters:", sorted(ag))
-          print("NASA POWER HY parameters:", sorted(hy))
-          print("Batman T2M:", ag.get("T2M", {}).get(day, "not published"))
+              try:
+                  with urllib.request.urlopen(url, timeout=45) as r:
+                      data = json.load(r)
+                  print("PASS", community, parameters, list(data.get("properties", {}).get("parameter", {})))
+              except urllib.error.HTTPError as e:
+                  print("FAIL", community, parameters, e.code, e.read().decode("utf-8", "replace")[:1200])
           PY
       - name: Check NASA GIBS catalogue and 51 map layers
         run: |
