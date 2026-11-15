@@ -747,11 +747,11 @@ if aktif_sekme == "🛰️ Uydu Haritası":
             maxZoom: 8
           }}).setView([{st.session_state.secilen_lat}, {st.session_state.secilen_lon}], 4);
 
-          const nasaBaseUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/{map_date}/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.jpg';
+          const nasaBaseUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/{map_date}/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.jpg';
           const nasaBase = L.tileLayer(nasaBaseUrl, {{
             tileSize: 256,
             minZoom: 0,
-            maxZoom: 8,
+            maxZoom: 9,
             noWrap: true,
             updateWhenZooming: false,
             updateWhenIdle: true,
@@ -782,7 +782,7 @@ if aktif_sekme == "🛰️ Uydu Haritası":
           }}
 
           L.control.layers(
-            {{'NASA MODIS True Color': nasaBase}},
+            {{'NASA VIIRS NOAA-20 True Color': nasaBase}},
             {{'Selected NASA science layer': nasaOverlay}},
             {{collapsed: true}}
           ).addTo(map);
