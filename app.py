@@ -406,34 +406,57 @@ def genis_veri_havuzu_uret(d):
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def nasa_power_parametre_sozlugu():
-    """NASA POWER Manager API'den gerçek parametre tanımlarını getirir."""
+    """NASA POWER Manager API'den topluluk/zaman çözünürlüğüne göre gerçek katalog."""
     url = "https://power.larc.nasa.gov/api/system/manager/parameters"
-    response = requests.get(url, params={"user": "LightningFloraNASA"}, timeout=25)
-    response.raise_for_status()
-    payload = response.json()
-    if isinstance(payload, dict) and isinstance(payload.get("parameters"), dict):
-        payload = payload["parameters"]
-    if isinstance(payload, dict) and isinstance(payload.get("parameter"), dict):
-        payload = payload["parameter"]
+    combinations = [
+        ("AG", "DAILY"), ("AG", "HOURLY"),
+        ("RE", "DAILY"), ("RE", "HOURLY"),
+        ("SB", "DAILY"), ("SB", "HOURLY"),
+        ("HY", "DAILY")
+    ]
     rows = []
-    if isinstance(payload, dict):
-        for code, meta in payload.items():
-            if not isinstance(meta, dict) or not str(code).replace("_", "").isalnum():
+    for community, temporal in combinations:
+        params = {
+            "community": community, "temporal": temporal,
+            "metadata": "true", "user": "nasapower4r"
+        }
+        try:
+            response = requests.get(url, params=params, timeout=25)
+            response.raise_for_status()
+            payload = response.json()
+            if isinstance(payload, dict) and isinstance(payload.get("parameters"), dict):
+                payload = payload["parameters"]
+            if isinstance(payload, dict) and isinstance(payload.get("parameter"), dict):
+                payload = payload["parameter"]
+            if not isinstance(payload, dict):
                 continue
-            code = str(code).upper()
-            name = meta.get("parameter_name") or meta.get("longname") or meta.get("name") or meta.get("title") or code
-            unit = meta.get("units") or meta.get("unit") or "NASA sözlüğünde tanımlı"
-            description = meta.get("definition") or meta.get("description") or meta.get("longname") or name
-            rows.append({
-                "Tür": "NASA POWER parametresi",
-                "Kategori": meta.get("category") or meta.get("group") or "NASA POWER",
-                "Parametre / Ürün": str(name), "Kod": code, "Birim": str(unit),
-                "Açıklama": str(description), "Kaynak": "NASA POWER Manager API",
-                "Durum": "NASA katalog tanımı"
-            })
+            for code, meta in payload.items():
+                if not isinstance(meta, dict) or not str(code).replace("_", "").isalnum():
+                    continue
+                code = str(code).upper()
+                name = (meta.get("parameter_name") or meta.get("longname") or
+                        meta.get("name") or meta.get("title") or code)
+                unit = meta.get("units") or meta.get("unit") or "NASA sözlüğünde tanımlı"
+                description = (meta.get("definition") or meta.get("description") or
+                               meta.get("longname") or name)
+                rows.append({
+                    "Tür": "NASA POWER parametre veri seti",
+                    "Kategori": meta.get("category") or meta.get("group") or "NASA POWER",
+                    "Parametre / Ürün": str(name), "Kod": code, "Birim": str(unit),
+                    "Açıklama": str(description), "Topluluk": community,
+                    "Zaman Çözünürlüğü": temporal,
+                    "Kaynak": "NASA POWER Manager API",
+                    "Durum": "NASA katalog kaydı"
+                })
+        except Exception as exc:
+            logger.warning("NASA POWER katalog kombinasyonu atlandı (%s/%s): %s",
+                           community, temporal, exc)
     if not rows:
-        raise RuntimeError("NASA POWER parametre sözlüğü beklenen biçimde dönmedi.")
-    return pd.DataFrame(rows).drop_duplicates(subset=["Kod"]).sort_values("Kod").reset_index(drop=True)
+        raise RuntimeError("NASA POWER Manager API hiçbir geçerli parametre kaydı döndürmedi.")
+    return (pd.DataFrame(rows)
+            .drop_duplicates(subset=["Kod", "Topluluk", "Zaman Çözünürlüğü"])
+            .sort_values(["Topluluk", "Zaman Çözünürlüğü", "Kod"])
+            .reset_index(drop=True))
 
 
 @st.cache_data(ttl=21600, show_spinner=False)
@@ -463,10 +486,11 @@ def nasa_veri_havuzu():
         "Tür": "NASA uydu harita katmanı", "Kategori": "NASA GIBS / EOSDIS",
         "Parametre / Ürün": item["title"], "Kod": item["name"], "Birim": "Görüntü katmanı",
         "Açıklama": "NASA GIBS tarafından yayımlanan gerçek uydu/gözlem katmanı.",
+        "Topluluk": "—", "Zaman Çözünürlüğü": "Görüntü",
         "Kaynak": "NASA GIBS", "Durum": "NASA katalog katmanı"
     } for item in layers]
     combined = pd.concat([power, pd.DataFrame(map_rows)], ignore_index=True)
-    return combined.drop_duplicates(subset=["Tür", "Kod"]).reset_index(drop=True)
+    return combined.drop_duplicates(subset=["Tür", "Kod", "Topluluk", "Zaman Çözünürlüğü"]).reset_index(drop=True)
 
 
 if "secilen_lat" not in st.session_state:
@@ -902,26 +926,38 @@ if aktif_sekme == "🧬 135+ Veri Havuzu":
         st.caption(f"{len(filtered)} / {len(df_havuz)} NASA ürünü listeleniyor.")
         st.dataframe(filtered,use_container_width=True,hide_index=True,height=430)
         st.markdown("#### Seçilen NASA POWER parametresinin gerçek ölçümünü getir")
-        power_df=df_havuz[df_havuz["Tür"]=="NASA POWER parametresi"].copy()
+        power_df=df_havuz[
+            (df_havuz["Tür"]=="NASA POWER parametre veri seti") &
+            (df_havuz["Zaman Çözünürlüğü"]=="DAILY")
+        ].copy()
         if not power_df.empty:
-            code_options=power_df["Kod"].tolist()
-            chosen_code=st.selectbox("NASA POWER parametresi",code_options,
-                format_func=lambda c:f"{c} — {power_df.loc[power_df['Kod']==c,'Parametre / Ürün'].iloc[0]}",
-                key="nasa_pool_parameter")
-            community=st.selectbox("NASA POWER topluluğu",["AG","RE","SB","HY"],key="nasa_pool_community")
+            power_df["Seçim"] = power_df["Kod"] + " · " + power_df["Topluluk"]
+            options=power_df["Seçim"].tolist()
+            selected_dataset=st.selectbox(
+                "NASA POWER günlük veri seti", options,
+                format_func=lambda key: (
+                    f"{key} — " + power_df.loc[power_df["Seçim"]==key,"Parametre / Ürün"].iloc[0]
+                ),
+                key="nasa_pool_parameter"
+            )
+            chosen_row=power_df.loc[power_df["Seçim"]==selected_dataset].iloc[0]
+            chosen_code=str(chosen_row["Kod"])
+            community=str(chosen_row["Topluluk"])
             if st.button("Seçili parametrenin NASA ölçümünü getir",key="nasa_pool_fetch"):
                 try:
                     with st.spinner("NASA POWER ölçümü sorgulanıyor…"):
-                        value=nasa_power_secili_parametre_cek(st.session_state.secilen_lat,
-                            st.session_state.secilen_lon,secilen_tarih,chosen_code,community)
+                        value=nasa_power_secili_parametre_cek(
+                            st.session_state.secilen_lat, st.session_state.secilen_lon,
+                            secilen_tarih, chosen_code, community
+                        )
                     if value is None:
                         st.info("NASA bu koordinat ve tarihte geçerli ölçüm yayımlamamış (-999 / veri yok).")
                     else:
-                        st.success(f"{chosen_code}: {value:g} · NASA POWER · {secilen_tarih:%d.%m.%Y}")
+                        st.success(f"{chosen_code}: {value:g} · NASA POWER {community} · {secilen_tarih:%d.%m.%Y}")
                 except Exception as parameter_error:
                     st.error(f"NASA POWER bu parametre/topluluk/tarih birleşimini kabul etmedi veya veri döndürmedi: {parameter_error}")
         else:
-            st.warning("NASA POWER parametre listesi boş döndü.")
+            st.warning("NASA POWER günlük parametre listesi boş döndü; katalogdaki diğer çözünürlükler görüntülenebilir.")
     except Exception as pool_error:
         st.error(f"NASA veri havuzu NASA kataloglarından yüklenemedi: {pool_error}")
         st.caption("Uygulama uydurma kayıt göstermiyor; NASA katalog servisi erişilebilir olduğunda liste otomatik gelir.")
