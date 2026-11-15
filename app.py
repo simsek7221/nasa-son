@@ -185,7 +185,7 @@ def gercek_veri_cek(lat, lon, secilen_tarih):
             "AG",
             "T2M,T2M_MAX,T2M_MIN,RH2M,PRECTOTCORR,WS10M,WD10M,PS,ALLSKY_SFC_SW_DWN"
         )
-        hy = request_parameters("HY", "GWETTOP,GWETROOT,GWETPROF")
+        hy = request_parameters("AG", "GWETTOP,GWETROOT,GWETPROF")
     except Exception as exc:
         logger.exception("NASA POWER veri isteği başarısız")
         raise RuntimeError(f"NASA POWER servisine erişilemedi: {exc}")
