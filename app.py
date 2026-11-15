@@ -735,22 +735,39 @@ if aktif_sekme == "🛰️ Uydu Haritası":
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
         <script>
-          const map = L.map('nasa-earth-map').setView([{st.session_state.secilen_lat}, {st.session_state.secilen_lon}], 5);
-          const nasaWms = 'https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi';
-          const nasaBase = L.tileLayer.wms(nasaWms, {{
-            layers: 'MODIS_Terra_CorrectedReflectance_TrueColor',
-            format: 'image/jpeg', transparent: false, version: '1.1.1',
-            time: '{map_date}', attribution: 'NASA GIBS / EOSDIS',
-            tiled: true, tileSize: 256, detectRetina: false, keepBuffer: 2
+          const map = L.map('nasa-earth-map', {{
+            zoomControl: true, preferCanvas: true, worldCopyJump: true,
+            minZoom: 1, maxZoom: 9
+          }}).setView([{st.session_state.secilen_lat}, {st.session_state.secilen_lon}], 5);
+          // NASA GIBS WMTS: hazır XYZ karoları kullanır; WMS gibi her görünümde
+          // yeniden raster kesip birleştirme yapmaz. Bu, karo dikişlerini azaltır.
+          const nasaWmts = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/';
+          const nasaBaseUrl = nasaWmts +
+            'MODIS_Terra_CorrectedReflectance_TrueColor/default/{z}/{y}/{x}.jpg';
+          const nasaBase = L.tileLayer(nasaBaseUrl, {{
+            attribution: 'NASA GIBS / EOSDIS',
+            tileSize: 256, minZoom: 1, maxZoom: 9, maxNativeZoom: 9,
+            detectRetina: false, updateWhenZooming: false,
+            updateWhenIdle: true, keepBuffer: 1, crossOrigin: true
           }}).addTo(map);
-          const overlayParams = {{
-            layers: {json.dumps(selected_layer)}, format: 'image/png', transparent: true,
-            version: '1.1.1', attribution: 'NASA GIBS / EOSDIS',
-            tiled: true, tileSize: 256, detectRetina: false, keepBuffer: 2, opacity: 0.72
-          }};
-          const nasaOverlay = L.tileLayer.wms(nasaWms, overlayParams);
-          if ({json.dumps(show_science_overlay)} && {json.dumps(selected_layer)} !== 'MODIS_Terra_CorrectedReflectance_TrueColor') nasaOverlay.addTo(map);
-          L.control.layers({{'NASA MODIS True Color': nasaBase}}, {{'Selected NASA science layer': nasaOverlay}}).addTo(map);
+          const scienceUrl = nasaWmts + {json.dumps(selected_layer)} +
+            '/default/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.png';
+          const nasaOverlay = L.tileLayer(scienceUrl, {{
+            attribution: 'NASA GIBS / EOSDIS',
+            tileSize: 256, minZoom: 1, maxZoom: 9, maxNativeZoom: 9,
+            detectRetina: false, updateWhenZooming: false,
+            updateWhenIdle: true, keepBuffer: 1, opacity: 0.82,
+            crossOrigin: true
+          }});
+          if ({json.dumps(show_science_overlay)} &&
+              {json.dumps(selected_layer)} !== 'MODIS_Terra_CorrectedReflectance_TrueColor') {{
+            nasaOverlay.addTo(map);
+          }}
+          L.control.layers(
+            {{'NASA MODIS True Color': nasaBase}},
+            {{'Selected NASA science layer': nasaOverlay}},
+            {{collapsed: true}}
+          ).addTo(map);
           L.marker([{st.session_state.secilen_lat}, {st.session_state.secilen_lon}])
             .addTo(map).bindPopup('Lightning Flora observation point');
           L.control.scale({{metric:true, imperial:false}}).addTo(map);
