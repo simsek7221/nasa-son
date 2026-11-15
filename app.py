@@ -275,13 +275,16 @@ def nasa_gibs_harita_katalogu():
         if node.tag.split("}")[-1] != "Layer":
             continue
         name = title = None
+        has_time = False
         for child in list(node):
             tag = child.tag.split("}")[-1]
             if tag == "Name":
                 name = child.text
             elif tag == "Title":
                 title = child.text
-        if name and title and not any(x in (name + " " + title).casefold() for x in disla):
+            elif tag in ("Dimension", "Extent") and child.attrib.get("name", "").casefold() == "time":
+                has_time = True
+        if name and title and has_time and not any(x in (name + " " + title).casefold() for x in disla):
             katmanlar.append({"name": name, "title": title})
     # Keep a deterministic, broad Earth-observation catalogue, not arbitrary generated layers.
     unique = {item["name"]: item for item in katmanlar}
@@ -339,7 +342,8 @@ with col_search:
         if coords:
             st.session_state.secilen_lat, st.session_state.secilen_lon = coords
             st.session_state.mekan_adi = f"Gerçek Konum: {addr or aranan_konum}"
-            st.success(f"✅ Konum Doğrulandı: {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}")
+            st.success(f"✅ Konum koordinata çevrildi: {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}")
+            st.caption("Konum araması yalnızca şehir adını koordinata dönüştürür; sıcaklık, yağış ve diğer bilimsel ölçümler NASA kaynaklıdır.")
 with col_gps:
     st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
     if streamlit_geolocation is not None:
@@ -518,11 +522,19 @@ if aktif_sekme == "NASA Uydu Haritası":
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
         <script>
           const map = L.map('nasa-earth-map').setView([{st.session_state.secilen_lat}, {st.session_state.secilen_lon}], 5);
-          const nasa = L.tileLayer.wms('https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi', {{
-            layers: {json.dumps(selected_layer)}, format: 'image/png', transparent: false,
-            version: '1.1.1', time: '{map_date}', attribution: 'NASA GIBS / EOSDIS',
-            tiled: true
+          const nasaWms = 'https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi';
+          const nasaBase = L.tileLayer.wms(nasaWms, {{
+            layers: 'MODIS_Terra_CorrectedReflectance_TrueColor',
+            format: 'image/jpeg', transparent: false, version: '1.1.1',
+            time: '{map_date}', attribution: 'NASA GIBS / EOSDIS', tiled: true
           }}).addTo(map);
+          const nasaOverlay = L.tileLayer.wms(nasaWms, {{
+            layers: {json.dumps(selected_layer)}, format: 'image/png', transparent: true,
+            version: '1.1.1', time: '{map_date}', attribution: 'NASA GIBS / EOSDIS',
+            tiled: true, opacity: 0.88
+          }});
+          if ({json.dumps(selected_layer)} !== 'MODIS_Terra_CorrectedReflectance_TrueColor') nasaOverlay.addTo(map);
+          L.control.layers({{'NASA MODIS True Color': nasaBase}}, {{'Selected NASA science layer': nasaOverlay}}).addTo(map);
           L.marker([{st.session_state.secilen_lat}, {st.session_state.secilen_lon}])
             .addTo(map).bindPopup('Lightning Flora observation point');
           L.control.scale({{metric:true, imperial:false}}).addTo(map);
