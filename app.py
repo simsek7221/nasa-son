@@ -746,11 +746,16 @@ if aktif_sekme == "🛰️ Uydu Haritası":
 
 if aktif_sekme == "🌐 3D Dünya":
     render_box(
-        title="NASA Earth — Etkileşimli 3D Dünya",
-        subtitle="Küre dokusu seçilen gerçek NASA GIBS uydu katmanından yüklenir. Sentetik arazi/yükseklik verisi kullanılmaz.",
-        border_color="rgba(56, 189, 248, 0.75)",
-        glow_color="rgba(56, 189, 248, 0.45)",
-        bg_gradient="linear-gradient(135deg, rgba(12, 74, 110, 0.55) 0%, rgba(15, 23, 42, 0.95) 100%)"
+        title="🌐 3D Topografik Dijital İkiz — NASA Komuta Merkezi",
+        subtitle=f"NASA GIBS uydu katmanı · Seçili konum: {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}. Gerçek NASA görüntüsü; sentetik veri yok.",
+        border_color="rgba(236, 72, 153, 0.75)",
+        glow_color="rgba(236, 72, 153, 0.55)",
+        bg_gradient="linear-gradient(135deg, rgba(131, 24, 67, 0.55) 0%, rgba(15, 23, 42, 0.95) 100%)"
+    )
+    st.markdown(
+        "<p style='color:#cbd5e1;'>Döndürülebilir 3D Dünya görünümü. NASA GIBS katmanını ve görüntü tarihini seç; "
+        "seçili koordinat altın işaretçiyle gösterilir.</p>",
+        unsafe_allow_html=True
     )
     try:
         globe_layers = nasa_gibs_harita_katalogu()
@@ -764,9 +769,9 @@ if aktif_sekme == "🌐 3D Dünya":
                                   max_value=datetime.now().date(), key="nasa_3d_date").strftime("%Y-%m-%d")
         st.caption(f"NASA GIBS · {globe_title} · {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}")
         globe_html = """
-        <div id="nasa-3d-shell" style="position:relative;width:100%;height:560px;border-radius:22px;overflow:hidden;background:radial-gradient(circle at 50% 45%,#102b52,#020617 72%);border:1px solid rgba(56,189,248,.45);">
-          <div id="nasa-3d-status" style="position:absolute;z-index:3;top:14px;left:16px;color:#bae6fd;font:600 12px Arial;">NASA görüntüsü yükleniyor…</div>
-          <div style="position:absolute;z-index:3;bottom:12px;left:16px;color:#94a3b8;font:12px Arial;">Sürükle: döndür · Tekerlek: yakınlaştır</div>
+        <div id="nasa-3d-shell" style="position:relative;width:100%;height:620px;border-radius:24px;overflow:hidden;background:radial-gradient(circle at 50% 42%,#31204a 0%,#101827 48%,#020617 100%);border:2px solid rgba(236,72,153,.55);box-shadow:0 0 38px rgba(236,72,153,.18),inset 0 0 28px rgba(56,189,248,.10);">
+          <div id="nasa-3d-status" style="position:absolute;z-index:3;top:16px;left:18px;padding:9px 13px;border-radius:12px;background:rgba(15,23,42,.82);border:1px solid rgba(236,72,153,.35);color:#fbcfe8;font:700 12px Arial;">NASA görüntüsü yükleniyor…</div>
+          <div style="position:absolute;z-index:3;bottom:14px;left:16px;padding:8px 11px;border-radius:10px;background:rgba(15,23,42,.78);color:#cbd5e1;font:12px Arial;">Sürükle: döndür · Tekerlek: yakınlaştır</div>
           <canvas id="nasa-3d-canvas" style="width:100%;height:100%;display:block;"></canvas>
         </div>
         <script>
@@ -796,22 +801,42 @@ if aktif_sekme == "🌐 3D Dünya":
           const loader=new THREE.TextureLoader(); loader.setCrossOrigin('anonymous');
           loader.load(textureUrl, texture=>{
             texture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
-            material.map=texture; material.needsUpdate=true; status.textContent='NASA GIBS görüntüsü yüklendi · '+layer;
+            material.map=texture; material.needsUpdate=true; status.textContent='NASA GIBS görüntüsü yüklendi · '+layer;requestDraw();
           },undefined,()=>{status.textContent='Bu katmanda seçilen tarih için görüntü yok. Başka NASA tarihi/katmanı seç.';});
           const lat=__LAT__, lon=__LON__;
           const phi=(90-lat)*Math.PI/180, theta=(lon+180)*Math.PI/180;
           const marker=new THREE.Mesh(new THREE.SphereGeometry(.018,14,10),new THREE.MeshBasicMaterial({color:0xffd166}));
           marker.position.set(-Math.sin(phi)*Math.cos(theta)*1.012,Math.cos(phi)*1.012,Math.sin(phi)*Math.sin(theta)*1.012);
           globe.add(marker);
-          let dragging=false,lastX=0,lastY=0,rotX=0,rotY=0;
+          let dragging=false,lastX=0,lastY=0,rotX=0,rotY=0,framePending=false;
+          function draw(){
+            framePending=false;
+            globe.rotation.y=rotY;globe.rotation.x=rotX;
+            renderer.render(scene,camera);
+          }
+          function requestDraw(){
+            if(framePending||document.hidden)return;
+            framePending=true;requestAnimationFrame(draw);
+          }
           canvas.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId);});
-          canvas.addEventListener('pointermove',e=>{if(!dragging)return;rotY+=(e.clientX-lastX)*.006;rotX+=(e.clientY-lastY)*.006;rotX=Math.max(-1.35,Math.min(1.35,rotX));lastX=e.clientX;lastY=e.clientY;});
-          canvas.addEventListener('pointerup',()=>dragging=false); canvas.addEventListener('pointercancel',()=>dragging=false);
-          canvas.addEventListener('wheel',e=>{e.preventDefault();camera.position.z=Math.max(1.7,Math.min(5,camera.position.z+e.deltaY*.003));},{passive:false});
-          const resize=()=>{const w=shell.clientWidth,h=shell.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);};
+          canvas.addEventListener('pointermove',e=>{
+            if(!dragging)return;
+            rotY+=(e.clientX-lastX)*.006;rotX+=(e.clientY-lastY)*.006;
+            rotX=Math.max(-1.35,Math.min(1.35,rotX));
+            lastX=e.clientX;lastY=e.clientY;requestDraw();
+          });
+          canvas.addEventListener('pointerup',()=>dragging=false);
+          canvas.addEventListener('pointercancel',()=>dragging=false);
+          canvas.addEventListener('wheel',e=>{
+            e.preventDefault();camera.position.z=Math.max(1.7,Math.min(5,camera.position.z+e.deltaY*.003));requestDraw();
+          },{passive:false});
+          const resize=()=>{
+            const w=shell.clientWidth,h=shell.clientHeight;
+            camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);requestDraw();
+          };
           if(window.ResizeObserver)new ResizeObserver(resize).observe(shell);else window.addEventListener('resize',resize);
-          function animate(){requestAnimationFrame(animate);if(document.hidden)return;if(!dragging)rotY+=.0007;globe.rotation.y=rotY;globe.rotation.x=rotX;renderer.render(scene,camera);}
-          animate();
+          requestDraw();
+          document.addEventListener('visibilitychange',()=>{if(!document.hidden)requestDraw();});
 
             } catch(error) {
               console.error('NASA 3D Dünya başlatılamadı:', error);
