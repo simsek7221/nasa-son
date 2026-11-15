@@ -743,7 +743,7 @@ if aktif_sekme == "🛰️ Uydu Haritası":
           // yeniden raster kesip birleştirme yapmaz. Bu, karo dikişlerini azaltır.
           const nasaWmts = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/';
           const nasaBaseUrl = nasaWmts +
-            'MODIS_Terra_CorrectedReflectance_TrueColor/default/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.jpg';
+            'MODIS_Terra_CorrectedReflectance_TrueColor/default/{map_date}/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.jpg';
           const nasaBase = L.tileLayer(nasaBaseUrl, {{
             attribution: 'NASA GIBS / EOSDIS',
             tileSize: 256, minZoom: 1, maxZoom: 9, maxNativeZoom: 9,
@@ -751,7 +751,7 @@ if aktif_sekme == "🛰️ Uydu Haritası":
             updateWhenIdle: true, keepBuffer: 1, crossOrigin: true
           }}).addTo(map);
           const scienceUrl = nasaWmts + {json.dumps(selected_layer)} +
-            '/default/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.png';
+            '/default/default/GoogleMapsCompatible_Level9/{{z}}/{{y}}/{{x}}.png';
           const nasaOverlay = L.tileLayer(scienceUrl, {{
             attribution: 'NASA GIBS / EOSDIS',
             tileSize: 256, minZoom: 1, maxZoom: 9, maxNativeZoom: 9,
