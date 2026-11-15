@@ -76,23 +76,23 @@ void ekranGoster(int sayfa) {
     case 0:
       lcd.setCursor(0, 0);
       lcd.print("SICAKLIK:");
-      lcd.print(sicaklik, 1);
-      lcd.print(" C");
+      if (sicaklik < -0.5) lcd.print("VERI YOK");
+      else { lcd.print(sicaklik, 1); lcd.print(" C"); }
       lcd.setCursor(0, 1);
       lcd.print("HAVA NEMI:");
-      lcd.print(nem, 0);
-      lcd.print("%");
+      if (nem < 0) lcd.print("VERI YOK");
+      else { lcd.print(nem, 0); lcd.print("%"); }
       break;
 
     case 1:
       lcd.setCursor(0, 0);
       lcd.print("BASINC:");
-      lcd.print(basinc, 0);
-      lcd.print(" hPa");
+      if (basinc < 0) lcd.print("VERI YOK");
+      else { lcd.print(basinc, 0); lcd.print(" hPa"); }
       lcd.setCursor(0, 1);
       lcd.print("RUZGAR:");
-      lcd.print(ruzgar, 1);
-      lcd.print(" m/s");
+      if (ruzgar < 0) lcd.print("VERI YOK");
+      else { lcd.print(ruzgar, 1); lcd.print(" m/s"); }
       break;
 
     case 2:
