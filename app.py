@@ -328,6 +328,29 @@ def nasa_gibs_harita_katalogu():
     return result[:51]
 
 
+@st.cache_data(ttl=86400, show_spinner=False)
+def sehir_ara(aranan):
+    """Yalnızca şehir adını koordinata çevirir; çevresel veri sağlamaz."""
+    response = requests.get(
+        "https://geocoding-api.open-meteo.com/v1/search",
+        params={"name": aranan, "count": 10, "language": "tr", "format": "json"},
+        timeout=15
+    )
+    response.raise_for_status()
+    results = response.json().get("results", [])
+    return [
+        {
+            "etiket": ", ".join(
+                part for part in (item.get("name"), item.get("admin1"), item.get("country"))
+                if part
+            ),
+            "enlem": float(item["latitude"]),
+            "boylam": float(item["longitude"])
+        }
+        for item in results
+    ]
+
+
 # --- NASA POWER GERCEK VERI KATALOGU ---
 def genis_veri_havuzu_uret(d):
     entries = [
@@ -367,18 +390,57 @@ if "mekan_adi" not in st.session_state:
 
 # Veriler tarih seçildikten sonra tek kez istenir; başlangıçta mükerrer API çağrısı yapılmaz.
 
-col_lat, col_lon, col_gps, col_date = st.columns([1, 1, 1, 1])
+# Şehir araması yalnızca koordinat çözümlemek içindir; bütün çevresel ölçümler NASA'dan gelir.
+st.markdown("### 📍 Şehir ara")
+col_city, col_search = st.columns([4, 1])
+with col_city:
+    sehir_sorgusu = st.text_input(
+        "Şehir / ilçe adı",
+        placeholder="Örn. Batman, İstanbul, Ankara",
+        key="sehir_arama_girdisi"
+    )
+with col_search:
+    st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+    if st.button("Şehri bul", use_container_width=True):
+        if sehir_sorgusu.strip():
+            try:
+                st.session_state.sehir_sonuclari = sehir_ara(sehir_sorgusu.strip())
+                if not st.session_state.sehir_sonuclari:
+                    st.warning("Bu adla konum bulunamadı. İl/ülke adıyla birlikte tekrar dene.")
+            except Exception as geo_error:
+                st.error(f"Şehir koordinatı bulunamadı: {geo_error}")
+        else:
+            st.warning("Önce bir şehir adı yaz.")
+if st.session_state.get("sehir_sonuclari"):
+    col_result, col_apply = st.columns([4, 1])
+    with col_result:
+        secili_sehir = st.selectbox(
+            "Bulunan konumlar",
+            st.session_state.sehir_sonuclari,
+            format_func=lambda item: item["etiket"],
+            key="sehir_sonuc_secimi"
+        )
+    with col_apply:
+        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        if st.button("Bu konumu kullan", use_container_width=True):
+            st.session_state.secilen_lat = secili_sehir["enlem"]
+            st.session_state.secilen_lon = secili_sehir["boylam"]
+            st.session_state.mekan_adi = secili_sehir["etiket"]
+            st.rerun()
+
+st.caption("Konum araması servisi yalnızca şehir adını enlem-boylama çevirir. Hava, toprak, yağış ve uydu verileri bu servisten alınmaz.")
+
+col_lat, col_lon, col_date = st.columns([1, 1, 1])
+onceki_lat = float(st.session_state.secilen_lat)
+onceki_lon = float(st.session_state.secilen_lon)
 with col_lat:
-    girilen_lat = st.number_input("Enlem (NASA koordinatı)", min_value=-90.0, max_value=90.0, value=float(st.session_state.secilen_lat), step=0.0001, format="%.4f")
+    girilen_lat = st.number_input("Enlem (NASA koordinatı)", min_value=-90.0, max_value=90.0, value=onceki_lat, step=0.0001, format="%.4f")
 with col_lon:
-    girilen_lon = st.number_input("Boylam (NASA koordinatı)", min_value=-180.0, max_value=180.0, value=float(st.session_state.secilen_lon), step=0.0001, format="%.4f")
+    girilen_lon = st.number_input("Boylam (NASA koordinatı)", min_value=-180.0, max_value=180.0, value=onceki_lon, step=0.0001, format="%.4f")
 st.session_state.secilen_lat = float(girilen_lat)
 st.session_state.secilen_lon = float(girilen_lon)
-st.session_state.mekan_adi = f"Koordinat: {girilen_lat:.4f}, {girilen_lon:.4f}"
-
-with col_gps:
-    st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-    st.caption("Yalnızca koordinat girişi kullanılır; harici konum servisi yoktur.")
+if girilen_lat != onceki_lat or girilen_lon != onceki_lon:
+    st.session_state.mekan_adi = f"Manuel koordinat: {girilen_lat:.4f}, {girilen_lon:.4f}"
 
 with col_date:
     secilen_tarih = st.date_input("📅 NASA günlük toprak/güneş tarihi:", value=datetime.now().date() - timedelta(days=3), max_value=datetime.now().date() - timedelta(days=1))
