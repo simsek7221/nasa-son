@@ -769,12 +769,16 @@ if aktif_sekme == "🌐 3D Dünya":
           <div style="position:absolute;z-index:3;bottom:12px;left:16px;color:#94a3b8;font:12px Arial;">Sürükle: döndür · Tekerlek: yakınlaştır</div>
           <canvas id="nasa-3d-canvas" style="width:100%;height:100%;display:block;"></canvas>
         </div>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.128.0/three.min.js"></script>
         <script>
         (() => {
-          const shell=document.getElementById('nasa-3d-shell'), canvas=document.getElementById('nasa-3d-canvas');
+          const shell=document.getElementById('nasa-3d-shell');
+          const canvas=document.getElementById('nasa-3d-canvas');
           const status=document.getElementById('nasa-3d-status');
-          if(!window.THREE){status.textContent='3D motoru yüklenemedi.';return;}
+
+          function startGlobe(){
+            try {
+              if(!window.THREE) throw new Error('Three.js yüklenemedi');
+              if(!window.WebGLRenderingContext) throw new Error('Tarayıcı WebGL desteklemiyor');
           const scene=new THREE.Scene();
           const camera=new THREE.PerspectiveCamera(38,shell.clientWidth/shell.clientHeight,.1,100);
           camera.position.set(0,0,3.15);
@@ -808,6 +812,33 @@ if aktif_sekme == "🌐 3D Dünya":
           if(window.ResizeObserver)new ResizeObserver(resize).observe(shell);else window.addEventListener('resize',resize);
           function animate(){requestAnimationFrame(animate);if(document.hidden)return;if(!dragging)rotY+=.0007;globe.rotation.y=rotY;globe.rotation.x=rotX;renderer.render(scene,camera);}
           animate();
+
+            } catch(error) {
+              console.error('NASA 3D Dünya başlatılamadı:', error);
+              status.textContent='3D motoru başlatılamadı: '+(error.message||'WebGL hatası');
+            }
+          }
+
+          const sources=[
+            'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.128.0/three.min.js',
+            'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js',
+            'https://unpkg.com/three@0.128.0/build/three.min.js'
+          ];
+          function loadThree(index){
+            if(window.THREE){startGlobe();return;}
+            if(index>=sources.length){
+              status.textContent='3D motoru yüklenemedi. CDN adreslerine erişilemiyor; sayfayı yenileyip tekrar deneyin.';
+              return;
+            }
+            status.textContent='3D motoru yükleniyor… ('+(index+1)+'/3)';
+            const script=document.createElement('script');
+            script.src=sources[index];
+            script.async=true;
+            script.onload=()=>window.THREE?startGlobe():loadThree(index+1);
+            script.onerror=()=>loadThree(index+1);
+            document.head.appendChild(script);
+          }
+          loadThree(0);
         })();
         </script>
         """
