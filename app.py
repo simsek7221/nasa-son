@@ -733,23 +733,31 @@ if aktif_sekme == "🛰️ Uydu Haritası":
         # NASA GIBS WMS kullan: daha önce temiz görüntü veren taban katmanı.
         # WMTS XYZ karolarındaki siyah boş/uyumsuz karo sorununu önlemek için
         # NASA'nın EPSG:3857 WMS servisine geri dönüyoruz.
+        # NASA GIBS'in yerel EPSG:4326 projeksiyonunu kullan.
+        # EPSG:3857 uç noktası kaynak karoları yeniden projekte ettiği için
+        # oluşabilecek siyah karo/kenar bozulmalarını önlemeyi hedefler.
         map_html = f"""
         <div id="nasa-earth-map" style="height:590px;width:100%;border-radius:18px;overflow:hidden;border:1px solid rgba(56,189,248,.45);"></div>
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
         <script>
           const map = L.map('nasa-earth-map', {{
-            zoomControl: true, preferCanvas: true, worldCopyJump: true,
-            minZoom: 1, maxZoom: 9
-          }}).setView([{st.session_state.secilen_lat}, {st.session_state.secilen_lon}], 5);
+            crs: L.CRS.EPSG4326,
+            zoomControl: true,
+            preferCanvas: true,
+            worldCopyJump: false,
+            minZoom: 1,
+            maxZoom: 9
+          }}).setView([{st.session_state.secilen_lat}, {st.session_state.secilen_lon}], 4);
 
-          const nasaWms = 'https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi';
+          const nasaWms = 'https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi';
           const nasaBase = L.tileLayer.wms(nasaWms, {{
             layers: 'MODIS_Terra_CorrectedReflectance_TrueColor',
             styles: '',
             format: 'image/jpeg',
             transparent: false,
             version: '1.1.1',
+            srs: 'EPSG:4326',
             time: '{map_date}',
             tiled: true,
             tileSize: 256,
@@ -758,7 +766,7 @@ if aktif_sekme == "🛰️ Uydu Haritası":
             detectRetina: false,
             updateWhenZooming: false,
             updateWhenIdle: true,
-            keepBuffer: 2,
+            keepBuffer: 1,
             attribution: 'NASA GIBS / EOSDIS'
           }}).addTo(map);
 
@@ -768,6 +776,7 @@ if aktif_sekme == "🛰️ Uydu Haritası":
             format: 'image/png',
             transparent: true,
             version: '1.1.1',
+            srs: 'EPSG:4326',
             tiled: true,
             tileSize: 256,
             minZoom: 1,
@@ -775,7 +784,7 @@ if aktif_sekme == "🛰️ Uydu Haritası":
             detectRetina: false,
             updateWhenZooming: false,
             updateWhenIdle: true,
-            keepBuffer: 2,
+            keepBuffer: 1,
             opacity: 0.72,
             attribution: 'NASA GIBS / EOSDIS'
           }});
