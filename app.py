@@ -534,30 +534,30 @@ if aktif_sekme == "NASA Uydu Haritası":
 
 
 if aktif_sekme == "NASA Trendleri":
-        render_box(
-            title=f"📊 {secilen_tarih.strftime('%d.%m.%Y')} Tarihli Gerçek Veri Trendleri",
-            subtitle=f"Seçilen Koordinat: {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}.",
-            border_color="rgba(56, 189, 248, 0.75)",
-            glow_color="rgba(56, 189, 248, 0.55)",
-            bg_gradient="linear-gradient(135deg, rgba(14, 116, 144, 0.45) 0%, rgba(15, 23, 42, 0.9) 100%)"
-        )
-        c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            render_metric_card("NASA Günlük Ortalama Sıcaklık", "Veri yok" if d['sicaklik'] is None else f"{d['sicaklik']:.1f} °C", "NASA POWER günlük ortalama sıcaklık", "rgba(56, 189, 248, 0.75)", "#38bdf8", "rgba(56, 189, 248, 0.45)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
-        with c2:
-            render_metric_card("2️⃣ Rüzgar", "Veri yok" if d['ruzgar'] is None else f"{d['ruzgar']:.1f} m/s", "NASA POWER ölçümü" if d['ruzgar_yon'] is None else f"Yön: {d['ruzgar_yon']:.0f}°", "rgba(16, 185, 129, 0.75)", "#34d399", "rgba(16, 185, 129, 0.45)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
-        with c3:
-            render_metric_card("3️⃣ NDVI", "Harita katmanı", "Sayısal MODIS NDVI entegrasyonu henüz yok", "rgba(245, 158, 11, 0.75)", "#fbbf24", "rgba(245, 158, 11, 0.45)", "linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
-        with c4:
-            render_metric_card("4️⃣ Basınç", "Veri yok" if d['basinc'] is None else f"{d['basinc']:.1f} hPa", "Basınç", "rgba(168, 85, 247, 0.75)", "#c084fc", "rgba(168, 85, 247, 0.45)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
-    
-        df_trend = zaman_serisi_cek(st.session_state.secilen_lat, st.session_state.secilen_lon, secilen_tarih)
-        fig_temp = px.line(df_trend, x="Tarih", y="Sıcaklık (°C)", title="30 Günlük Sıcaklık Trendi", template="plotly_dark")
-        fig_temp.update_traces(line=dict(color="#38bdf8", width=3))
-        fig_temp.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-        st.plotly_chart(fig_temp, use_container_width=True)
-    
-    if aktif_sekme == "NASA Gözlem Özeti":
+    render_box(
+        title=f"📊 {secilen_tarih.strftime('%d.%m.%Y')} Tarihli Gerçek Veri Trendleri",
+        subtitle=f"Seçilen Koordinat: {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}.",
+        border_color="rgba(56, 189, 248, 0.75)",
+        glow_color="rgba(56, 189, 248, 0.55)",
+        bg_gradient="linear-gradient(135deg, rgba(14, 116, 144, 0.45) 0%, rgba(15, 23, 42, 0.9) 100%)"
+    )
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        render_metric_card("NASA Günlük Ortalama Sıcaklık", "Veri yok" if d['sicaklik'] is None else f"{d['sicaklik']:.1f} °C", "NASA POWER günlük ortalama sıcaklık", "rgba(56, 189, 248, 0.75)", "#38bdf8", "rgba(56, 189, 248, 0.45)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+    with c2:
+        render_metric_card("2️⃣ Rüzgar", "Veri yok" if d['ruzgar'] is None else f"{d['ruzgar']:.1f} m/s", "NASA POWER ölçümü" if d['ruzgar_yon'] is None else f"Yön: {d['ruzgar_yon']:.0f}°", "rgba(16, 185, 129, 0.75)", "#34d399", "rgba(16, 185, 129, 0.45)", "linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+    with c3:
+        render_metric_card("3️⃣ NDVI", "Harita katmanı", "Sayısal MODIS NDVI entegrasyonu henüz yok", "rgba(245, 158, 11, 0.75)", "#fbbf24", "rgba(245, 158, 11, 0.45)", "linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+    with c4:
+        render_metric_card("4️⃣ Basınç", "Veri yok" if d['basinc'] is None else f"{d['basinc']:.1f} hPa", "Basınç", "rgba(168, 85, 247, 0.75)", "#c084fc", "rgba(168, 85, 247, 0.45)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+
+    df_trend = zaman_serisi_cek(st.session_state.secilen_lat, st.session_state.secilen_lon, secilen_tarih)
+    fig_temp = px.line(df_trend, x="Tarih", y="Sıcaklık (°C)", title="30 Günlük Sıcaklık Trendi", template="plotly_dark")
+    fig_temp.update_traces(line=dict(color="#38bdf8", width=3))
+    fig_temp.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+    st.plotly_chart(fig_temp, use_container_width=True)
+
+if aktif_sekme == "NASA Gözlem Özeti":
     render_box(
         title="NASA POWER — Gözlem Özeti",
         subtitle=f"{st.session_state.mekan_adi} · {d['veri_tarihi']:%d.%m.%Y}",
@@ -577,63 +577,73 @@ if aktif_sekme == "NASA Trendleri":
 
 
 if aktif_sekme == "Bölgesel Karşılaştırma":
-        render_box(
-            title="⚖️ Bölgesel Karşılaştırma Analizi",
-            subtitle="İki istasyonun eş zamanlı karşılaştırma raporu.",
-            border_color="rgba(168, 85, 247, 0.75)",
-            glow_color="rgba(168, 85, 247, 0.55)",
-            bg_gradient="linear-gradient(135deg, rgba(76, 29, 149, 0.45) 0%, rgba(15, 23, 42, 0.9) 100%)"
-        )
-        c_b1, c_b2 = st.columns(2)
-        with c_b1:
-            yer_1 = st.text_input("1. Bölge:", "Batman", key="compare_loc_1")
-        with c_b2:
-            yer_2 = st.text_input("2. Bölge:", "Ankara", key="compare_loc_2")
-    
-        res1 = konum_bul(yer_1)
-        res2 = konum_bul(yer_2)
-        lat1, lon1 = res1[0] if res1 and res1[0] is not None else (37.8859, 41.1198)
-        lat2, lon2 = res2[0] if res2 and res2[0] is not None else (39.9334, 32.8597)
+    render_box(
+        title="Bölgesel Karşılaştırma — NASA POWER",
+        subtitle="Aynı NASA POWER parametresi, aynı gözlem tarihi ve aynı gösterim hassasiyeti.",
+        border_color="rgba(168, 85, 247, 0.75)",
+        glow_color="rgba(168, 85, 247, 0.55)",
+        bg_gradient="linear-gradient(135deg, rgba(76, 29, 149, 0.45) 0%, rgba(15, 23, 42, 0.9) 100%)"
+    )
+    c_b1, c_b2 = st.columns(2)
+    with c_b1:
+        yer_1 = st.text_input("1. Bölge:", "Batman", key="compare_loc_1")
+    with c_b2:
+        yer_2 = st.text_input("2. Bölge:", "Ankara", key="compare_loc_2")
+
+    res1 = konum_bul(yer_1)
+    res2 = konum_bul(yer_2)
+    lat1, lon1 = res1[0] if res1 and res1[0] is not None else (37.8859, 41.1198)
+    lat2, lon2 = res2[0] if res2 and res2[0] is not None else (39.9334, 32.8597)
+    try:
         d1 = analiz_uret(lat1, lon1, secilen_tarih)
         d2 = analiz_uret(lat2, lon2, secilen_tarih)
-    
-        c_res1, c_res2 = st.columns(2)
-        with c_res1:
-            render_metric_card(f"📍 {yer_1}", f"{d1['sicaklik']:.1f} °C", "NASA nem verisi yok" if d1['nem'] is None else f"Nem: %{d1['nem']:.1f}", "rgba(56, 189, 248, 0.75)", "#38bdf8", "rgba(56, 189, 248, 0.45)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
-        with c_res2:
-            render_metric_card(f"📍 {yer_2}", f"{d2['sicaklik']:.1f} °C", "NASA nem verisi yok" if d2['nem'] is None else f"Nem: %{d2['nem']:.1f}", "rgba(168, 85, 247, 0.75)", "#c084fc", "rgba(168, 85, 247, 0.45)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
-    
-    if aktif_sekme == "NASA Veri Kataloğu":
-        render_box(
-            title="🔍 NASA POWER Gerçek Veri Kataloğu",
-            subtitle=f"Konum: {st.session_state.mekan_adi}",
-            border_color="rgba(2, 132, 199, 0.75)",        glow_color="rgba(2, 132, 199, 0.55)",
-            bg_gradient="linear-gradient(135deg, rgba(2, 132, 199, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)"
-        )
-        veri_arama = st.text_input("🔎 NASA parametrelerinde ara:", "", key="data_search_bar")
-        df_tum_veriler = genis_veri_havuzu_uret(d)
-        if veri_arama:
-            filtrelenmis_df = df_tum_veriler[
-                df_tum_veriler['Parametre Adı'].str.contains(veri_arama, case=False, na=False) |
-                df_tum_veriler['Kategori'].str.contains(veri_arama, case=False, na=False)
-            ]
-        else:
-            filtrelenmis_df = df_tum_veriler
-        st.markdown(f"<p style='color: #38bdf8; font-weight: 700;'>Toplam <b>{len(df_tum_veriler)}</b> parametre içerisinden <b>{len(filtrelenmis_df)}</b> sonuç listeleniyor.</p>", unsafe_allow_html=True)
-        st.dataframe(
-            filtrelenmis_df,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Kategori": st.column_config.TextColumn("Kategori", width="medium"),
-                "Parametre Adı": st.column_config.TextColumn("Parametre / Ölçüm Adı", width="large"),
-                "Değer": st.column_config.TextColumn("NASA Değeri", width="small"),
-                "Birim": st.column_config.TextColumn("Birim", width="small"),
-                "Durum": st.column_config.TextColumn("Veri Durumu", width="medium"),
-            }
-        )
-    
-    if aktif_sekme == "NASA Kaynak Bilgisi":
+        st.caption(f"NASA POWER gözlem tarihi: {secilen_tarih:%d.%m.%Y} · Batman koordinatı: {lat1:.4f}, {lon1:.4f}")
+    except Exception as compare_error:
+        st.error(f"Karşılaştırma için NASA POWER verisi alınamadı: {compare_error}")
+        d1 = d2 = None
+
+    c_res1, c_res2 = st.columns(2)
+    with c_res1:
+        value1 = "NASA verisi yok" if d1 is None or d1["sicaklik"] is None else f"{d1['sicaklik']:.1f} °C"
+        caption1 = "Nem verisi yok" if d1 is None or d1["nem"] is None else f"Nem: %{d1['nem']:.1f}"
+        render_metric_card(f"📍 {yer_1}", value1, caption1, "rgba(56, 189, 248, 0.75)", "#38bdf8", "rgba(56, 189, 248, 0.45)", "linear-gradient(135deg, rgba(14, 165, 233, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+    with c_res2:
+        value2 = "NASA verisi yok" if d2 is None or d2["sicaklik"] is None else f"{d2['sicaklik']:.1f} °C"
+        caption2 = "Nem verisi yok" if d2 is None or d2["nem"] is None else f"Nem: %{d2['nem']:.1f}"
+        render_metric_card(f"📍 {yer_2}", value2, caption2, "rgba(168, 85, 247, 0.75)", "#c084fc", "rgba(168, 85, 247, 0.45)", "linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)")
+
+
+if aktif_sekme == "NASA Veri Kataloğu":
+    render_box(
+        title="🔍 NASA POWER Gerçek Veri Kataloğu",
+        subtitle=f"Konum: {st.session_state.mekan_adi}",
+        border_color="rgba(2, 132, 199, 0.75)",        glow_color="rgba(2, 132, 199, 0.55)",
+        bg_gradient="linear-gradient(135deg, rgba(2, 132, 199, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%)"
+    )
+    veri_arama = st.text_input("🔎 NASA parametrelerinde ara:", "", key="data_search_bar")
+    df_tum_veriler = genis_veri_havuzu_uret(d)
+    if veri_arama:
+        filtrelenmis_df = df_tum_veriler[
+            df_tum_veriler['Parametre Adı'].str.contains(veri_arama, case=False, na=False) |
+            df_tum_veriler['Kategori'].str.contains(veri_arama, case=False, na=False)
+        ]
+    else:
+        filtrelenmis_df = df_tum_veriler
+    st.markdown(f"<p style='color: #38bdf8; font-weight: 700;'>Toplam <b>{len(df_tum_veriler)}</b> parametre içerisinden <b>{len(filtrelenmis_df)}</b> sonuç listeleniyor.</p>", unsafe_allow_html=True)
+    st.dataframe(
+        filtrelenmis_df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Kategori": st.column_config.TextColumn("Kategori", width="medium"),
+            "Parametre Adı": st.column_config.TextColumn("Parametre / Ölçüm Adı", width="large"),
+            "Değer": st.column_config.TextColumn("NASA Değeri", width="small"),
+            "Birim": st.column_config.TextColumn("Birim", width="small"),
+            "Durum": st.column_config.TextColumn("Veri Durumu", width="medium"),
+        }
+    )
+
+if aktif_sekme == "NASA Kaynak Bilgisi":
     render_box(
         title="NASA Veri Kaynakları ve Ölçüm Şeffaflığı",
         subtitle="Uygulama yalnızca NASA tarafından yayımlanan çevresel ölçüm ve uydu ürünlerini kullanır.",
@@ -646,7 +656,7 @@ if aktif_sekme == "Bölgesel Karşılaştırma":
     - **NASA POWER Hydrology:** üst toprak, kök bölgesi ve profil ıslaklığı.
     - **NASA GIBS / EOSDIS:** uydu görüntüleri ve bilimsel harita katmanları.
     - **NDVI:** yalnızca NASA MODIS ürününden sayısal veri elde edildiğinde değer olarak gösterilir; harita görüntüsü sayısal nokta ölçümü gibi sunulmaz.
-    
+
     NASA'nın ilgili koordinat ve tarih için yayımlamadığı hiçbir değer tahmin edilmez, doldurulmaz veya başka tarihten kopyalanmaz.
     """)
 
