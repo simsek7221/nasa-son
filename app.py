@@ -746,102 +746,137 @@ if aktif_sekme == "🛰️ Uydu Haritası":
         st.error(f"NASA GIBS harita kataloğu yüklenemedi: {map_error}")
 
 
-@st.cache_data(ttl=604800, show_spinner=False)
-def nasadem_yukseklik_matrisi(merkez_lat, merkez_lon, grid_boyutu=25, yari_cap_km=15):
-    """NASA'nın NASADEM 30 m verisini herkese açık aynadan alır; kullanıcı girişi gerekmez."""
-    from rasterio.io import MemoryFile
-
-    lat0, lon0 = float(merkez_lat), float(merkez_lon)
-    lat_tile, lon_tile = int(np.floor(lat0)), int(np.floor(lon0))
-    ns = "n" if lat_tile >= 0 else "s"
-    ew = "e" if lon_tile >= 0 else "w"
-    tile = f"{ns}{abs(lat_tile):02d}{ew}{abs(lon_tile):03d}"
-    urls = [
-        f"https://opentopography.s3.sdsc.edu/raster/NASADEM/NASADEM_be/NASADEM_HGT_{tile}.tif",
-        f"https://opentopography.s3.sdsc.edu/raster/NASADEM/NASADEM_be/NASADEM_HGT_{tile.upper()}.tif",
-    ]
-    response = None
-    for url in urls:
-        candidate = requests.get(url, timeout=90)
-        if candidate.ok and candidate.content[:4] in (b"II*\\x00", b"MM\\x00*"):
-            response = candidate
-            break
-    if response is None:
-        raise RuntimeError(f"NASADEM döşemesi indirilemedi ({tile}). Biraz sonra tekrar dene.")
-
-    lat_half = yari_cap_km / 111.32
-    cos_lat = max(float(np.cos(np.radians(lat0))), 0.2)
-    lon_half = yari_cap_km / (111.32 * cos_lat)
-    latitudes = np.linspace(lat0 - lat_half, lat0 + lat_half, grid_boyutu)
-    longitudes = np.linspace(lon0 - lon_half, lon0 + lon_half, grid_boyutu)
-    grid_x, grid_y = np.meshgrid(longitudes, latitudes)
-
-    with MemoryFile(response.content) as memfile:
-        with memfile.open() as src:
-            samples = np.asarray([v[0] for v in src.sample(
-                list(zip(grid_x.ravel(), grid_y.ravel())), masked=True
-            )], dtype=float).reshape(grid_boyutu, grid_boyutu)
-            nodata = src.nodata
-
-    if nodata is not None:
-        samples[samples == nodata] = np.nan
-    samples[(~np.isfinite(samples)) | (samples < -1000)] = np.nan
-    valid = np.isfinite(samples)
-    if valid.sum() < grid_boyutu * grid_boyutu * 0.8:
-        raise RuntimeError("Bu koordinat çevresi tek NASADEM döşemesinin dışında kalıyor veya veri boş.")
-    Z = pd.DataFrame(samples).interpolate(axis=0, limit_direction="both").interpolate(
-        axis=1, limit_direction="both").to_numpy()
-    x_km = (longitudes - lon0) * 111.32 * cos_lat
-    y_km = (latitudes - lat0) * 111.32
-    X_km, Y_km = np.meshgrid(x_km, y_km)
-    return X_km, Y_km, Z
-
-
 if aktif_sekme == "🌐 3D Dünya":
     render_box(
-        title="🌐 3D Topografik Dijital İkiz (Digital Twin Komuta Merkezi)",
-        subtitle=f"Seçilen koordinat ({st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}) çevresinin NASADEM gerçek yükseklik modeli.",
+        title="🌐 3D Topografik Dijital İkiz — NASA Komuta Merkezi",
+        subtitle=f"NASA GIBS uydu katmanı · Seçili konum: {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}. Gerçek NASA görüntüsü; sentetik veri yok.",
         border_color="rgba(236, 72, 153, 0.75)",
         glow_color="rgba(236, 72, 153, 0.55)",
-        bg_gradient="linear-gradient(135deg, rgba(131, 24, 67, 0.55) 0%, rgba(15, 23, 42, 0.9) 100%)"
+        bg_gradient="linear-gradient(135deg, rgba(131, 24, 67, 0.55) 0%, rgba(15, 23, 42, 0.95) 100%)"
     )
     st.markdown(
-        "<p style='color:#cbd5e1;'>NASA'nın NASADEM 30 m gerçek rakım verisi kullanılır. "
-        "Giriş veya hesap gerekmez; sayısal yüzey simülasyon değildir.</p>",
+        "<p style='color:#cbd5e1;'>Döndürülebilir 3D Dünya görünümü. NASA GIBS katmanını ve görüntü tarihini seç; "
+        "seçili koordinat altın işaretçiyle gösterilir.</p>",
         unsafe_allow_html=True
     )
     try:
-        with st.spinner("🛰️ NASADEM gerçek yükseklik döşemesi alınıyor..."):
-            X_km, Y_km, Z = nasadem_yukseklik_matrisi(
-                st.session_state.secilen_lat, st.session_state.secilen_lon
-            )
-        fig_3d = go.Figure(data=[go.Surface(
-            z=Z, x=X_km, y=Y_km, colorscale="Earth",
-            lighting=dict(ambient=0.45, diffuse=0.85, specular=0.35, roughness=0.65, fresnel=0.15),
-            lightposition=dict(x=1000, y=1000, z=1500),
-            colorbar=dict(title=dict(text="Rakım (m)", font=dict(color="#e2e8f0")),
-                          tickfont=dict(color="#e2e8f0")),
-            contours={"z": {"show": True, "usecolormap": True, "project_z": True}},
-            hovertemplate="Doğu-Batı: %{x:.2f} km<br>Kuzey-Güney: %{y:.2f} km<br>Rakım: %{z:.0f} m<extra></extra>"
-        )])
-        fig_3d.update_layout(
-            title=f"{st.session_state.mekan_adi} — NASADEM Gerçek 3D Arazi Modeli",
-            autosize=True, height=620, margin=dict(l=10, r=10, t=55, b=10),
-            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#e2e8f0"),
-            scene=dict(
-                xaxis=dict(title="Doğu ↔ Batı (km)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
-                yaxis=dict(title="Güney ↔ Kuzey (km)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
-                zaxis=dict(title="Rakım (m)", backgroundcolor="rgba(15,23,42,0.8)", gridcolor="rgba(56,189,248,0.2)"),
-                aspectmode="manual", aspectratio=dict(x=1.0, y=1.0, z=0.65),
-                camera=dict(eye=dict(x=1.55, y=1.55, z=1.05))
-            )
-        )
-        st.plotly_chart(fig_3d, use_container_width=True, config={"displaylogo": False, "responsive": True})
-        st.caption("Veri: NASADEM 30 m · NASA/JPL · NASADEM_HGT v001. Dağıtım aynası: OpenTopography.")
-    except Exception as e:
-        logger.exception("NASADEM 3D arazi modeli oluşturulamadı")
-        st.error(f"NASADEM verisi alınamadı: {e}")
+        globe_layers = nasa_gibs_harita_katalogu()
+        globe_titles = [x["title"] for x in globe_layers]
+        globe_names = [x["name"] for x in globe_layers]
+        globe_title = st.selectbox("3D Dünya uydu katmanı", globe_titles, key="nasa_3d_layer")
+        globe_meta = globe_layers[globe_titles.index(globe_title)]
+        globe_layer = globe_meta["name"]
+        globe_has_time = bool(globe_meta.get("has_time"))
+        globe_date = st.date_input("NASA görüntü tarihi", value=datetime.now().date(),
+                                  max_value=datetime.now().date(), key="nasa_3d_date").strftime("%Y-%m-%d")
+        st.caption(f"NASA GIBS · {globe_title} · {st.session_state.secilen_lat:.4f}, {st.session_state.secilen_lon:.4f}")
+        globe_html = """
+        <div id="nasa-3d-shell" style="position:relative;width:100%;height:620px;border-radius:24px;overflow:hidden;background:radial-gradient(circle at 50% 42%,#31204a 0%,#101827 48%,#020617 100%);border:2px solid rgba(236,72,153,.55);box-shadow:0 0 38px rgba(236,72,153,.18),inset 0 0 28px rgba(56,189,248,.10);">
+          <div id="nasa-3d-status" style="position:absolute;z-index:3;top:16px;left:18px;padding:9px 13px;border-radius:12px;background:rgba(15,23,42,.82);border:1px solid rgba(236,72,153,.35);color:#fbcfe8;font:700 12px Arial;">NASA görüntüsü yükleniyor…</div>
+          <div style="position:absolute;z-index:3;bottom:14px;left:16px;padding:8px 11px;border-radius:10px;background:rgba(15,23,42,.78);color:#cbd5e1;font:12px Arial;">Sürükle: döndür · Tekerlek: yakınlaştır</div>
+          <canvas id="nasa-3d-canvas" style="width:100%;height:100%;display:block;"></canvas>
+        </div>
+        <script>
+        (() => {
+          const shell=document.getElementById('nasa-3d-shell');
+          const canvas=document.getElementById('nasa-3d-canvas');
+          const status=document.getElementById('nasa-3d-status');
+
+          function startGlobe(){
+            try {
+              if(!window.THREE) throw new Error('Three.js yüklenemedi');
+              if(!window.WebGLRenderingContext) throw new Error('Tarayıcı WebGL desteklemiyor');
+          const scene=new THREE.Scene();
+          const camera=new THREE.PerspectiveCamera(38,shell.clientWidth/shell.clientHeight,.1,100);
+          camera.position.set(0,0,3.15);
+          const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.25));
+          renderer.setSize(shell.clientWidth,shell.clientHeight,false);
+          const globe=new THREE.Group(); scene.add(globe);
+          const material=new THREE.MeshPhongMaterial({color:0xffffff,shininess:8});
+          globe.add(new THREE.Mesh(new THREE.SphereGeometry(1,96,64),material));
+          scene.add(new THREE.AmbientLight(0xffffff,1.4));
+          const sun=new THREE.DirectionalLight(0xffffff,1.1); sun.position.set(3,2,4); scene.add(sun);
+          const layer=__LAYER__, date=__DATE__, timeParam=__TIME_PARAM__;
+          const base='https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi';
+          const textureUrl=base+'?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG:4326&BBOX=-180,-90,180,90&WIDTH=2048&HEIGHT=1024&LAYERS='+encodeURIComponent(layer)+'&STYLES=&FORMAT=image/jpeg&TRANSPARENT=FALSE'+timeParam;
+          const loader=new THREE.TextureLoader(); loader.setCrossOrigin('anonymous');
+          loader.load(textureUrl, texture=>{
+            texture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+            material.map=texture; material.needsUpdate=true; status.textContent='NASA GIBS görüntüsü yüklendi · '+layer;requestDraw();
+          },undefined,()=>{status.textContent='Bu katmanda seçilen tarih için görüntü yok. Başka NASA tarihi/katmanı seç.';});
+          const lat=__LAT__, lon=__LON__;
+          const phi=(90-lat)*Math.PI/180, theta=(lon+180)*Math.PI/180;
+          const marker=new THREE.Mesh(new THREE.SphereGeometry(.018,14,10),new THREE.MeshBasicMaterial({color:0xffd166}));
+          marker.position.set(-Math.sin(phi)*Math.cos(theta)*1.012,Math.cos(phi)*1.012,Math.sin(phi)*Math.sin(theta)*1.012);
+          globe.add(marker);
+          let dragging=false,lastX=0,lastY=0,rotX=0,rotY=0,framePending=false;
+          function draw(){
+            framePending=false;
+            globe.rotation.y=rotY;globe.rotation.x=rotX;
+            renderer.render(scene,camera);
+          }
+          function requestDraw(){
+            if(framePending||document.hidden)return;
+            framePending=true;requestAnimationFrame(draw);
+          }
+          canvas.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId);});
+          canvas.addEventListener('pointermove',e=>{
+            if(!dragging)return;
+            rotY+=(e.clientX-lastX)*.006;rotX+=(e.clientY-lastY)*.006;
+            rotX=Math.max(-1.35,Math.min(1.35,rotX));
+            lastX=e.clientX;lastY=e.clientY;requestDraw();
+          });
+          canvas.addEventListener('pointerup',()=>dragging=false);
+          canvas.addEventListener('pointercancel',()=>dragging=false);
+          canvas.addEventListener('wheel',e=>{
+            e.preventDefault();camera.position.z=Math.max(1.7,Math.min(5,camera.position.z+e.deltaY*.003));requestDraw();
+          },{passive:false});
+          const resize=()=>{
+            const w=shell.clientWidth,h=shell.clientHeight;
+            camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);requestDraw();
+          };
+          if(window.ResizeObserver)new ResizeObserver(resize).observe(shell);else window.addEventListener('resize',resize);
+          requestDraw();
+          document.addEventListener('visibilitychange',()=>{if(!document.hidden)requestDraw();});
+
+            } catch(error) {
+              console.error('NASA 3D Dünya başlatılamadı:', error);
+              status.textContent='3D motoru başlatılamadı: '+(error.message||'WebGL hatası');
+            }
+          }
+
+          const sources=[
+            'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.128.0/three.min.js',
+            'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js',
+            'https://unpkg.com/three@0.128.0/build/three.min.js'
+          ];
+          function loadThree(index){
+            if(window.THREE){startGlobe();return;}
+            if(index>=sources.length){
+              status.textContent='3D motoru yüklenemedi. CDN adreslerine erişilemiyor; sayfayı yenileyip tekrar deneyin.';
+              return;
+            }
+            status.textContent='3D motoru yükleniyor… ('+(index+1)+'/3)';
+            const script=document.createElement('script');
+            script.src=sources[index];
+            script.async=true;
+            script.onload=()=>window.THREE?startGlobe():loadThree(index+1);
+            script.onerror=()=>loadThree(index+1);
+            document.head.appendChild(script);
+          }
+          loadThree(0);
+        })();
+        </script>
+        """
+        globe_html = (globe_html.replace("__LAYER__", json.dumps(globe_layer))
+                      .replace("__DATE__", json.dumps(globe_date))
+                      .replace("__TIME_PARAM__", json.dumps("&TIME=" + globe_date if globe_has_time else ""))
+                      .replace("__LAT__", str(float(st.session_state.secilen_lat)))
+                      .replace("__LON__", str(float(st.session_state.secilen_lon))))
+        components.html(globe_html, height=570, scrolling=False)
+    except Exception as globe_error:
+        st.error(f"NASA 3D Dünya katmanı hazırlanamadı: {globe_error}")
 
 
 if aktif_sekme == "📊 Trendler":
